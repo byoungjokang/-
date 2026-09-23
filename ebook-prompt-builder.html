@@ -115,6 +115,7 @@
   .out-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .out-head strong { font-size: 14px; color: var(--accent); letter-spacing: 0.04em; }
   .out-actions { display: flex; gap: 8px; }
+  .sub-note { font-weight: 400; color: var(--ink-faint); letter-spacing: 0; font-size: 13px; }
   pre.result {
     margin: 0; white-space: pre-wrap; word-break: break-word;
     font-family: var(--body); font-size: 14.5px; line-height: 1.8;
@@ -313,7 +314,7 @@
 
       <div class="out">
         <div class="out-head">
-          <strong>완성된 프롬프트</strong>
+          <strong>완성된 프롬프트 <span class="sub-note">(이 프롬프트를 가지고 개인 AI에게 맡기면 또 다른 전자책이 나와요)</span></strong>
           <div class="out-actions"><button class="btn ghost" id="copyManual" type="button">복사</button></div>
         </div>
         <pre class="result" id="manualText"></pre>
