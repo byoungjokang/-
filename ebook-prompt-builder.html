@@ -136,6 +136,10 @@
   }
   .chip:hover { background: var(--accent-wash); }
 
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-strong); border-radius: 4px; overflow: hidden; }
+  .seg-btn { font: inherit; font-size: 14px; font-weight: 700; padding: 11px 8px; cursor: pointer; background: transparent; color: var(--ink-faint); border: 0; }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--line-strong); }
+  .seg-btn[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent-soft); }
   .pane { display: flex; flex-direction: column; gap: 22px; }
   .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .cats.sub { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
@@ -217,6 +221,11 @@
       <p class="note" id="topicFoot" hidden>시장성·대중성 점수와 근거는 AI가 알고 있는 내용으로 추정한 거예요. 고르기 전에 '검색해보기'로 네이버에서 실제 질문·후기가 있는지 꼭 확인하세요.</p>
     </div>
 
+    <div class="seg" id="modeSeg" role="group" aria-label="챕터 집필 방식" hidden>
+      <button type="button" class="seg-btn" id="modeAi" aria-pressed="true">원고 붙여넣고 AI로</button>
+      <button type="button" class="seg-btn" id="modeManual" aria-pressed="false">직접 입력으로 만들기</button>
+    </div>
+
     <div id="genericPane" class="pane">
     <div class="field">
       <label class="lbl" for="src" id="srcLabel">원고</label>
@@ -254,16 +263,8 @@
       <pre class="result" id="aiText"></pre>
     </div>
     </div>
-  </section>
-
-  <!-- 직접 입력 섹션 -->
-  <section style="display:flex;flex-direction:column;gap:18px">
-    <div>
-      <h2>직접 입력으로 만들기</h2>
-      <p class="lede">항목을 손으로 다듬고 싶을 때, 또는 AI 없이 빠르게 조합할 때 사용하세요. 완성된 프롬프트를 ChatGPT·Claude에 붙여넣으면 전자책 초안이 나와요.</p>
-    </div>
-
-    <div class="panel">
+    <div id="manualPane" class="pane" hidden>
+      <p class="hint" style="margin:0">항목을 손으로 채우면 AI 없이 바로 전자책 집필 프롬프트가 완성돼요. 원고가 아직 없을 때 쓰세요.</p>
       <div>
         <div class="chips-lbl">책 유형 <span>— 눌러서 기본값 채우기</span></div>
         <div class="chips" id="presets"></div>
@@ -323,7 +324,8 @@
     </div>
   </section>
 
-  <footer>AI 생성은 보는 사람의 Claude 계정으로 실행돼요. 처음 누를 때 허용 창이 한 번 떠요. 아래 직접 입력 기능은 AI 없이 바로 작동해요.</footer>
+
+  <footer>AI 생성은 보는 사람의 Claude 계정으로 실행돼요. 처음 누를 때 허용 창이 한 번 떠요. 챕터 집필 탭의 '직접 입력으로 만들기'는 AI 없이 바로 작동해요.</footer>
 </div>
 
 <script>
@@ -398,14 +400,27 @@
     tabsEl.appendChild(b);
   });
 
+  let manualMode = false;
+  function applyPanes() {
+    const t = TABS[current];
+    const isChapter = t.key === "chapter";
+    $("topicPane").hidden = !t.custom;
+    $("modeSeg").hidden = !isChapter;
+    $("manualPane").hidden = !(isChapter && manualMode);
+    $("genericPane").hidden = !!t.custom || (isChapter && manualMode);
+    $("modeAi").setAttribute("aria-pressed", String(!manualMode));
+    $("modeManual").setAttribute("aria-pressed", String(manualMode));
+  }
+  $("modeAi").addEventListener("click", () => { manualMode = false; applyPanes(); });
+  $("modeManual").addEventListener("click", () => { manualMode = true; applyPanes(); });
+
   function selectTab(i) {
     if (!TABS[current].custom) drafts[TABS[current].key] = $("src").value;
     const prev = current;
     current = i;
     const t = TABS[i];
     [...tabsEl.children].forEach((b, j) => b.setAttribute("aria-selected", String(j === i)));
-    $("topicPane").hidden = !t.custom;
-    $("genericPane").hidden = !!t.custom;
+    applyPanes();
     if (!t.custom) {
       $("srcLabel").textContent = t.srcLabel;
       $("src").placeholder = t.ph;
