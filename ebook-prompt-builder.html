@@ -148,7 +148,10 @@
     border: 1px solid var(--line-strong); border-radius: 4px; padding: 10px 12px;
     font-size: 14px; color: var(--ink-soft); line-height: 1.4;
   }
-  .check input { accent-color: var(--accent); width: 17px; height: 17px; margin: 0; flex: none; }
+  .check.other { grid-column: span 2; }
+  @media (max-width: 400px) { .check.other { grid-column: auto; } }
+  .check input.other-input { flex: 1; min-width: 0; width: auto; height: auto; padding: 6px 10px; font-size: 14px; font-weight: 400; accent-color: auto; }
+  .check input[type=checkbox] { accent-color: var(--accent); width: 17px; height: 17px; margin: 0; flex: none; }
   .check:has(input:checked) { border-color: var(--accent); background: var(--accent-wash); color: var(--ink); font-weight: 700; }
   .check:has(input:focus-visible) { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
 
@@ -509,30 +512,47 @@ ${src.slice(0, 50000)}`;
   ];
 
   // 체크박스지만 한 번에 하나만 켜지게
-  function checkList(el, items, name, onChange) {
+  // 체크박스지만 한 번에 하나만 켜지게. 마지막에 '기타(직접 입력)' 칸이 붙는다.
+  function checkList(el, items, name, onChange, otherPh) {
     el.innerHTML = "";
-    items.forEach((label, i) => {
+    const all = [...items, null];
+    all.forEach((label, i) => {
       const lab = document.createElement("label");
-      lab.className = "check";
+      lab.className = "check" + (label === null ? " other" : "");
       const cb = document.createElement("input");
-      cb.type = "checkbox"; cb.id = name + "-" + i; cb.value = label;
-      cb.addEventListener("change", () => {
-        if (cb.checked) el.querySelectorAll("input").forEach(o => { if (o !== cb) o.checked = false; });
+      cb.type = "checkbox"; cb.id = name + "-" + i;
+      const pick = () => {
+        el.querySelectorAll("input[type=checkbox]").forEach(o => { if (o !== cb) o.checked = false; });
         onChange(cb.checked ? i : -1);
-      });
-      lab.append(cb, document.createTextNode(label));
+      };
+      cb.addEventListener("change", pick);
+      lab.append(cb);
+      if (label === null) {
+        const txt = document.createElement("input");
+        txt.type = "text"; txt.id = name + "-other"; txt.className = "other-input";
+        txt.placeholder = otherPh; txt.setAttribute("aria-label", "기타 직접 입력");
+        txt.addEventListener("input", () => {
+          const on = txt.value.trim() !== "";
+          if (cb.checked !== on) { cb.checked = on; pick(); }
+        });
+        lab.append(document.createTextNode("기타"), txt);
+      } else {
+        lab.append(document.createTextNode(label));
+      }
       el.appendChild(lab);
     });
   }
+  const otherVal = (name) => ($(name + "-other")?.value || "").trim();
   let catIdx = -1, subIdx = -1;
   checkList($("cats"), CATS.map(c => c[0]), "cat", (i) => {
     catIdx = i; subIdx = -1;
-    $("subWrap").hidden = i < 0;
-    if (i >= 0) {
+    const isOther = i === CATS.length;
+    $("subWrap").hidden = i < 0 || isOther;
+    if (i >= 0 && !isOther) {
       $("knife").textContent = "선택 · 이 분야의 칼: " + CATS[i][1];
-      checkList($("subs"), CATS[i][2], "sub", (j) => { subIdx = j; });
+      checkList($("subs"), CATS[i][2], "sub", (j) => { subIdx = j; }, "직접 입력");
     }
-  });
+  }, "예: 퍼스널컬러, 사주, 운전");
 
   function topicState(msg, kind) {
     const el = $("topicState");
@@ -586,8 +606,18 @@ ${src.slice(0, 50000)}`;
     if (catIdx < 0) { topicState("관심 분야를 하나 체크해주세요.", "err"); return; }
     const sample = await samplePromise;
     if (!sample) { topicState("이 화면에서는 AI 생성을 쓸 수 없어요.", "err"); return; }
-    const [cat, knife] = CATS[catIdx];
-    const sub = subIdx >= 0 ? CATS[catIdx][2][subIdx] : "";
+    let cat, knife, sub = "";
+    if (catIdx === CATS.length) {
+      cat = otherVal("cat");
+      if (!cat) { topicState("기타 칸에 관심 키워드를 적어주세요.", "err"); $("cat-other").focus(); return; }
+      knife = "대상(누가) × 상황(어디서·언제) × 결핍(뭐가 막히나) × 결과(눈에 보이는 한 장면) × 방법(내 무기). 이 키워드에서 사람들이 돈을 쓰는 결핍 장면을 먼저 찾는다.";
+    } else {
+      [cat, knife] = CATS[catIdx];
+      if (subIdx === CATS[catIdx][2].length) {
+        sub = otherVal("sub");
+        if (!sub) { topicState("세부 분야 기타 칸에 키워드를 적어주세요.", "err"); $("sub-other").focus(); return; }
+      } else if (subIdx >= 0) sub = CATS[catIdx][2][subIdx];
+    }
     const who = $("t_who").value.trim();
     const me = $("t_me").value.trim();
 
