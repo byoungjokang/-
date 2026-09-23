@@ -178,9 +178,9 @@
   <header>
     <div class="eyebrow">EBOOK · GENERATOR</div>
     <h1>전자책 생성기</h1>
-    <p class="lede">관심 분야 하나를 고르면 팔리는 주제부터 뽑아주고, 원고나 메모를 붙여넣으면 제목·목차·챕터·표지·본문 이미지에 쓸 프롬프트까지 만들어줘요. 목적에 맞는 탭을 골라 사용하세요.</p>
+    <p class="lede">관심 분야 하나를 고르면 팔리는 주제와 제목부터 뽑아주고, 이어서 목차·챕터·표지·본문 이미지에 쓸 프롬프트까지 만들어줘요. 목적에 맞는 탭을 골라 사용하세요.</p>
     <div class="flow" aria-label="전자책 제작 순서">
-      <span class="step">팔리는 주제</span>→<span class="step">제목·부제</span>→<span class="step">목차</span>→<span class="step">챕터 집필</span>→<span class="step">표지 이미지</span>→<span class="step">본문 이미지</span>
+      <span class="step">팔리는 주제</span>→<span class="step">목차 설계</span>→<span class="step">챕터 집필</span>→<span class="step">표지 이미지</span>→<span class="step">본문 이미지</span>
     </div>
   </header>
 
@@ -336,25 +336,12 @@
   const TABS = [
     { key: "topic", label: "팔리는 주제", custom: true },
     {
-      key: "title", label: "제목·부제",
-      srcLabel: "원고 또는 기획 메모",
-      ph: "제목을 뽑기 위해 서문, 목차, 핵심 메시지 등 가진 걸 다 붙여넣으세요.",
-      btn: "제목·부제 문구 생성",
-      task: `이 전자책의 판매용 제목과 부제를 만든다.
-- 제목 후보 8개: 결핍을 찌르거나 결과를 약속하거나 통념을 뒤집는 식으로 유형을 섞는다. 각 후보 옆에 [문법]을 붙인다.
-- 8개 중 최소 5개는 숫자를 넣는다. 숫자는 독자가 치를 비용이나 얻을 결과를 미리 알려줘야 한다: 기간(2주, 30일), 하루 투자 시간(하루 10분), 개수(20개 기본템, 3단계), 금액(월 100만 원, 50만 원으로), 확률(100명 중 99명이), 변화량(10kg, 5살 어려 보이는).
-- 숫자 꼴(기간·개수·금액·확률·변화량)이 겹치지 않게 섞고, 같은 문법은 2번까지만 쓴다.
-- 각 제목에 어울리는 부제 1줄 (누가·어떤 결과를 얻는지가 드러나게, 25자 안팎).
-- 마지막에 "추천 1순위"와 그 이유 2줄.
-- 표지·상세페이지 상단에 쓸 한 줄 카피 3개.`
-    },
-    {
-      key: "toc", label: "목차",
-      srcLabel: "원고 또는 주제·메모",
+      key: "toc", label: "목차 설계",
+      srcLabel: "확정 주제 + 원고·메모",
       ph: "목차를 짜기 위해 원고 초안이나 주제, 쓰고 싶은 내용 메모를 붙여넣으세요.",
       btn: "목차 프롬프트 생성",
       task: `원고/메모를 읽고 전자책 목차를 설계한다.
-- 먼저 이 책의 원씽 한 문장: "(누가)(어떤 상황에서)(뭐가 안 돼서)(어떤 결과를 얻는)(무슨 방법)".
+- [확정 주제·제목]이 있으면 그 제목과 원씽을 그대로 쓰고 바꾸지 않는다. 없을 때만 원씽 한 문장을 새로 만든다: "(누가)(어떤 상황에서)(뭐가 안 돼서)(어떤 결과를 얻는)(무슨 방법)".
 - PART 3~4개 + 챕터 7~10개. 흐름은 "문제 인식 → 원인 해체 → 해결 방법 → 실전 적용". 각 챕터 제목은 궁금증이 생기게, 한 줄 요약을 붙인다.
 - 그다음 "이 목차로 챕터를 쓰게 하는 프롬프트"를 한 덩어리로 작성한다. 사용자가 그대로 복사해 ChatGPT/Claude에 붙여넣을 수 있게, 역할·독자·문체·챕터 구조(도입 사례 → 핵심 주장 → 근거 → 방법 → 실천 과제)·분량을 모두 담는다.`
     },
@@ -566,7 +553,7 @@ ${src.slice(0, 50000)}`;
       card.className = "topic";
       const q = encodeURIComponent(t.search || t.title || "");
       card.innerHTML = `
-        <div class="topic-head"><span class="topic-no">${String(i + 1).padStart(2, "0")}</span><span class="topic-title">${esc(t.title)}</span></div>
+        <div class="topic-head"><span class="topic-no">${String(i + 1).padStart(2, "0")}</span><span class="topic-title">${esc(t.title)}${t.subtitle ? `<br><span class="topic-one">${esc(t.subtitle)}</span>` : ""}</span></div>
         <p class="topic-one">${esc(t.onething)}</p>
         <div class="scores">
           <span>시장성 <b>${esc(t.market)}</b>${meter(t.market)}</span>
@@ -576,7 +563,7 @@ ${src.slice(0, 50000)}`;
         <p class="why"><b>팔릴 근거</b> ${esc(t.evidence)}</p>
         ${t.edge ? `<p class="why"><b>차별화</b> ${esc(t.edge)}</p>` : ""}
         <div class="topic-actions">
-          <button class="btn ghost" type="button" data-pick="${i}">이 주제로 제목 짓기</button>
+          <button class="btn ghost" type="button" data-pick="${i}">이 주제로 목차 설계</button>
           <a href="https://search.naver.com/search.naver?query=${q}" target="_blank" rel="noopener">네이버에서 검색해보기 ↗</a>
           <a href="https://kmong.com/search?keyword=${q}" target="_blank" rel="noopener">크몽 경쟁 확인 ↗</a>
         </div>`;
@@ -586,10 +573,10 @@ ${src.slice(0, 50000)}`;
     $("topicFoot").hidden = list.length === 0;
     box.querySelectorAll("[data-pick]").forEach(b => b.addEventListener("click", () => {
       const t = list[Number(b.dataset.pick)];
-      const titleIdx = TABS.findIndex(x => x.key === "title");
-      drafts.title = `[확정 주제]\n${t.title}\n\n[원씽 한 문장]\n${t.onething}\n\n[팔릴 근거]\n${t.evidence}\n\n[차별화]\n${t.edge || ""}\n\n[저자 경험·강점]\n${$("t_me").value.trim() || "(없음)"}`;
+      const tocIdx = TABS.findIndex(x => x.key === "toc");
+      drafts.toc = `[확정 주제·제목]\n${t.title}\n${t.subtitle ? "부제: " + t.subtitle + "\n" : ""}\n[원씽 한 문장]\n${t.onething}\n\n[팔릴 근거]\n${t.evidence}\n\n[차별화]\n${t.edge || ""}\n\n[저자 경험·강점]\n${$("t_me").value.trim() || "(없음)"}`;
       if ($("t_who").value.trim()) $("reader").value = $("t_who").value.trim();
-      selectTab(titleIdx);
+      selectTab(tocIdx);
       $("src").scrollIntoView({ behavior: "smooth", block: "center" });
     }));
   }
@@ -634,7 +621,7 @@ ${who ? "대상 좁히기: " + who + "\n" : ""}나와의 접점: ${$("t_link").v
 
 [출력]
 JSON 배열 하나만. 설명·코드블록 없이. 시장성+대중성 합이 높은 순으로 정렬.
-[{"title":"숫자가 들어간 판매용 제목","onething":"원씽 한 문장","market":4,"mass":5,"evidence":"...","edge":"...","grammar":"숫자·기간형 | 확률 폭로형 | 개수형 | 금액형 | 변화량형 중 하나","search":"네이버에서 검색해볼 짧은 키워드 2~4단어"}]`;
+[{"title":"숫자가 들어간 판매용 제목","subtitle":"누가 어떤 결과를 얻는지 드러나는 부제 20~30자","onething":"원씽 한 문장","market":4,"mass":5,"evidence":"...","edge":"...","grammar":"숫자·기간형 | 확률 폭로형 | 개수형 | 금액형 | 변화량형 중 하나","search":"네이버에서 검색해볼 짧은 키워드 2~4단어"}]`;
 
     tctl = new AbortController();
     $("goTopic").disabled = true;
@@ -645,7 +632,7 @@ JSON 배열 하나만. 설명·코드블록 없이. 시장성+대중성 합이 �
       const arr = Array.isArray(list) ? list : (list?.topics || []);
       if (!arr.length) throw { code: "empty_completion" };
       renderTopics(arr.slice(0, 10));
-      topicState(`${cat}${sub ? " · " + sub : ""} — 팔리는 주제 ${Math.min(arr.length, 10)}개를 뽑았어요. 마음에 드는 걸 골라 '이 주제로 제목 짓기'를 누르세요.`, "ok");
+      topicState(`${cat}${sub ? " · " + sub : ""} — 팔리는 주제 ${Math.min(arr.length, 10)}개를 뽑았어요. 마음에 드는 걸 골라 '이 주제로 목차 설계'를 누르세요.`, "ok");
     } catch (e) {
       topicState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "결과 형식이 깨졌어요. 한 번만 다시 눌러주세요." : (ERR[e?.code] || "생성에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
     } finally {
