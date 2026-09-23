@@ -140,6 +140,23 @@
   .seg-btn { font: inherit; font-size: 14px; font-weight: 700; padding: 11px 8px; cursor: pointer; background: transparent; color: var(--ink-faint); border: 0; }
   .seg-btn + .seg-btn { border-left: 1px solid var(--line-strong); }
   .seg-btn[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent-soft); }
+  .levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  @media (max-width: 520px) { .levels { grid-template-columns: 1fr; } }
+  .level { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; border: 1px solid var(--line-strong); border-radius: 4px; padding: 11px 12px; }
+  .level input { accent-color: var(--accent); margin: 4px 0 0; flex: none; }
+  .level span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--ink-soft); }
+  .level small { font-size: 12.5px; color: var(--ink-faint); line-height: 1.5; }
+  .level:has(input:checked) { border-color: var(--accent); background: var(--accent-wash); }
+  .level:has(input:checked) b { color: var(--ink); }
+  .level:has(input:focus-visible) { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+  .go-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  .go-row .btn { width: auto; flex: 0 0 auto; padding-inline: 28px; }
+  .go-note { font-size: 13.5px; color: var(--ink-faint); }
+  @media (max-width: 520px) { .go-row .btn { width: 100%; } }
+  .src-list { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .src-head { font-weight: 700; color: var(--ink-soft); margin-bottom: 4px; }
+  .src-list a { color: var(--accent-soft); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src-list a:hover { text-decoration: underline; }
   .pane { display: flex; flex-direction: column; gap: 22px; }
   .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .cats.sub { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
@@ -183,7 +200,7 @@
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제와 제목부터 뽑아주고, 이어서 목차·챕터·표지·본문 이미지에 쓸 프롬프트까지 만들어줘요. 목적에 맞는 탭을 골라 사용하세요.</p>
     <div class="flow" aria-label="전자책 제작 순서">
-      <span class="step">팔리는 주제</span>→<span class="step">목차 설계</span>→<span class="step">챕터 집필</span>→<span class="step">표지 이미지</span>→<span class="step">본문 이미지</span>
+      <span class="step">팔리는 주제</span>→<span class="step">주제 리서치</span>→<span class="step">목차 설계</span>→<span class="step">챕터 집필</span>→<span class="step">표지 이미지</span>→<span class="step">본문 이미지</span>
     </div>
   </header>
 
@@ -222,6 +239,37 @@
       <p class="note" id="topicState" hidden></p>
       <div class="topics" id="topicList" hidden></div>
       <p class="note" id="topicFoot" hidden>시장성·대중성 점수와 근거는 AI가 알고 있는 내용으로 추정한 거예요. 고르기 전에 '검색해보기'로 네이버에서 실제 질문·후기가 있는지 꼭 확인하세요.</p>
+    </div>
+
+    <div id="researchPane" class="pane" hidden>
+      <div class="field">
+        <label class="lbl" for="r_topic">확정 주제 <small>팔리는 주제에서 고르면 자동으로 채워져요</small></label>
+        <textarea id="r_topic" style="min-height:120px" placeholder="예: 회의 때 목소리가 떨리는 3년 차 직장인이, 연기 호흡법 3단계로 2주 만에 떨지 않고 말하는 법"></textarea>
+      </div>
+      <div class="field">
+        <div class="lbl">리서치 수준 <small>높을수록 자료가 많지만 사용량을 많이 써요</small></div>
+        <div class="levels" role="radiogroup" aria-label="리서치 수준" id="levels">
+          <label class="level"><input type="radio" name="r_level" id="lv-low" value="low"><span><b>낮음</b><small>핵심만 빠르게 · 사용량 적음</small></span></label>
+          <label class="level"><input type="radio" name="r_level" id="lv-mid" value="mid" checked><span><b>보통</b><small>리서치 지도 + 전체 보고서</small></span></label>
+          <label class="level"><input type="radio" name="r_level" id="lv-high" value="high"><span><b>높음</b><small>전체 보고서 + 2차 심화·통념 검증 · 사용량 많음</small></span></label>
+        </div>
+      </div>
+      <div class="go-row">
+        <button class="btn" id="goResearch" type="button">주제 리서치 하기</button>
+        <span class="go-note">(리서치한 주제를 기반으로 목차와 초안을 뽑습니다)</span>
+      </div>
+      <p class="note" id="researchState" hidden></p>
+      <div class="out" id="researchOut" hidden>
+        <div class="out-head">
+          <strong>리서치 보고서</strong>
+          <div class="out-actions">
+            <button class="btn ghost" id="stopResearch" type="button" hidden>멈추기</button>
+            <button class="btn ghost" id="copyResearch" type="button">복사</button>
+          </div>
+        </div>
+        <pre class="result" id="researchText"></pre>
+        <button class="btn" id="toToc" type="button" hidden>이 리서치로 목차·초안 뽑기 →</button>
+      </div>
     </div>
 
     <div class="seg" id="modeSeg" role="group" aria-label="챕터 집필 방식" hidden>
@@ -338,14 +386,17 @@
   // ---------- AI 탭 정의 ----------
   const TABS = [
     { key: "topic", label: "팔리는 주제", custom: true },
+    { key: "research", label: "주제 리서치", custom: true },
     {
       key: "toc", label: "목차 설계",
       srcLabel: "확정 주제 + 원고·메모",
       ph: "목차를 짜기 위해 원고 초안이나 주제, 쓰고 싶은 내용 메모를 붙여넣으세요.",
       btn: "목차 프롬프트 생성",
-      task: `원고/메모를 읽고 전자책 목차를 설계한다.
+      task: `원고/메모(와 [주제 리서치 보고서]가 있으면 그것)를 읽고 전자책 목차와 초안을 설계한다.
+- [주제 리서치 보고서]가 있으면 그 안의 【사람들이 실제로 막히는 지점】【목차 재료】【걸러야 할 통념】을 근거로 챕터를 짜고, 각 챕터 옆에 (근거: …)를 짧게 단다.
 - [확정 주제·제목]이 있으면 그 제목과 원씽을 그대로 쓰고 바꾸지 않는다. 없을 때만 원씽 한 문장을 새로 만든다: "(누가)(어떤 상황에서)(뭐가 안 돼서)(어떤 결과를 얻는)(무슨 방법)".
 - PART 3~4개 + 챕터 7~10개. 흐름은 "문제 인식 → 원인 해체 → 해결 방법 → 실전 적용". 각 챕터 제목은 궁금증이 생기게, 한 줄 요약을 붙인다.
+- 각 챕터마다 초안 3~4줄: 도입 장면 1줄, 핵심 주장 1줄, 쓸 근거·사례 1~2줄.
 - 그다음 "이 목차로 챕터를 쓰게 하는 프롬프트"를 한 덩어리로 작성한다. 사용자가 그대로 복사해 ChatGPT/Claude에 붙여넣을 수 있게, 역할·독자·문체·챕터 구조(도입 사례 → 핵심 주장 → 근거 → 방법 → 실천 과제)·분량을 모두 담는다.`
     },
     {
@@ -394,7 +445,8 @@
   function applyPanes() {
     const t = TABS[current];
     const isChapter = t.key === "chapter";
-    $("topicPane").hidden = !t.custom;
+    $("topicPane").hidden = t.key !== "topic";
+    $("researchPane").hidden = t.key !== "research";
     $("modeSeg").hidden = !isChapter;
     $("manualPane").hidden = !(isChapter && manualMode);
     $("genericPane").hidden = !!t.custom || (isChapter && manualMode);
@@ -583,7 +635,7 @@ ${src.slice(0, 50000)}`;
         <p class="why"><b>팔릴 근거</b> ${esc(t.evidence)}</p>
         ${t.edge ? `<p class="why"><b>차별화</b> ${esc(t.edge)}</p>` : ""}
         <div class="topic-actions">
-          <button class="btn ghost" type="button" data-pick="${i}">이 주제로 목차 설계</button>
+          <button class="btn ghost" type="button" data-pick="${i}">이 주제로 리서치하기</button>
           <a href="https://search.naver.com/search.naver?query=${q}" target="_blank" rel="noopener">네이버에서 검색해보기 ↗</a>
           <a href="https://kmong.com/search?keyword=${q}" target="_blank" rel="noopener">크몽 경쟁 확인 ↗</a>
         </div>`;
@@ -593,11 +645,10 @@ ${src.slice(0, 50000)}`;
     $("topicFoot").hidden = list.length === 0;
     box.querySelectorAll("[data-pick]").forEach(b => b.addEventListener("click", () => {
       const t = list[Number(b.dataset.pick)];
-      const tocIdx = TABS.findIndex(x => x.key === "toc");
-      drafts.toc = `[확정 주제·제목]\n${t.title}\n${t.subtitle ? "부제: " + t.subtitle + "\n" : ""}\n[원씽 한 문장]\n${t.onething}\n\n[팔릴 근거]\n${t.evidence}\n\n[차별화]\n${t.edge || ""}\n\n[저자 경험·강점]\n${$("t_me").value.trim() || "(없음)"}`;
+      $("r_topic").value = `[확정 주제·제목]\n${t.title}\n${t.subtitle ? "부제: " + t.subtitle + "\n" : ""}\n[원씽 한 문장]\n${t.onething}\n\n[팔릴 근거]\n${t.evidence}\n\n[차별화]\n${t.edge || ""}\n\n[저자 경험·강점]\n${$("t_me").value.trim() || "(없음)"}`;
       if ($("t_who").value.trim()) $("reader").value = $("t_who").value.trim();
-      selectTab(tocIdx);
-      $("src").scrollIntoView({ behavior: "smooth", block: "center" });
+      selectTab(TABS.findIndex(x => x.key === "research"));
+      $("researchPane").scrollIntoView({ behavior: "smooth", block: "start" });
     }));
   }
 
@@ -662,13 +713,123 @@ JSON 배열 하나만. 설명·코드블록 없이. 시장성+대중성 합이 �
       const arr = Array.isArray(list) ? list : (list?.topics || []);
       if (!arr.length) throw { code: "empty_completion" };
       renderTopics(arr.slice(0, 10));
-      topicState(`${cat}${sub ? " · " + sub : ""} — 팔리는 주제 ${Math.min(arr.length, 10)}개를 뽑았어요. 마음에 드는 걸 골라 '이 주제로 목차 설계'를 누르세요.`, "ok");
+      topicState(`${cat}${sub ? " · " + sub : ""} — 팔리는 주제 ${Math.min(arr.length, 10)}개를 뽑았어요. 마음에 드는 걸 골라 '이 주제로 리서치하기'를 누르세요.`, "ok");
     } catch (e) {
       topicState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "결과 형식이 깨졌어요. 한 번만 다시 눌러주세요." : (ERR[e?.code] || "생성에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
     } finally {
       $("goTopic").disabled = false;
       $("goTopic").textContent = "팔리는 주제 10개 생성";
     }
+  });
+
+  // ---------- 주제 리서치 ----------
+  // 검색 도구 없이 AI 지식으로 한다(공개 링크 유지). 수준은 분석 깊이·호출 횟수로 나뉜다.
+  const LEVELS = {
+    low:  { label: "낮음", tier: "default", passes: 1, depth: "짧게. 【리서치 지도】는 3줄, 나머지 섹션은 각 3~4줄, 【목차 재료】는 8개." },
+    mid:  { label: "보통", tier: "default", passes: 1, depth: "보통 분량. 모든 섹션을 충실하게, 【목차 재료】는 10개." },
+    high: { label: "높음", tier: "complex", passes: 2, depth: "깊게. 모든 섹션을 충실하게, 【목차 재료】는 12개. 이어서 2차 심화를 한 번 더 한다." },
+  };
+
+  function researchState(msg, kind) {
+    const el = $("researchState");
+    el.hidden = !msg; el.textContent = msg || "";
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+
+  let rctl = null, lastResearch = "";
+  $("goResearch").addEventListener("click", async () => {
+    const topic = $("r_topic").value.trim();
+    if (!topic) { researchState("리서치할 주제를 적거나, 팔리는 주제에서 하나 골라주세요.", "err"); $("r_topic").focus(); return; }
+    const sample = await samplePromise;
+    if (!sample) { researchState("이 화면에서는 AI 리서치를 쓸 수 없어요.", "err"); return; }
+    const lv = LEVELS[document.querySelector('input[name="r_level"]:checked')?.value || "mid"];
+
+    const prompt = `너는 전자책 주제 리서치 전문가다. 아래 [확정 주제]로 전자책 목차를 짜기 위한 리서치 보고서를 쓴다.
+검색 도구 없이 네가 아는 지식으로 쓴다. 확실하지 않은 수치·연구·인용은 쓰지 않고, 연구를 언급할 땐 널리 알려진 것만 저자·연도와 함께 쓴다. 기억이 흐리면 "~로 알려져 있다"처럼 낮춰 쓴다.
+
+[확정 주제]
+${topic}
+
+[분량] ${lv.label} — ${lv.depth}
+
+[1단계 — 리서치 지도 (먼저 스스로 판단)]
+- 주제 유형: 심리/관계/멘탈형, 실무 스킬/취미형, 재무/전문지식형, 육아/가족/반려동물형, 신념/영성형 중 무엇인지 (섞이면 섞인 대로).
+- 관련 학문·전문 분야 2~4개 (심리학이 늘 정답은 아니다).
+- 검증된 방법론·고전 계보가 있으면 적고, 없으면 억지로 만들지 않는다.
+- 대중적으로 퍼졌지만 과장되거나 틀린 통념 1~2개 (항상 채운다).
+- 유형별 톤: 심리형은 사람의 착각을 찌르고, 실무형은 시중 방법론의 허점을, 재무형은 뻔한 조언을 근거로, 신념형은 대상을 까지 않고 클리셰만 짚는다. 뻔한 위로·두루뭉술한 조언은 쓰지 않는다.
+
+[보고서 구성]
+【리서치 지도】 위 판단 결과
+【통합 인사이트】 단 하나의 핵심 명제
+【사람들이 실제로 막히는 지점】 구체적 장면으로 5~8개
+【이미 나와 있는 방법과 그 허점】 시중 콘텐츠가 반복하는 조언과, 그게 안 먹히는 이유
+【검증된 근거】 전문가 방법론·연구 (확실한 것만)
+【걸러야 할 통념】 어디까지 맞고 어디부터 틀린지
+【시장 진단과 빈틈】 이 주제가 파고들 차별화 지점
+【목차 재료】 챕터 후보 (각 한 줄 + 어떤 근거에서 나왔는지)
+【직접 확인해볼 검색어】 네이버·유튜브에 쳐볼 검색어 5개
+
+[형식]
+마크다운 기호(#, **, 표) 없이 일반 텍스트. 섹션은 【 】 제목과 빈 줄로 구분.`;
+
+    rctl = new AbortController();
+    $("goResearch").disabled = true; $("stopResearch").hidden = false;
+    $("researchOut").hidden = false; $("toToc").hidden = true;
+    $("researchText").textContent = "리서치 중… (30초~2분)";
+    researchState("");
+    let report = "";
+    try {
+      const r1 = await sample(prompt, {
+        signal: rctl.signal, modelTier: lv.tier, cache: false,
+        onText: ({ text }) => { $("researchText").textContent = text; },
+      });
+      report = r1.text;
+      let truncated = r1.truncated;
+      if (lv.passes > 1) {
+        researchState("1차 완료 · 2차 심화 리서치 중…");
+        const deep = `아래는 [확정 주제]에 대한 1차 리서치 보고서다. 1차와 겹치지 않게 2차 심화 리서치를 쓴다.
+【2차 심화 — 통념 검증】 1차의 【걸러야 할 통념】과 이 주제에서 유행하는 조언 3~5개를 하나씩: 어디까지 근거가 있고 어디부터 과장인지
+【2차 심화 — 놓친 각도】 1차에 없던 대상·상황·방법 각도 3~5개
+【2차 심화 — 챕터별 근거 매핑】 1차 【목차 재료】 각 챕터에 쓸 구체 근거·사례·장면 1~2줄씩
+【2차 심화 — 차별화 한 줄】 이 책만 할 수 있는 말 한 문장
+확실하지 않은 수치·연구·인용은 쓰지 않는다. 마크다운 기호 없이 일반 텍스트.
+
+[확정 주제]
+${topic}
+
+[1차 보고서]
+${report}`;
+        const r2 = await sample(deep, {
+          signal: rctl.signal, modelTier: lv.tier, cache: false,
+          onText: ({ text }) => { $("researchText").textContent = report + "\n\n" + text; },
+        });
+        report = report + "\n\n" + r2.text;
+        truncated = truncated || r2.truncated;
+      }
+      lastResearch = report;
+      $("researchText").textContent = report;
+      $("toToc").hidden = false;
+      researchState(truncated ? "보고서가 길어서 중간에 잘렸어요. 수준을 낮추거나 주제를 좁혀보세요." : `리서치 완료 · 수준 ${lv.label} · AI 지식 기반이라, 중요한 수치는 【직접 확인해볼 검색어】로 확인하세요.`, truncated ? "err" : "ok");
+    } catch (e) {
+      const keep = report ? report + (e?.text ? "\n\n" + e.text : "") : (e?.text || "");
+      $("researchText").textContent = keep;
+      if (report) { lastResearch = report; $("toToc").hidden = false; }
+      if (!keep) $("researchOut").hidden = true;
+      if (e?.code !== "cancelled") researchState(ERR[e?.code] || "리서치에 실패했어요. 잠시 뒤 다시 눌러주세요.", "err");
+      else researchState("멈췄어요.");
+    } finally {
+      $("goResearch").disabled = false; $("stopResearch").hidden = true;
+    }
+  });
+  $("stopResearch").addEventListener("click", () => rctl?.abort());
+  $("copyResearch").addEventListener("click", () => copy($("researchText").textContent, $("researchState")));
+
+  $("toToc").addEventListener("click", () => {
+    const tocIdx = TABS.findIndex(x => x.key === "toc");
+    drafts.toc = `${$("r_topic").value.trim()}\n\n[주제 리서치 보고서]\n${lastResearch || $("researchText").textContent}`;
+    selectTab(tocIdx);
+    $("src").scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
   // ---------- 복사 ----------
