@@ -1,0 +1,509 @@
+<title>전자책 역프롬프트 빌더</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #1c1614;
+    --panel: #221b18;
+    --field: #1a1412;
+    --line: #3d322d;
+    --line-strong: #5a4a43;
+    --ink: #f1e8e3;
+    --ink-soft: #c7b8b0;
+    --ink-faint: #8c7c74;
+    --accent: #d4919a;
+    --accent-soft: #e0a8af;
+    --accent-ink: #2a1a1c;
+    --accent-wash: rgba(212, 145, 154, 0.12);
+    --ok: #9cc7a4;
+    --display: "Gowun Batang", "Nanum Myeongjo", "AppleMyungjo", serif;
+    --body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground: #f7f1ee;
+    --panel: #fffaf8;
+    --field: #ffffff;
+    --line: #e4d6d0;
+    --line-strong: #cbb6ae;
+    --ink: #2a1f1b;
+    --ink-soft: #5c4b44;
+    --ink-faint: #8f7c74;
+    --accent: #b8646f;
+    --accent-soft: #c97a84;
+    --accent-ink: #ffffff;
+    --accent-wash: rgba(184, 100, 111, 0.09);
+    --ok: #3f7a4b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      color-scheme: light;
+      --ground: #f7f1ee;
+      --panel: #fffaf8;
+      --field: #ffffff;
+      --line: #e4d6d0;
+      --line-strong: #cbb6ae;
+      --ink: #2a1f1b;
+      --ink-soft: #5c4b44;
+      --ink-faint: #8f7c74;
+      --accent: #b8646f;
+      --accent-soft: #c97a84;
+      --accent-ink: #ffffff;
+      --accent-wash: rgba(184, 100, 111, 0.09);
+      --ok: #3f7a4b;
+    }
+  }
+  :root[data-theme="dark"] { color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 40px 16px 72px;
+    word-break: keep-all;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+  h1, h2 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+  h1 { font-size: clamp(28px, 6vw, 38px); line-height: 1.3; }
+  h2 { font-size: clamp(22px, 5vw, 28px); line-height: 1.35; font-weight: 400; }
+  .lede { color: var(--ink-soft); margin: 10px 0 0; max-width: 60ch; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.12em; color: var(--accent); font-weight: 700; margin-bottom: 10px; }
+
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; font-size: 13px; color: var(--ink-faint); align-items: center; }
+  .flow span.step { border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; color: var(--ink-soft); }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 28px 24px; display: flex; flex-direction: column; gap: 22px; }
+  @media (max-width: 480px) { .panel { padding: 22px 16px; } }
+
+  .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .tab {
+    font: inherit; font-weight: 700; font-size: 15px;
+    padding: 14px 10px; border-radius: 4px; cursor: pointer;
+    background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong);
+  }
+  .tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .tab:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  label.lbl { font-weight: 700; font-size: 15px; }
+  label.lbl small { font-weight: 400; color: var(--ink-faint); font-size: 13px; margin-left: 4px; }
+  textarea, input[type="text"], select {
+    width: 100%; font: inherit; color: var(--ink);
+    background: var(--field); border: 1px solid var(--line-strong); border-radius: 4px;
+    padding: 12px 14px;
+  }
+  textarea { min-height: 150px; resize: vertical; line-height: 1.7; }
+  textarea::placeholder, input::placeholder { color: var(--ink-faint); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: 16px; cursor: pointer;
+    width: 100%; padding: 15px; border-radius: 4px; border: 0;
+    background: var(--accent-soft); color: var(--accent-ink);
+  }
+  .btn:hover { background: var(--accent); }
+  .btn[disabled] { opacity: 0.55; cursor: progress; }
+  .btn.ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong); font-size: 14px; padding: 10px 14px; width: auto; }
+
+  .out { border-top: 1px solid var(--line); padding-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .out-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .out-head strong { font-size: 14px; color: var(--accent); letter-spacing: 0.04em; }
+  .out-actions { display: flex; gap: 8px; }
+  pre.result {
+    margin: 0; white-space: pre-wrap; word-break: break-word;
+    font-family: var(--body); font-size: 14.5px; line-height: 1.8;
+    background: var(--field); border: 1px solid var(--line); border-radius: 4px;
+    padding: 16px; max-height: 520px; overflow: auto; color: var(--ink);
+  }
+  .note { font-size: 13px; color: var(--ink-faint); margin: 0; }
+  .note.err { color: var(--accent-soft); }
+  .note.ok { color: var(--ok); }
+
+  .chips-lbl { font-weight: 700; font-size: 15px; }
+  .chips-lbl span { font-weight: 400; color: var(--ink-faint); }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .chip {
+    font: inherit; font-size: 14px; cursor: pointer;
+    padding: 9px 18px; border-radius: 999px;
+    background: transparent; color: var(--accent-soft); border: 1px solid var(--line-strong);
+  }
+  .chip:hover { background: var(--accent-wash); }
+
+  .hint { font-size: 13px; color: var(--ink-faint); margin: -12px 0 0; }
+  footer { color: var(--ink-faint); font-size: 12.5px; text-align: left; border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">EBOOK · REVERSE PROMPT</div>
+    <h1>전자책 역프롬프트 빌더</h1>
+    <p class="lede">원고나 메모를 붙여넣으면 AI가 직접 읽고, 표지·제목·목차·챕터·본문 이미지에 쓸 프롬프트를 만들어줘요. 목적에 맞는 탭을 골라 사용하세요.</p>
+    <div class="flow" aria-label="전자책 제작 순서">
+      <span class="step">제목·부제</span>→<span class="step">목차</span>→<span class="step">챕터 집필</span>→<span class="step">표지 이미지</span>→<span class="step">본문 이미지</span>
+    </div>
+  </header>
+
+  <!-- AI 섹션 -->
+  <section class="panel" aria-label="AI로 만들기">
+    <div class="tabs" role="tablist" id="tabs"></div>
+
+    <div class="field">
+      <label class="lbl" for="src" id="srcLabel">원고</label>
+      <textarea id="src"></textarea>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label class="lbl" for="reader">타깃 독자 <small>선택</small></label>
+        <input type="text" id="reader" placeholder="예: 회의 때 말 한마디 못 하는 3년 차 직장인">
+      </div>
+      <div class="field">
+        <label class="lbl" for="tone">톤 <small>선택</small></label>
+        <select id="tone">
+          <option value="">알아서</option>
+          <option>반말·직설 (코치가 옆에서 말하듯)</option>
+          <option>존댓말·다정한 에세이</option>
+          <option>정리형·실용 매뉴얼</option>
+          <option>스토리텔링·경험담 중심</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn" id="go" type="button">프롬프트 생성</button>
+    <p class="note" id="aiState" hidden></p>
+
+    <div class="out" id="aiOut" hidden>
+      <div class="out-head">
+        <strong id="aiOutTitle">결과</strong>
+        <div class="out-actions">
+          <button class="btn ghost" id="stop" type="button" hidden>멈추기</button>
+          <button class="btn ghost" id="copyAi" type="button">복사</button>
+        </div>
+      </div>
+      <pre class="result" id="aiText"></pre>
+    </div>
+  </section>
+
+  <!-- 직접 입력 섹션 -->
+  <section style="display:flex;flex-direction:column;gap:18px">
+    <div>
+      <h2>직접 입력으로 만들기</h2>
+      <p class="lede">항목을 손으로 다듬고 싶을 때, 또는 AI 없이 빠르게 조합할 때 사용하세요. 완성된 프롬프트를 ChatGPT·Claude에 붙여넣으면 전자책 초안이 나와요.</p>
+    </div>
+
+    <div class="panel">
+      <div>
+        <div class="chips-lbl">책 유형 <span>— 눌러서 기본값 채우기</span></div>
+        <div class="chips" id="presets"></div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="m_topic">주제 (원씽 한 문장)</label>
+        <input type="text" id="m_topic">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="lbl" for="m_reader">누가</label>
+          <input type="text" id="m_reader">
+        </div>
+        <div class="field">
+          <label class="lbl" for="m_pain">뭐가 안 돼서 (결핍)</label>
+          <input type="text" id="m_pain">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="lbl" for="m_result">어떤 결과를 얻는</label>
+          <input type="text" id="m_result">
+        </div>
+        <div class="field">
+          <label class="lbl" for="m_method">무슨 방법 (내 무기)</label>
+          <input type="text" id="m_method">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="lbl" for="m_tone">문체</label>
+          <input type="text" id="m_tone">
+        </div>
+        <div class="field">
+          <label class="lbl" for="m_size">분량</label>
+          <select id="m_size">
+            <option value="5개 챕터, 챕터당 A4 3~4장 (총 약 20~30쪽)">얇게 · 20~30쪽</option>
+            <option value="7개 챕터, 챕터당 A4 5~6장 (총 약 40~60쪽)" selected>보통 · 40~60쪽</option>
+            <option value="10개 챕터, 챕터당 A4 7~8장 (총 약 80~100쪽)">두껍게 · 80~100쪽</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="lbl" for="m_story">넣고 싶은 내 경험·사례 <small>선택</small></label>
+        <textarea id="m_story" style="min-height:90px"></textarea>
+      </div>
+
+      <div class="out">
+        <div class="out-head">
+          <strong>완성된 프롬프트</strong>
+          <div class="out-actions"><button class="btn ghost" id="copyManual" type="button">복사</button></div>
+        </div>
+        <pre class="result" id="manualText"></pre>
+        <p class="note" id="manualNote" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <footer>AI 생성은 보는 사람의 Claude 계정으로 실행돼요. 처음 누를 때 허용 창이 한 번 떠요. 아래 직접 입력 기능은 AI 없이 바로 작동해요.</footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- AI 탭 정의 ----------
+  const TABS = [
+    {
+      key: "title", label: "제목·부제",
+      srcLabel: "원고 또는 기획 메모",
+      ph: "제목을 뽑기 위해 서문, 목차, 핵심 메시지 등 가진 걸 다 붙여넣으세요.",
+      btn: "제목·부제 문구 생성",
+      task: `이 전자책의 판매용 제목과 부제를 만든다.
+- 제목 후보 8개: 12자 안팎, 결핍을 찌르거나 결과를 약속하거나 통념을 뒤집는 식으로 유형을 섞는다. 각 후보 옆에 [유형]을 붙인다.
+- 각 제목에 어울리는 부제 1줄 (누가·어떤 결과를 얻는지가 드러나게, 25자 안팎).
+- 마지막에 "추천 1순위"와 그 이유 2줄.
+- 표지·상세페이지 상단에 쓸 한 줄 카피 3개.`
+    },
+    {
+      key: "toc", label: "목차",
+      srcLabel: "원고 또는 주제·메모",
+      ph: "목차를 짜기 위해 원고 초안이나 주제, 쓰고 싶은 내용 메모를 붙여넣으세요.",
+      btn: "목차 프롬프트 생성",
+      task: `원고/메모를 읽고 전자책 목차를 설계한다.
+- 먼저 이 책의 원씽 한 문장: "(누가)(어떤 상황에서)(뭐가 안 돼서)(어떤 결과를 얻는)(무슨 방법)".
+- PART 3~4개 + 챕터 7~10개. 흐름은 "문제 인식 → 원인 해체 → 해결 방법 → 실전 적용". 각 챕터 제목은 궁금증이 생기게, 한 줄 요약을 붙인다.
+- 그다음 "이 목차로 챕터를 쓰게 하는 프롬프트"를 한 덩어리로 작성한다. 사용자가 그대로 복사해 ChatGPT/Claude에 붙여넣을 수 있게, 역할·독자·문체·챕터 구조(도입 사례 → 핵심 주장 → 근거 → 방법 → 실천 과제)·분량을 모두 담는다.`
+    },
+    {
+      key: "chapter", label: "챕터 집필",
+      srcLabel: "목차 + 이번 챕터 메모",
+      ph: "전체 목차와, 이번에 쓸 챕터 제목·하고 싶은 말·내 경험을 붙여넣으세요.",
+      btn: "챕터 집필 프롬프트 생성",
+      task: `붙여넣은 목차와 메모를 보고, 이 챕터 하나를 쓰게 만드는 '역프롬프트'를 만든다.
+- 먼저 이 챕터의 핵심 주장 1문장, 독자가 챕터를 읽고 얻을 변화 1문장.
+- 그다음 복사용 프롬프트 한 덩어리: 역할, 독자, 문체 규칙(문장 길이·말투·금지 표현), 구조(훅이 되는 장면 → 통념 제시 → 뒤집기 → 방법 3단계 → 오늘 할 실천 1개), 반드시 넣을 저자 경험, 분량(A4 4~6장), 마지막 문장 처리 방식.
+- 원고에 저자 경험이 있으면 그 표현을 살리고 지어내지 말라고 명시한다.`
+    },
+    {
+      key: "cover", label: "표지 이미지",
+      srcLabel: "원고 전체 또는 제목·목차",
+      ph: "표지 이미지를 만들기 위해 제목, 부제, 목차나 원고 전체를 붙여넣으세요.",
+      btn: "표지 이미지 프롬프트 생성",
+      task: `이 전자책의 표지 이미지를 만들 이미지 생성 AI(미드저니, 달리, 나노바나나 등)용 프롬프트를 만든다.
+- 책의 정서를 한 줄로 요약 (예: "혼자 버티던 사람이 숨을 고르는 순간").
+- 표지 콘셉트 3안. 각 안마다: 콘셉트 이름, 한국어 설명 2줄, 영어 이미지 프롬프트(구도·피사체·조명·색감·질감·스타일, 세로 3:4 전자책 표지 비율, 상단/하단에 제목 넣을 여백, 이미지 안에 글자 넣지 말 것 "no text").
+- 마지막에 어울리는 제목 폰트 느낌과 컬러 팔레트(HEX 3개).`
+    },
+    {
+      key: "body", label: "본문 이미지 (일부분)",
+      srcLabel: "챕터 본문 일부",
+      ph: "이미지를 넣을 챕터나 단락을 붙여넣으세요. 앞뒤 흐름이 보이면 더 정확해요.",
+      btn: "본문 이미지 프롬프트 생성",
+      task: `붙여넣은 본문에서 이미지를 넣으면 좋은 지점을 3~5곳 고르고, 각각의 삽화/인포그래픽 프롬프트를 만든다.
+- 각 지점마다: 넣을 위치(해당 문장 앞부분 인용), 이미지 유형(장면컷/설명 인포그래픽/비교표/체크리스트), 한국어 설명 1줄, 영어 이미지 프롬프트(가로 16:9 또는 1:1 명시, 일관된 일러스트 스타일).
+- 모든 이미지에 공통으로 붙일 "스타일 고정 문구"를 영어로 맨 위에 먼저 제시해 책 전체 톤이 흔들리지 않게 한다.`
+    }
+  ];
+
+  let current = 0;
+  const drafts = {};
+  const tabsEl = $("tabs");
+  TABS.forEach((t, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "tab"; b.role = "tab"; b.id = "tab-" + t.key;
+    b.textContent = t.label;
+    b.addEventListener("click", () => selectTab(i));
+    tabsEl.appendChild(b);
+  });
+
+  function selectTab(i) {
+    drafts[TABS[current].key] = $("src").value;
+    current = i;
+    const t = TABS[i];
+    [...tabsEl.children].forEach((b, j) => b.setAttribute("aria-selected", String(j === i)));
+    $("srcLabel").textContent = t.srcLabel;
+    $("src").placeholder = t.ph;
+    $("src").value = drafts[t.key] ?? (i === 0 ? "" : $("src").value);
+    $("go").textContent = t.btn;
+    $("aiOutTitle").textContent = t.label + " 결과";
+    try { localStorage.setItem("ebook-rpb-tab", t.key); } catch (e) {}
+  }
+  let startTab = 0;
+  try {
+    const saved = localStorage.getItem("ebook-rpb-tab");
+    const idx = TABS.findIndex(t => t.key === saved);
+    if (idx >= 0) startTab = idx;
+  } catch (e) {}
+  selectTab(startTab);
+
+  // ---------- AI 호출 ----------
+  let samplePromise = window.claude?.use ? window.claude.use("sample") : Promise.resolve(null);
+  let ctl = null;
+
+  const ERR = {
+    not_granted: "AI 사용이 허용되지 않았어요. 아래 '직접 입력으로 만들기'는 그대로 쓸 수 있어요.",
+    rate_limited: "요청이 많아요. 잠시 뒤에 다시 눌러주세요.",
+    prompt_too_large: "원고가 너무 길어요. 핵심 챕터나 목차만 남기고 다시 시도해주세요.",
+    refused: "이 내용으로는 답을 만들지 못했어요. 원고를 조금 바꿔 다시 시도해주세요.",
+    session_expired: "로그인이 만료됐어요. 페이지를 새로고침해주세요.",
+  };
+
+  function setState(msg, kind) {
+    const el = $("aiState");
+    el.hidden = !msg; el.textContent = msg || "";
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+
+  $("go").addEventListener("click", async () => {
+    const src = $("src").value.trim();
+    if (!src) { setState("먼저 원고나 메모를 붙여넣어주세요.", "err"); $("src").focus(); return; }
+    const sample = await samplePromise;
+    if (!sample) { setState("이 화면에서는 AI 생성을 쓸 수 없어요. 아래 '직접 입력으로 만들기'를 이용해주세요.", "err"); return; }
+
+    const t = TABS[current];
+    const reader = $("reader").value.trim();
+    const tone = $("tone").value;
+    const prompt = `너는 한국 전자책(PDF 전자책, 크몽·탈잉·클래스101 등에서 판매) 기획·편집 전문가다.
+아래 [원고]를 끝까지 읽고 작업을 수행한다. 원고에 없는 사실·수치·경험담은 지어내지 않는다.
+${reader ? "타깃 독자: " + reader + "\n" : ""}${tone ? "문체: " + tone + "\n" : ""}
+[작업]
+${t.task}
+
+[출력 형식]
+마크다운 기호(#, **, 표)는 쓰지 말고, 사람이 바로 복사해 쓸 수 있는 일반 텍스트로. 섹션 구분은 【 】 제목과 빈 줄로 한다.
+
+[원고]
+${src.slice(0, 50000)}`;
+
+    ctl = new AbortController();
+    $("go").disabled = true; $("stop").hidden = false;
+    $("aiOut").hidden = false; $("aiText").textContent = "원고를 읽는 중…";
+    setState("");
+    try {
+      const { truncated } = await sample(prompt, {
+        signal: ctl.signal,
+        modelTier: "default",
+        onText: ({ text }) => { $("aiText").textContent = text; },
+      });
+      setState(truncated ? "답이 길어서 중간에 잘렸어요. 원고를 줄여 다시 시도해보세요." : "완료됐어요. 복사해서 쓰세요.", truncated ? "err" : "ok");
+    } catch (e) {
+      $("aiText").textContent = e?.text || "";
+      if (!e?.text) $("aiOut").hidden = true;
+      if (e?.code !== "cancelled") setState(ERR[e?.code] || "생성에 실패했어요. 잠시 뒤 다시 눌러주세요.", "err");
+      else setState("멈췄어요.");
+    } finally {
+      $("go").disabled = false; $("stop").hidden = true;
+    }
+  });
+  $("stop").addEventListener("click", () => ctl?.abort());
+
+  // ---------- 복사 ----------
+  async function copy(text, noteEl) {
+    try { await navigator.clipboard.writeText(text); flash(noteEl, "복사됐어요.", "ok"); }
+    catch (e) { flash(noteEl, "복사가 막혔어요. 결과 칸을 길게 눌러 직접 복사해주세요.", "err"); }
+  }
+  function flash(el, msg, kind) {
+    el.hidden = false; el.textContent = msg; el.className = "note " + kind;
+    clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, 2600);
+  }
+  $("copyAi").addEventListener("click", () => copy($("aiText").textContent, $("aiState")));
+  $("copyManual").addEventListener("click", () => copy($("manualText").textContent, $("manualNote")));
+
+  // ---------- 직접 입력 ----------
+  const PRESETS = {
+    "자기계발 · 마인드": {
+      m_topic: "남 눈치 보느라 하고 싶은 말을 삼키는 사람이, 거절 한 문장 연습으로 관계를 지키며 할 말 하는 법",
+      m_reader: "착하다는 말을 자주 듣는 20~30대 직장인",
+      m_pain: "거절을 못 해서 일과 부탁이 몰리고 혼자 지친다",
+      m_result: "미움받지 않으면서 선을 긋는 말버릇",
+      m_method: "상황별 거절 문장 템플릿 + 3일 연습 루틴",
+      m_tone: "반말·직설, 코치가 옆에서 말해주는 느낌",
+      m_story: "나도 회사에서 부탁 다 들어주다 번아웃 온 적 있음. 처음 거절했던 날의 떨림."
+    },
+    "실용 · 노하우": {
+      m_topic: "블로그 처음 하는 사람이, 글 10개로 네이버 상위노출 첫 경험을 만드는 키워드 설계법",
+      m_reader: "블로그를 시작했지만 방문자가 하루 10명도 안 되는 초보",
+      m_pain: "열심히 써도 검색에 안 걸린다",
+      m_result: "한 달 안에 상위노출 글 1개",
+      m_method: "황금 키워드 찾는 3단계 + 제목 공식 5개",
+      m_tone: "존댓말, 단계별로 따라 하기 쉬운 매뉴얼",
+      m_story: "0명이던 블로그를 3개월 만에 일 방문 1,000명으로 만든 과정"
+    },
+    "에세이 · 경험담": {
+      m_topic: "퇴사 후 1년, 아무것도 아니던 내가 나를 다시 믿게 된 기록",
+      m_reader: "지금의 삶이 맞는지 흔들리는 30대",
+      m_pain: "남들보다 뒤처진 것 같아 불안하다",
+      m_result: "비교를 멈추고 내 속도를 받아들이는 마음",
+      m_method: "장면 중심의 고백과 작은 깨달음",
+      m_tone: "존댓말, 담담하고 다정한 에세이",
+      m_story: "퇴사 날 엘리베이터 안에서 울었던 기억, 첫 수입 3만 원"
+    }
+  };
+  const FIELDS = ["m_topic", "m_reader", "m_pain", "m_result", "m_method", "m_tone", "m_story"];
+  const presetsEl = $("presets");
+  [...Object.keys(PRESETS), "비우기"].forEach(name => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = name;
+    b.addEventListener("click", () => {
+      FIELDS.forEach(f => { $(f).value = name === "비우기" ? "" : (PRESETS[name][f] || ""); });
+      buildManual();
+    });
+    presetsEl.appendChild(b);
+  });
+
+  const v = (id, fb) => $(id).value.trim() || fb;
+  function buildManual() {
+    const story = $("m_story").value.trim();
+    $("manualText").textContent =
+`너는 한국 PDF 전자책 전문 기획자이자 대필 작가다.
+아래 조건으로 판매용 전자책을 함께 만든다. 한 번에 다 쓰지 말고, 단계마다 내 확인을 받고 넘어가라.
+
+【책의 원씽】
+${v("m_topic", "(주제 한 문장)")}
+
+【독자】
+- 누가: ${v("m_reader", "(타깃 독자)")}
+- 결핍: ${v("m_pain", "(뭐가 안 되는지)")}
+- 얻는 결과: ${v("m_result", "(읽고 나서 얻는 것)")}
+- 방법(저자의 무기): ${v("m_method", "(나만의 방법)")}
+
+【문체】
+${v("m_tone", "(원하는 말투)")}
+- 한 문장은 짧게, 한 문단은 3줄 이내.
+- "~할 수 있습니다", "중요합니다" 같은 뻔한 마무리 금지.
+- 저자 경험은 아래 제공한 것만 쓰고 지어내지 말 것.
+
+【분량】
+${$("m_size").value}
+
+【저자 경험·사례】
+${story || "(없음 — 경험이 필요한 자리는 [저자 경험 넣기]로 비워둘 것)"}
+
+【진행 순서】
+1단계. 제목 후보 5개 + 부제 → 내가 고르면 다음 단계
+2단계. PART·챕터 목차 (문제 인식 → 원인 → 해결 방법 → 실전 적용 흐름)
+3단계. 프롤로그
+4단계. 챕터를 하나씩 집필 (도입 장면 → 통념 → 뒤집기 → 방법 → 오늘 할 실천 1개)
+5단계. 에필로그 + 표지 이미지 프롬프트(영어, 3:4, no text)
+
+지금은 1단계만 해줘.`;
+  }
+  FIELDS.concat("m_size").forEach(f => $(f).addEventListener("input", buildManual));
+  FIELDS.forEach(f => { $(f).value = PRESETS["자기계발 · 마인드"][f] || ""; });
+  buildManual();
+})();
+</script>
