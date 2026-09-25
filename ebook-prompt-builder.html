@@ -1852,9 +1852,94 @@ ${outline.slice(0, 30000)}`;
     g.beginPath(); g.moveTo(hx + fw, top(H2)); g.lineTo(hx + fw, top(H2) + H2); g.stroke();
     return cv;
   }
+  // ---- 진짜 3D 목업 (three.js · WebGL): 하드커버 보드·둥근 책등·종이 옆면·매트 재질·부드러운 그림자 ----
+  const THREE_URL = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+  function spineCanvas(opt, sc) {
+    const c = document.createElement("canvas"); c.width = 256; c.height = 2048;
+    const g = c.getContext("2d");
+    const grd = g.createLinearGradient(0, 0, 256, 0);
+    grd.addColorStop(0, rgb(sc, 0.78)); grd.addColorStop(0.5, rgb(sc, 1)); grd.addColorStop(1, rgb(sc, 0.86));
+    g.fillStyle = grd; g.fillRect(0, 0, 256, 2048);
+    const lum = sc[0] * 0.299 + sc[1] * 0.587 + sc[2] * 0.114;
+    const ink = lum > 140 ? "rgba(28,24,20,0.9)" : "rgba(250,247,240,0.92)";
+    // 원통을 비스듬히 보면 앞표지 쪽 70% 지점이 가장 잘 보여서 글자를 그쪽에 둔다 (텍스처는 좌우 반전되어 붙음)
+    g.save(); g.translate(256 * 0.28, 1024); g.rotate(Math.PI / 2); g.fillStyle = ink; g.textAlign = "center"; g.textBaseline = "middle";
+    if (opt.title) { g.font = `700 58px ${opt.font || '"Noto Sans KR", sans-serif'}`; const t = opt.title.length > 24 ? opt.title.slice(0, 23) + "…" : opt.title; g.fillText(t, -170, 0); }
+    if (opt.author) { g.font = `500 36px "Noto Sans KR", sans-serif`; g.globalAlpha = 0.8; g.fillText(opt.author, 780, 0); }
+    g.restore();
+    return c;
+  }
+  function edgeCanvas() {
+    const c = document.createElement("canvas"); c.width = 64; c.height = 512;
+    const g = c.getContext("2d"); g.fillStyle = "#f3eee4"; g.fillRect(0, 0, 64, 512);
+    for (let x = 0; x < 64; x += 2) { g.fillStyle = `rgba(120,105,85,${0.05 + Math.random() * 0.08})`; g.fillRect(x, 0, 1, 512); }
+    return c;
+  }
+  async function makeMockup3D(src, opt = {}) {
+    await loadScript(THREE_URL);
+    const T = window.THREE; if (!T) throw new Error("three");
+    const S = 1600;
+    const renderer = new T.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    if (!renderer.getContext()) throw new Error("webgl");
+    renderer.setPixelRatio(1); renderer.setSize(S, S, false);
+    renderer.outputEncoding = T.sRGBEncoding; renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.VSMShadowMap;
+    renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+    const scene = new T.Scene();
+    const cam = new T.PerspectiveCamera(26, 1, 0.1, 100); cam.position.set(0.25, 1.35, 6.9); cam.lookAt(0.05, -0.12, 0);
+    // 조명: 왼쪽 위 부드러운 키라이트 + 은은한 하늘빛 (광택 없는 매트)
+    scene.add(new T.HemisphereLight(0xffffff, 0xd8d0c4, 0.62));
+    const key = new T.DirectionalLight(0xfff4e6, 0.95); key.position.set(-2.6, 6.5, 3.4); key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 14; key.shadow.blurSamples = 24; key.shadow.bias = -0.0006;
+    Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 20 }); scene.add(key);
+    const fill = new T.DirectionalLight(0xe8eefc, 0.25); fill.position.set(4, 1.5, 3); scene.add(fill);
+    // 책 치수: A5 비율, 중간 두께
+    const w = 1.5, h = w * 1.414, d = 0.3, t = 0.035, over = 0.03;
+    const tex = (cv) => { const x = new T.CanvasTexture(cv); x.encoding = T.sRGBEncoding; x.anisotropy = 8; return x; };
+    const sc = opt.spine || avgColor(src, 0, Math.max(4, Math.round(src.width * 0.05)));
+    const coverCol = new T.Color(`rgb(${sc.join(",")})`).convertSRGBToLinear();
+    const matte = (o) => new T.MeshStandardMaterial(Object.assign({ roughness: 0.82, metalness: 0 }, o));
+    const board = matte({ color: coverCol });
+    const front = matte({ map: tex(src) });
+    const edgeTex = tex(edgeCanvas()); edgeTex.wrapS = edgeTex.wrapT = T.RepeatWrapping;
+    const pageMat = matte({ map: edgeTex, color: 0xffffff, roughness: 0.95 });
+    const book = new T.Group();
+    // 앞·뒤 보드 (앞면에만 표지 그림)
+    const fb = new T.Mesh(new T.BoxGeometry(w, h, t), [board, board, board, board, front, board]);
+    fb.position.set(over / 2, 0, d / 2 - t / 2); book.add(fb);
+    const bb = new T.Mesh(new T.BoxGeometry(w, h, t), board); bb.position.set(over / 2, 0, -d / 2 + t / 2); book.add(bb);
+    // 종이 블록 (보드보다 살짝 안쪽)
+    const pb = new T.Mesh(new T.BoxGeometry(w - over * 1.2, h - over * 2, d - t * 2), [pageMat, board, pageMat, pageMat, pageMat, pageMat]);
+    pb.position.set(0, 0, 0); book.add(pb);
+    // 둥근 책등
+    const spTex = tex(spineCanvas(opt, sc)); spTex.wrapS = T.RepeatWrapping; spTex.repeat.x = -1; spTex.offset.x = 1;  // 원통 UV가 좌우 반대라 뒤집는다
+    const sp = new T.Mesh(new T.CylinderGeometry(d / 2, d / 2, h, 48, 1, true, Math.PI, Math.PI), matte({ map: spTex, side: T.DoubleSide }));
+    sp.position.set(-w / 2 + over / 2, 0, 0); book.add(sp);
+    book.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    book.rotation.y = 0.5; book.position.set(0.18, 0.05, 0);
+    scene.add(book);
+    // 바닥: 그림자만 받는 투명 바닥 + 접지 부분 진한 그림자
+    const floor = new T.Mesh(new T.PlaneGeometry(20, 20), new T.ShadowMaterial({ opacity: 0.22 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = -h / 2 + 0.05; floor.receiveShadow = true; scene.add(floor);
+    const ao = document.createElement("canvas"); ao.width = ao.height = 256;
+    const ag = ao.getContext("2d"); const rg = ag.createRadialGradient(128, 128, 10, 128, 128, 128);
+    rg.addColorStop(0, "rgba(30,22,14,0.55)"); rg.addColorStop(1, "rgba(30,22,14,0)"); ag.fillStyle = rg; ag.fillRect(0, 0, 256, 256);
+    const aoMesh = new T.Mesh(new T.PlaneGeometry(w * 1.5, d * 2.6), new T.MeshBasicMaterial({ map: new T.CanvasTexture(ao), transparent: true, depthWrite: false }));
+    aoMesh.rotation.x = -Math.PI / 2; aoMesh.rotation.z = 0.5; aoMesh.position.set(0, floor.position.y + 0.002, 0); scene.add(aoMesh);
+    renderer.render(scene, cam);
+    // 배경 합성: 아주 연한 웜 그레이
+    const out = document.createElement("canvas"); out.width = out.height = S;
+    const g = out.getContext("2d");
+    const bg = g.createRadialGradient(S * 0.46, S * 0.36, 60, S * 0.5, S * 0.5, S * 0.82);
+    bg.addColorStop(0, "#f8f6f2"); bg.addColorStop(1, "#e3dfd8"); g.fillStyle = bg; g.fillRect(0, 0, S, S);
+    g.drawImage(renderer.domElement, 0, 0);
+    renderer.dispose(); renderer.forceContextLoss?.();
+    return out;
+  }
   async function coverMockup(sp) {
     const c = await snap(renderCover(sp), 2);
-    return makeMockup(c, { title: noDash(sp.title || ""), author: sp.author || "", font: fam(sp.titleFont, "노토산스"), spine: null });
+    const opt = { title: noDash(sp.title || ""), author: sp.author || "", font: fam(sp.titleFont, "노토산스"), spine: null };
+    // WebGL이 안 되는 기기에서는 간이 목업으로 대신한다
+    try { return await makeMockup3D(c, opt); } catch (e) { return makeMockup(c, opt); }
   }
 
   // ---- 표지 디자인 3개 ----
