@@ -1168,8 +1168,9 @@ ${src.slice(0, 50000)}`;
     try {
       // 1) 목차에서 쓸 섹션 목록 뽑기
       let sections = await sample.json(`아래 전자책 목차에서 원고로 쓸 섹션을 순서대로 뽑아라.
-맨 앞에 프롤로그, 그다음 각 챕터(PART 제목은 챕터에 붙여서), 맨 끝에 에필로그. 목차에 프롤로그·에필로그가 없어도 넣는다.
-JSON 배열만: [{"title":"프롤로그: 제목","summary":"이 섹션에서 할 말 한 줄"}]
+맨 앞에 프롤로그, 그다음 각 챕터, 맨 끝에 에필로그. 목차에 프롤로그·에필로그가 없어도 넣는다.
+챕터 title은 "01 챕터 제목"처럼 두 자리 번호로 시작하고, 새 PART가 시작되는 챕터만 앞에 "PART 1. 파트 제목 · "을 붙인다.
+JSON 배열만: [{"title":"프롤로그: 제목","summary":"이 섹션에서 할 말 한 줄"},{"title":"PART 1. 파트 제목 · 01 챕터 제목","summary":"…"}]
 
 [목차]
 ${outline.slice(0, 30000)}`, { signal: dctl.signal, modelTier: "quick" });
@@ -1195,7 +1196,7 @@ ${reader ? "독자: " + reader + "\n" : ""}- 한 문장은 짧게, 한 문단은
 ${isPro ? "프롤로그: 독자가 겪는 장면 하나로 시작 → 이 책이 왜 필요한지 → 이 책을 읽으면 얻는 것 → 첫 장으로 넘기는 한 줄. A4 1.5~2장 분량." : isEpi ? "에필로그: 책 전체를 한 문장으로 묶기 → 독자에게 바통을 넘기는 마지막 문장. A4 1~1.5장 분량." : "도입 장면(독자가 공감할 구체적 상황) → 통념 제시 → 뒤집기 → 방법 3단계(각 단계에 예시) → 오늘 할 실천 1개. 분량은 목차의 '분량' 줄(챕터당 페이지)을 따르고, 없으면 A4 3~4장. 소제목 2~4개."}
 
 [출력]
-섹션 제목은 쓰지 말고 본문만. 소제목은 ■ 로 시작하는 한 줄. 마크다운 기호(#, **) 금지.
+섹션 제목은 쓰지 말고 본문만. 소제목은 ■ 로 시작하는 한 줄. 단계는 "1. "로 시작하는 줄, 실천 체크리스트는 □ 로 시작하는 줄. 대사는 곧은 따옴표 "…". 이 섹션의 핵심 한 문장은 둥근 따옴표 “…”로 감싼 한 줄로 따로 둔다(섹션당 1개). 마크다운 기호(#, **) 금지.
 
 [이번 섹션]
 ${sec.title}${sec.summary ? "\n할 말: " + sec.summary : ""}
@@ -1691,11 +1692,18 @@ ${outline.slice(0, 30000)}`;
     if (n) p.appendChild(mk("div", `position:absolute;bottom:34px;left:0;right:0;text-align:center;font-size:11px;color:${th.muted};letter-spacing:0.1em;`, String(n)));
     return p;
   }
+  // "PART 1. 파트 제목 · 01 챕터 제목" → 파트 라벨과 챕터 제목으로 나눈다
+  function splitPart(title) {
+    const m = String(title).match(/^\s*(PART\s*\d+\.?[^·|/]*?)\s*[·|/]\s*(.+)$/i);
+    return m ? { part: m[1].trim(), title: m[2].trim() } : { part: "", title: String(title).trim() };
+  }
   function chapterPage(th, title, idx, n) {
     const p = pageShell(th, n);
     const num = String(idx).padStart(2, "0");
-    const clean = noDash(title.replace(/^\s*(\d{1,2}[\.\s]+)/, ""));
+    const sp = splitPart(title);
+    const clean = noDash(sp.title.replace(/^\s*(\d{1,2}[\.\s]+)/, ""));
     const onAccent = readable(th.ink, th.accent);
+    if (sp.part) p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:64px;font-family:${th.sub};font-size:12px;font-weight:700;letter-spacing:0.14em;color:${th.chapter === "fullbleed" || th.chapter === "band" ? onAccent : th.muted};`, noDash(sp.part)));
     if (th.chapter === "badge") {
       if (idx) { const b = mk("div", `position:absolute;left:64px;top:230px;width:60px;height:60px;border-radius:50%;border:2px solid ${th.accent};display:flex;align-items:center;justify-content:center;font-family:${th.head};font-size:19px;font-weight:700;color:${th.accent === th.paper ? th.ink : th.accent};`, num); p.appendChild(b); }
       p.appendChild(mk("div", `position:absolute;left:64px;right:64px;top:${idx ? 316 : 260}px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;`, clean));
@@ -1732,14 +1740,16 @@ ${outline.slice(0, 30000)}`;
       if (th.quote === "bigquote") { const d = mk("div", base + "position:relative;padding:8px 8px 8px 38px;"); d.appendChild(mk("span", `position:absolute;left:0;top:-10px;font-size:48px;line-height:1;color:${th.accent};font-family:Georgia,serif;`, "“")); d.appendChild(document.createTextNode(b.text)); return d; }
       return mk("div", base + `padding:4px 0 4px 14px;border-left:3px solid ${th.accent};color:${th.ink};`, b.text);
     }
-    if (b.type === "li") { const d = mk("div", `font-size:${s}px;line-height:1.7;margin:0 0 7px;padding-left:24px;position:relative;`); d.appendChild(mk("span", `position:absolute;left:0;top:0;color:${th.accent === th.paper ? th.ink : th.accent};font-weight:900;`, "✓")); d.appendChild(document.createTextNode(b.text)); return d; }
+    if (b.type === "li") { const d = mk("div", `font-size:${s}px;line-height:1.7;margin:0 0 7px;padding-left:24px;position:relative;`); d.appendChild(mk("span", `position:absolute;left:0;top:0;color:${th.accent === th.paper ? th.ink : th.accent};font-weight:900;`, b.mark || "✓")); d.appendChild(document.createTextNode(b.text)); return d; }
     return mk("p", `font-size:${s}px;line-height:1.7;margin:0 0 11px;word-break:keep-all;`, b.text);
   }
   function richBlocks(text) {
     return text.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => {
       if (l.startsWith("■")) return { type: "h", text: l.replace(/^■\s*/, "") };
-      if (/^["“「『]/.test(l)) return { type: "q", text: l.replace(/^["“「『]|["”」』]$/g, "") };
-      if (/^([□☐✔✓☑·•\-]|\d{1,2}[.)])\s*/.test(l) && l.length < 120) return { type: "li", text: l.replace(/^([□☐✔✓☑·•\-]|\d{1,2}[.)])\s*/, "") };
+      // 둥근 따옴표로 감싼 한 줄만 강조 문장. 곧은 따옴표 "…"는 대사라서 본문으로 둔다
+      if (/^[“「『][^“”「」『』]+[”」』]$/.test(l)) return { type: "q", text: l.slice(1, -1) };
+      const li = l.match(/^([□☐✔✓☑·•\-]|\d{1,2}[.)])\s*/);
+      if (li && l.length < 120) return { type: "li", mark: /^\d/.test(li[1]) ? li[1].replace(")", ".") : "✓", text: l.slice(li[0].length) };
       return { type: "p", text: l };
     });
   }
@@ -2191,7 +2201,11 @@ ${excerpt || "(원고 없음)"}`;
       const toc = pageShell(th, 0);
       toc.appendChild(mk("div", `position:absolute;left:52px;top:70px;font-family:${th.head};font-size:24px;font-weight:900;padding-bottom:10px;border-bottom:3px solid ${th.accent};`, "차례"));
       const list = mk("div", `position:absolute;left:52px;right:52px;top:140px;display:flex;flex-direction:column;gap:10px;font-size:${th.size}px;line-height:1.5;`);
-      parts.slice(0, 22).forEach(pt => list.appendChild(mk("div", "", noDash(pt.title))));
+      parts.slice(0, 22).forEach(pt => {
+        const sp = splitPart(pt.title);
+        if (sp.part) list.appendChild(mk("div", `margin-top:8px;font-size:${th.size - 3}px;font-weight:700;letter-spacing:0.1em;color:${th.accent};`, noDash(sp.part)));
+        list.appendChild(mk("div", "", noDash(sp.title)));
+      });
       toc.appendChild(list); pages.push(toc);
       const host = mk("div", "position:fixed;left:-20000px;top:0;"); document.body.appendChild(host);
       const probePage = pageShell(th, 0);
