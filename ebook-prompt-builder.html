@@ -187,6 +187,11 @@
   .cover-drop { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
   .cover-drop img { width: 120px; height: 160px; object-fit: cover; border: 1px solid var(--line-strong); border-radius: var(--r); }
   .cover-drop-side { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .mp { display: flex; flex-direction: column; gap: 14px; }
+  .mp-box { display: flex; flex-direction: column; gap: 8px; }
+  .mp-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .mp-head strong { color: var(--accent); font-size: 14.5px; }
+  .mp-hint { margin: 0; font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
   .pane { display: flex; flex-direction: column; gap: 22px; }
   .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .cats.sub { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
@@ -341,9 +346,21 @@
       <div class="draft-actions single" id="coverActions" hidden>
         <button class="btn secondary" id="regenCover" type="button">다시 생성 (3개 새로)</button>
       </div>
-      <div class="divider"><span>표지 그림 프롬프트</span><small>(이미지 AI에 넣어 그림을 만든 뒤, 위 '그림 넣기'로 올리면 그 그림으로 표지를 만들어요)</small></div>
-      <button class="btn secondary" id="coverPromptBtn" type="button">표지 그림 프롬프트 생성</button>
-      <pre class="result" id="coverPromptOut" hidden></pre>
+      <div class="divider"><span>목업 프롬프트</span><small>(이미지 AI에 넣으면 사진 같은 책 목업이나 표지 그림이 나와요. 확정한 표지가 있으면 그 제목·색을 그대로 써요)</small></div>
+      <button class="btn secondary" id="mockPromptBtn" type="button">목업 프롬프트 만들기</button>
+      <p class="note" id="mockPromptState" hidden></p>
+      <div class="mp" id="mockPromptOut" hidden>
+        <div class="mp-box">
+          <div class="mp-head"><strong>① 완성 목업 프롬프트</strong><button class="btn ghost" type="button" data-copy="mpFull">복사</button></div>
+          <p class="mp-hint">ChatGPT 또는 구글 제미나이에 붙여넣으세요. 한글 제목까지 들어간 책 목업이 한 번에 나와요. 글자가 틀리면 "제목 글자를 정확히 다시" 라고 한 번 더 요청하세요.</p>
+          <pre class="result" id="mpFull"></pre>
+        </div>
+        <div class="mp-box">
+          <div class="mp-head"><strong>② 그림만 프롬프트</strong><button class="btn ghost" type="button" data-copy="mpArt">복사</button></div>
+          <p class="mp-hint">아무 이미지 AI(미드저니·코파일럿·제미나이 등)에 넣으세요. 글자 없는 그림이 나오면 위 '그림 넣기'로 올리세요. 제목은 생성기가 정확히 얹고 3D 목업까지 만들어줘요.</p>
+          <pre class="result" id="mpArt"></pre>
+        </div>
+      </div>
     </div>
 
     <div id="bodyPane" class="pane" hidden>
@@ -2224,7 +2241,68 @@ ${excerpt || "(원고 없음)"}`;
     } catch (e) { out.textContent = e?.text || (ERR[e?.code] || "생성에 실패했어요. 잠시 뒤 다시 눌러주세요."); }
     finally { $(btnId).disabled = false; }
   }
-  $("coverPromptBtn").addEventListener("click", () => promptOnly("cover", currentBookText, "coverPromptOut", "coverPromptBtn"));
+  // ---- 목업 프롬프트: AI는 그림 콘셉트·색만 정하고, 프롬프트 뼈대와 한글 글자는 페이지가 정확히 채운다 ----
+  const mpState = noteFn("mockPromptState");
+  function buildMockPrompts(c) {
+    const q = (x) => `"${String(x || "").replace(/"/g, "'")}"`;
+    const full = `Product photo of a single hardcover book mockup, standing upright at a three-quarter angle so the front cover and the left spine are both visible, centered in a square 1:1 frame with generous empty margins. Soft warm studio light from the upper left, ${c.background || "very light warm beige seamless background"}, soft natural contact shadow on the floor, matte cover paper with subtle texture, no gloss.
+
+Front cover design (${c.coverBase || "ivory paper"}, clean Korean editorial layout, lots of white space):
+- Near the top, a thin short line in ${c.accent || "muted brick red"}.
+- Main title, bold modern Korean sans-serif, centered.${c.titleLines.length > 1 ? `\n  Line 1 in ${c.titleColor || "dark charcoal"}, EXACT TEXT: ${q(c.titleLines[0])}\n  Line 2 larger in ${c.accent || "muted brick red"}, EXACT TEXT: ${q(c.titleLines.slice(1).join(" "))}` : ` In ${c.titleColor || "dark charcoal"}, EXACT TEXT: ${q(c.titleLines[0])}`}
+${c.subtitle ? `- Below it, one smaller line in thin serif, EXACT TEXT: ${q(c.subtitle)}\n` : ""}- Lower half: ${c.illustration}. ${c.style}. The illustration fades softly into the cover paper.
+${c.author ? `- Bottom small text, EXACT TEXT: ${q(c.author)}\n` : ""}Spine: same color as the cover, vertical Korean text top to bottom, EXACT TEXT: ${q(c.spine)}.
+All Korean text verbatim, no extra characters, no substitutions, no English text anywhere.`;
+    const art = `Vertical 3:4 book cover illustration, no text, no letters, no logo, no watermark.
+${c.illustration}. ${c.style}.
+Color palette: ${c.palette}.
+Keep the top 40% of the image calm and nearly empty (${c.emptyArea || "soft plain background"}) so a title can be placed there. Main subject in the lower 60%, centered.`;
+    return { full, art };
+  }
+  $("mockPromptBtn").addEventListener("click", async () => {
+    const text = currentBookText();
+    const g = guessTitle();
+    const base = chosenCover || coverSpecs[0] || null;
+    const title = (base?.title || g.title || "").trim();
+    if (!text && !title) { mpState("원고를 먼저 연결하거나 표지를 뽑아주세요.", "err"); return; }
+    const sample = await samplePromise;
+    const lines = (base?.titleLines?.length ? base.titleLines : (title ? [title] : [])).map(noDash);
+    const fill = (c) => {
+      const p = buildMockPrompts(Object.assign({
+        titleLines: lines.length ? lines : [c.title || "제목"],
+        subtitle: noDash(base?.subtitle || g.subtitle || c.subtitle || ""),
+        author: base?.author || c.author || "",
+        spine: noDash((base?.title || g.title || c.title || lines.join(" ")).replace(/,\s*$/, "")),
+      }, c));
+      $("mpFull").textContent = p.full; $("mpArt").textContent = p.art; $("mockPromptOut").hidden = false;
+    };
+    const fallback = { illustration: "a warm, gentle hand-drawn scene that shows the reader of this book in the moment the book is about, soft expression, simple background", style: "soft pastel editorial illustration, delicate lines, warm light", palette: "warm ivory, soft beige, one muted accent color", accent: "muted brick red", titleColor: "dark charcoal" };
+    if (!sample) { fill(fallback); mpState("AI 없이 기본 그림 설명으로 만들었어요. 그림 설명 부분은 직접 고쳐 쓰셔도 돼요.", "ok"); return; }
+    $("mockPromptBtn").disabled = true; mpState("원고를 읽고 표지 그림 콘셉트를 정하는 중… (10~30초)");
+    try {
+      const c = await sample.json(`너는 한국 전자책 표지 아트디렉터다. 아래 [원고]와 [표지 정보]를 보고, 이미지 AI에게 줄 표지 일러스트 설명을 영어로 정한다.
+- illustration: 이 책 독자가 공감할 한 장면. 인물이 있으면 나이대·옷·표정·동작을 구체적으로, 배경은 단순하게. 1~2문장 영어.
+- style: 그림체 (예: soft pastel hand-drawn illustration, warm watercolor, minimal flat editorial illustration 등) 영어 한 구절. 주제의 정서에 맞게.
+- palette: 색 3~4개를 영어 단어로 (예: warm ivory, dusty rose, soft beige, charcoal).
+- coverBase: 표지 바탕 (예: ivory paper, deep navy paper) 영어.
+- background: 목업 배경 (예: very light warm beige seamless background) 영어.
+- accent: 제목 두 번째 줄과 선에 쓸 강조색 영어 (예: muted brick red).
+- titleColor: 제목 첫 줄 색 영어 (예: dark charcoal).
+- emptyArea: 제목 자리가 될 윗부분 묘사 영어 (예: soft cream sky).
+${base ? `[표지 정보] 확정 표지 색: 배경 ${base.bg}, 강조 ${base.accent}, 템플릿 ${base.template || ""}. 이 색감과 어울리게.` : ""}
+글자·로고·영문 문구는 그림에 넣지 않는다. 실존 인물·캐릭터·브랜드는 쓰지 않는다.
+JSON 객체 하나만: {"illustration":"…","style":"…","palette":"…","coverBase":"…","background":"…","accent":"…","titleColor":"…","emptyArea":"…"}
+
+[원고]
+${(text || title).slice(0, 8000)}`, { modelTier: "default" });
+      fill(Object.assign({}, fallback, c || {}));
+      mpState("완성됐어요. ①은 ChatGPT·제미나이에, ②는 아무 이미지 AI에 붙여넣으세요.", "ok");
+    } catch (e) {
+      fill(fallback);
+      mpState("AI가 콘셉트를 못 정해서 기본 그림 설명으로 만들었어요. 그림 설명 부분은 직접 고쳐 쓰셔도 돼요.", "err");
+    } finally { $("mockPromptBtn").disabled = false; }
+  });
+  document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => copy($(b.dataset.copy).textContent, $("mockPromptState"))));
   $("bodyPromptBtn").addEventListener("click", () => promptOnly("body", currentBookText, "bodyPromptOut", "bodyPromptBtn"));
   updateBodyBookNote();
 
