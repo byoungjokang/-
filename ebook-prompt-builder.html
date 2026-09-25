@@ -189,7 +189,7 @@
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 표지·본문 이미지는 이미지 AI에 넣을 프롬프트로 만들어줘요.</p>
     <div class="flow" aria-label="전자책 제작 순서">
-      <span class="step">팔리는 주제</span>→<span class="step">주제 리서치</span>→<span class="step">목차 설계</span>→<span class="step">챕터 집필</span>→<span class="step">표지 이미지</span>→<span class="step">본문 이미지</span>
+      <span class="step">팔리는 주제</span>→<span class="step">주제 리서치</span>→<span class="step">목차 설계</span>→<span class="step">원고 집필</span>→<span class="step">표지 이미지</span>→<span class="step">본문 이미지</span>
     </div>
   </header>
 
@@ -274,7 +274,7 @@
       </div>
     </div>
 
-    <div class="seg" id="modeSeg" role="group" aria-label="챕터 집필 방식" hidden>
+    <div class="seg" id="modeSeg" role="group" aria-label="원고 집필 방식" hidden>
       <button type="button" class="seg-btn" id="modeAi" aria-pressed="true">목차로 원고 뽑기</button>
       <button type="button" class="seg-btn" id="modeManual" aria-pressed="false">직접 입력으로 만들기</button>
     </div>
@@ -426,7 +426,7 @@
   </section>
 
 
-  <footer>AI 생성은 보는 사람의 Claude 계정으로 실행돼요. 처음 누를 때 허용 창이 한 번 떠요. 챕터 집필 탭의 '직접 입력으로 만들기'는 AI 없이 바로 작동해요.</footer>
+  <footer>AI 생성은 보는 사람의 Claude 계정으로 실행돼요. 처음 누를 때 허용 창이 한 번 떠요. 원고 집필 탭의 '직접 입력으로 만들기'는 AI 없이 바로 작동해요.</footer>
 </div>
 
 <script>
@@ -450,7 +450,7 @@
 - 그다음 "이 목차로 챕터를 쓰게 하는 프롬프트"를 한 덩어리로 작성한다. 사용자가 그대로 복사해 ChatGPT/Claude에 붙여넣을 수 있게, 역할·독자·문체·챕터 구조(도입 사례 → 핵심 주장 → 근거 → 방법 → 실천 과제)·분량을 모두 담는다.`
     },
     {
-      key: "chapter", label: "챕터 집필",
+      key: "chapter", label: "원고 집필",
       srcLabel: "설계된 목차",
       ph: "목차 설계 결과를 붙여넣으세요. 목차 설계 탭에서 '이 목차로 원고 뽑기'를 누르면 자동으로 채워져요. 넣고 싶은 내 경험도 같이 적으면 원고에 들어가요.",
       btn: "집필 프롬프트 생성",
@@ -1072,7 +1072,7 @@ ${outline.slice(0, 30000)}`;
   $("stopDraft").addEventListener("click", () => dctl?.abort());
   $("copyDraft").addEventListener("click", () => copy($("draftText").textContent.trim(), $("draftState")));
 
-  // 목차 설계 결과 → 챕터 집필로 넘기기
+  // 목차 설계 결과 → 원고 집필로 넘기기
   $("toDraft").addEventListener("click", () => {
     drafts.chapter = $("tocText").textContent.trim();
     manualMode = false;
