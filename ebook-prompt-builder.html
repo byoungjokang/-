@@ -175,6 +175,27 @@
   .refs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
   @media (max-width: 640px) { .refs { grid-template-columns: 1fr; } .refs .ref { align-items: center; } }
   .refs.body { grid-template-columns: 1fr; }
+  .final-head { display: flex; flex-direction: column; gap: 6px; }
+  .final-title { font-family: var(--display); font-size: clamp(26px, 6vw, 36px); line-height: 1.15; color: var(--ink); text-wrap: balance; }
+  .final-sub { color: var(--ink-soft); font-size: 14px; }
+  .final-covers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .final-covers figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .final-covers figure > div { border-radius: 4px; overflow: hidden; }
+  .final-covers figcaption { font-size: 12px; color: var(--ink-faint); }
+  .final-covers figure.picked figcaption { color: var(--accent); font-weight: 700; }
+  .final-all { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border: 1px solid var(--accent); border-radius: var(--r); padding: 16px 18px; background: var(--accent-wash); }
+  .final-all > div { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+  .final-all b { font-size: 17px; }
+  .final-all small { color: var(--ink-soft); font-size: 13px; }
+  .final-all .btn { width: auto; padding: 12px 22px; }
+  .final-group { display: flex; flex-direction: column; }
+  .final-group h3 { margin: 0 0 4px; font-size: 12.5px; letter-spacing: 0.12em; color: var(--ink-faint); padding-bottom: 8px; border-bottom: 1px solid var(--line-strong); }
+  .final-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .final-row > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .final-row b { font-weight: 600; }
+  .final-row small { color: var(--ink-faint); font-size: 12.5px; }
+  .final-row.missing b { color: var(--ink-faint); }
+  .final-row .btn { width: auto; padding: 8px 16px; font-size: 14px; }
   .ref { border: 1px solid var(--line-strong); border-radius: var(--r); padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--field); align-items: flex-start; }
   .refs.body .ref > div:first-child { max-width: 100%; overflow-x: auto; }
   .ref-name { font-weight: 900; color: var(--accent); font-size: 14px; }
@@ -391,6 +412,21 @@
       <pre class="result" id="bodyPromptOut" hidden></pre>
     </div>
 
+    <div id="finalPane" class="pane" hidden>
+      <div class="final-head">
+        <div class="eyebrow" style="margin:0">최종 결과물</div>
+        <div class="final-title" id="finalTitle">아직 만든 책이 없어요</div>
+        <div class="final-sub" id="finalSub">앞 단계에서 원고·표지·본문 디자인을 만들면 여기에 모여요.</div>
+      </div>
+      <div class="final-covers" id="finalCovers" hidden></div>
+      <div class="final-all">
+        <div><b>전체 한 번에 받기</b><small id="finalCount">파일을 한 폴더에 담아 ZIP 하나로 받아요</small></div>
+        <button class="btn" id="finalZip" type="button">전체 받기 (ZIP)</button>
+      </div>
+      <p class="note" id="finalState" hidden></p>
+      <div id="finalList" style="display:flex;flex-direction:column;gap:24px"></div>
+    </div>
+
     <div class="seg" id="modeSeg" role="group" aria-label="원고 집필 방식" hidden>
       <button type="button" class="seg-btn" id="modeAi" aria-pressed="true">목차로 원고 뽑기</button>
       <button type="button" class="seg-btn" id="modeManual" aria-pressed="false">직접 입력으로 만들기</button>
@@ -604,7 +640,8 @@
       task: `붙여넣은 본문에서 이미지를 넣으면 좋은 지점을 3~5곳 고르고, 각각의 삽화/인포그래픽 프롬프트를 만든다.
 - 각 지점마다: 넣을 위치(해당 문장 앞부분 인용), 이미지 유형(장면컷/설명 인포그래픽/비교표/체크리스트), 한국어 설명 1줄, 영어 이미지 프롬프트(가로 16:9 또는 1:1 명시, 일관된 일러스트 스타일).
 - 모든 이미지에 공통으로 붙일 "스타일 고정 문구"를 영어로 맨 위에 먼저 제시해 책 전체 톤이 흔들리지 않게 한다.`
-    }
+    },
+    { key: "final", label: "최종 결과물", custom: true }
   ];
 
   const mk0 = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
@@ -627,6 +664,8 @@
     $("researchPane").hidden = t.key !== "research";
     $("coverPane").hidden = t.key !== "cover";
     $("bodyPane").hidden = t.key !== "body";
+    $("finalPane").hidden = t.key !== "final";
+    if (t.key === "final") window.__renderFinal?.();
     $("modeSeg").hidden = !isChapter;
     $("manualPane").hidden = !(isChapter && manualMode);
     $("genericPane").hidden = !!t.custom || (isChapter && manualMode);
@@ -1801,7 +1840,7 @@ ${outline.slice(0, 30000)}`;
   async function saveTo(filename, data, stateFn) {
     const dl = window.claude?.use ? await window.claude.use("downloads") : null;
     if (!dl) { stateFn("이 화면에서는 파일 저장을 할 수 없어요.", "err"); return; }
-    try { await dl.save({ filename, data }); stateFn(`${filename} 저장 창을 열었어요.`, "ok"); }
+    try { await dl.save({ filename, data }); stateFn(`${filename} 저장 창을 열었어요.`, "ok"); return true; }
     catch (e) { stateFn(e?.code === "declined" ? "저장을 취소했어요." : e?.code === "rate_limited" ? "저장 창이 이미 열려 있어요. 잠시 뒤 다시 눌러주세요." : "파일 저장이 안 돼요.", e?.code === "declined" ? "" : "err"); }
   }
   const noteFn = (id) => (msg, kind) => { const el = $(id); el.hidden = !msg; el.textContent = msg || ""; el.className = "note" + (kind ? " " + kind : ""); };
@@ -2179,7 +2218,7 @@ ${excerpt || "(원고 없음)"}`;
   $("regenBody").addEventListener("click", runBody);
 
   // ---- 이대로 책 전체 디자인 하기 → PDF ----
-  let building = false;
+  let building = false, finalBook = null;
   async function designWholeBook(sp, btn) {
     if (building) return;
     const parts = bookParts();
@@ -2238,11 +2277,106 @@ ${excerpt || "(원고 없음)"}`;
         if (i) pdf.addPage();
         pdf.addImage(c.toDataURL("image/jpeg", 0.88), "JPEG", 0, 0, 148, 210);
       }
-      await saveTo(`${safeName(title)}_디자인.pdf`, pdf.output("blob"), bookMsg);
+      const blob = pdf.output("blob");
+      finalBook = { blob, name: `${safeName(title)}_디자인.pdf`, pages: pages.length, spec: sp };
+      if (await saveTo(finalBook.name, blob, bookMsg)) bookMsg(`${finalBook.name} 저장 창을 열었어요. '07 최종 결과물' 탭에서 원고·표지·목업까지 한 번에 받을 수 있어요.`, "ok");
     } catch (e) {
       bookMsg("책 디자인을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err");
     } finally { building = false; btn.disabled = false; }
   }
+
+  // ---- 최종 결과물: 지금까지 만든 파일을 한 화면에서, ZIP 하나로 ----
+  const finalState = noteFn("finalState");
+  function finalItems() {
+    const title = chosenCover?.title || guessTitle().title || bookInfo().title || "전자책";
+    const base = safeName(title);
+    const items = [];
+    items.push({ group: "완성본", folder: "1_완성본", label: finalBook ? `완성본 PDF · ${finalBook.spec?.name || "본문 디자인"}` : "완성본 PDF",
+      meta: finalBook ? `${finalBook.pages}쪽 · 표지·차례·본문이 모두 들어간 판매용 파일` : "본문 디자인 하기에서 '이대로 책 전체 디자인 하기'를 누르면 생겨요",
+      filename: finalBook?.name || `${base}_디자인.pdf`, ready: !!finalBook, make: async () => finalBook.blob });
+    items.push({ group: "원고", folder: "2_원고", label: "원고 DOCX (워드)", meta: draftParts.length ? "고쳐 쓸 때 쓰는 파일" : "원고 집필에서 '전체 원고'를 뽑으면 생겨요",
+      filename: `${base}_원고.docx`, ready: draftParts.length > 0, make: () => makeDocx() });
+    items.push({ group: "원고", folder: "2_원고", label: "원고 PDF", meta: draftParts.length ? "디자인 없이 글만 담은 PDF" : "원고 집필에서 '전체 원고'를 뽑으면 생겨요",
+      filename: `${base}_원고.pdf`, ready: draftParts.length > 0, make: (p) => makePdf(p) });
+    if (coverSpecs.length) coverSpecs.forEach((sp, i) => {
+      const tag = chosenCover === sp ? " (확정)" : "";
+      items.push({ group: "표지와 3D 목업", folder: "3_표지와 목업", label: `표지 ${i + 1}안 PNG${tag}`, meta: sp.name || "", filename: `${base}_표지${i + 1}.png`, ready: true,
+        make: async () => canvasBlob(await snap(renderCover(sp), 2)) });
+      items.push({ group: "표지와 3D 목업", folder: "3_표지와 목업", label: `3D 목업 ${i + 1}안 PNG${tag}`, meta: "판매 페이지·홍보용", filename: `${base}_목업${i + 1}.png`, ready: true,
+        make: async () => canvasBlob(await coverMockup(sp)) });
+    });
+    else items.push({ group: "표지와 3D 목업", folder: "3_표지와 목업", label: "표지·3D 목업 PNG", meta: "표지 디자인에서 3안을 뽑으면 생겨요", filename: "", ready: false });
+    return { title, base, items };
+  }
+  let finalBusy = false;
+  function renderFinal() {
+    const { title, items } = finalItems();
+    const any = items.some(x => x.ready);
+    $("finalTitle").textContent = any ? title : "아직 만든 책이 없어요";
+    const sub = chosenCover?.subtitle || guessTitle().subtitle || bookInfo().subtitle || "";
+    $("finalSub").textContent = any ? (sub || "지금까지 만든 파일이에요.") : "앞 단계에서 원고·표지·본문 디자인을 만들면 여기에 모여요.";
+    const cv = $("finalCovers"); cv.innerHTML = "";
+    coverSpecs.forEach((sp, i) => {
+      const f = mk("figure", ""); if (chosenCover === sp) f.className = "picked";
+      const w = mk("div", "width:100%;aspect-ratio:3/4;position:relative;");
+      const k = 0.3; const el = scaled(renderCover(sp), 600, 800, k);
+      w.appendChild(el); f.appendChild(w);
+      f.appendChild(mk("figcaption", "", `표지 ${i + 1}안 · ${sp.name || ""}${chosenCover === sp ? " (확정)" : ""}`));
+      cv.appendChild(f);
+      // 칸 너비에 맞춰 축소 비율을 다시 잡는다
+      requestAnimationFrame(() => { const kk = w.clientWidth / 600; if (kk > 0) { el.style.width = w.clientWidth + "px"; el.style.height = w.clientWidth * 4 / 3 + "px"; el.firstChild.style.transform = `scale(${kk})`; } });
+    });
+    cv.hidden = !coverSpecs.length;
+    const ready = items.filter(x => x.ready);
+    $("finalCount").textContent = ready.length ? `파일 ${ready.length}개를 '${safeName(title)}' 폴더째 ZIP 하나로 받아요` : "아직 받을 파일이 없어요";
+    $("finalZip").disabled = !ready.length || finalBusy;
+    const list = $("finalList"); list.innerHTML = "";
+    const groups = [...new Set(items.map(x => x.group))];
+    groups.forEach(g => {
+      const sec = mk("section", ""); sec.className = "final-group";
+      sec.appendChild(mk("h3", "", g));
+      items.filter(x => x.group === g).forEach(it => {
+        const row = mk("div", ""); row.className = "final-row" + (it.ready ? "" : " missing");
+        const info = mk("div", ""); info.append(mk("b", "", it.label), mk("small", "", it.ready ? `${it.filename} · ${it.meta}` : it.meta));
+        row.appendChild(info);
+        if (it.ready) {
+          const b = mk("button", "", "저장"); b.className = "btn ghost"; b.type = "button"; b.disabled = finalBusy;
+          b.addEventListener("click", async () => {
+            if (finalBusy) return; finalBusy = true; b.disabled = true; b.textContent = "만드는 중…";
+            try { await saveTo(it.filename, await it.make((i, n) => finalState(`PDF 만드는 중… ${i}/${n}쪽`)), finalState); }
+            catch (e) { finalState("파일을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err"); }
+            finally { finalBusy = false; b.disabled = false; b.textContent = "저장"; }
+          });
+          row.appendChild(b);
+        }
+        sec.appendChild(row);
+      });
+      list.appendChild(sec);
+    });
+  }
+  window.__renderFinal = renderFinal;
+  $("finalZip").addEventListener("click", async () => {
+    if (finalBusy) return;
+    const { base, items } = finalItems();
+    const ready = items.filter(x => x.ready);
+    if (!ready.length) return;
+    finalBusy = true; const btn = $("finalZip"); btn.disabled = true;
+    try {
+      await loadScript(CDN.jszip);
+      const zip = new window.JSZip(); const root = zip.folder(base);
+      for (let i = 0; i < ready.length; i++) {
+        const it = ready[i];
+        btn.textContent = `모으는 중… ${i + 1}/${ready.length}`;
+        finalState(`${it.label} 만드는 중… (${i + 1}/${ready.length})`);
+        root.folder(it.folder).file(it.filename, await it.make((p, n) => finalState(`${it.label} 만드는 중… ${p}/${n}쪽`)));
+      }
+      btn.textContent = "ZIP 만드는 중…";
+      const data = await zip.generateAsync({ type: "blob", compression: "STORE" });
+      if (await saveTo(`${base}.zip`, data, finalState)) finalState(`${base}.zip 저장 창을 열었어요. 압축을 풀면 폴더가 그대로 나와요.`, "ok");
+    } catch (e) {
+      finalState("ZIP을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err");
+    } finally { finalBusy = false; btn.disabled = false; btn.textContent = "전체 받기 (ZIP)"; }
+  });
 
   // ---- 이미지 AI용 프롬프트만 받기 ----
   async function promptOnly(key, getText, outId, btnId) {
