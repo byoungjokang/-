@@ -1254,6 +1254,7 @@ ${outline.slice(0, 30000)}`;
         draftParts.push({ title: sec.title, text });
         done = text;
       }
+      if (all) setTimeout(() => window.__prewarmDraft?.(), 1500);
       draftState(all ? "전체 원고 완성. 마음에 들면 '파일로 저장', 아니면 '다시 생성'을 누르세요." : "테스트 원고 완성. 문체가 마음에 들면 '전체 원고'로 바꿔 다시 뽑아보세요.", "ok");
     } catch (e) {
       if (e?.text) $("draftText").textContent += e.text;
@@ -2005,8 +2006,19 @@ ${outline.slice(0, 30000)}`;
     renderer.dispose(); renderer.forceContextLoss?.();
     return out;
   }
+  // 한 번 그린 표지·목업·원고 파일은 기억해 두고 다시 쓴다 (최종 결과물 ZIP이 빨라진다)
+  const madeCache = new WeakMap();
+  function cached(obj, key, fn) {
+    let m = madeCache.get(obj); if (!m) { m = {}; madeCache.set(obj, m); }
+    if (!m[key]) m[key] = fn().catch(e => { delete m[key]; throw e; });
+    return m[key];
+  }
+  const coverCanvas = (sp) => cached(sp, "canvas", () => snap(renderCover(sp), 2));
+  const coverPng = (sp) => cached(sp, "png", async () => canvasBlob(await coverCanvas(sp)));
+  const mockCanvas = (sp) => cached(sp, "mock", () => coverMockup(sp));
+  const mockPng = (sp) => cached(sp, "mockPng", async () => canvasBlob(await mockCanvas(sp)));
   async function coverMockup(sp) {
-    const c = await snap(renderCover(sp), 2);
+    const c = await coverCanvas(sp);
     const opt = { title: noDash(sp.title || ""), author: sp.author || "", font: fam(sp.titleFont, "노토산스"), spine: null };
     // WebGL이 안 되는 기기에서는 간이 목업으로 대신한다
     try { return await makeMockup3D(c, opt); } catch (e) { return makeMockup(c, opt); }
@@ -2079,21 +2091,20 @@ ${text.slice(0, 14000)}`;
       const pick = mk("button", "", chosenCover === sp ? "확정됨 ✓" : "이 표지로 확정"); pick.className = "btn ghost wide"; pick.type = "button";
       png.addEventListener("click", async () => {
         png.disabled = true; coverState("PNG 만드는 중…");
-        try { const c = await snap(renderCover(sp), 2); await saveTo(`${safeName(sp.title || "표지")}_표지${i + 1}.png`, await canvasBlob(c), coverState); }
+        try { await saveTo(`${safeName(sp.title || "표지")}_표지${i + 1}.png`, await coverPng(sp), coverState); }
         catch (e) { coverState("PNG를 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err"); }
         finally { png.disabled = false; }
       });
       mock.addEventListener("click", async () => {
         mock.disabled = true; coverState("목업 만드는 중…");
-        try { const c = await coverMockup(sp); await saveTo(`${safeName(sp.title || "표지")}_목업${i + 1}.png`, await canvasBlob(c), coverState); }
+        try { await saveTo(`${safeName(sp.title || "표지")}_목업${i + 1}.png`, await mockPng(sp), coverState); }
         catch (e) { coverState("목업을 만들지 못했어요. 다시 눌러주세요.", "err"); }
         finally { mock.disabled = false; }
       });
       pick.addEventListener("click", async () => {
         pick.disabled = true;
         try {
-          const c = await snap(renderCover(sp), 2);
-          chosenCover = sp; coverBlob = await canvasBlob(c);
+          chosenCover = sp; coverBlob = await coverPng(sp);
           setCoverThumb(coverBlob, `표지 디자인에서 확정한 ${i + 1}안을 가져왔어요.`);
           renderCoverRefs();
           coverState(`${i + 1}안으로 확정했어요. '본문 디자인 하기' 탭으로 넘어가면 이 표지로 본문을 디자인해요.`, "ok");
@@ -2102,7 +2113,7 @@ ${text.slice(0, 14000)}`;
       acts.append(png, mock, pick); card.appendChild(acts); box.appendChild(card);
       // 목업 미리보기는 순서대로 그린다
       mockQueue = mockQueue.then(async () => {
-        try { const c = await coverMockup(sp); mockImg.src = c.toDataURL("image/jpeg", 0.85); mockImg.hidden = false; flat.hidden = true; } catch (e) {}
+        try { const c = await mockCanvas(sp); mockImg.src = c.toDataURL("image/jpeg", 0.85); mockImg.hidden = false; flat.hidden = true; } catch (e) {}
       });
     });
     box.hidden = false; $("coverActions").hidden = false;
@@ -2295,15 +2306,15 @@ ${excerpt || "(원고 없음)"}`;
       meta: finalBook ? `${finalBook.pages}쪽 · 표지·차례·본문이 모두 들어간 판매용 파일` : "본문 디자인 하기에서 '이대로 책 전체 디자인 하기'를 누르면 생겨요",
       filename: finalBook?.name || `${base}_디자인.pdf`, ready: !!finalBook, make: async () => finalBook.blob });
     items.push({ group: "원고", folder: "2_원고", label: "원고 DOCX (워드)", meta: draftParts.length ? "고쳐 쓸 때 쓰는 파일" : "원고 집필에서 '전체 원고'를 뽑으면 생겨요",
-      filename: `${base}_원고.docx`, ready: draftParts.length > 0, make: () => makeDocx() });
+      filename: `${base}_원고.docx`, ready: draftParts.length > 0, make: () => cached(draftParts, "docx" + draftParts.length, () => makeDocx()) });
     items.push({ group: "원고", folder: "2_원고", label: "원고 PDF", meta: draftParts.length ? "디자인 없이 글만 담은 PDF" : "원고 집필에서 '전체 원고'를 뽑으면 생겨요",
-      filename: `${base}_원고.pdf`, ready: draftParts.length > 0, make: (p) => makePdf(p) });
+      filename: `${base}_원고.pdf`, ready: draftParts.length > 0, make: (p) => cached(draftParts, "pdf" + draftParts.length, () => makePdf(p)) });
     if (coverSpecs.length) coverSpecs.forEach((sp, i) => {
       const tag = chosenCover === sp ? " (확정)" : "";
       items.push({ group: "표지와 3D 목업", folder: "3_표지와 목업", label: `표지 ${i + 1}안 PNG${tag}`, meta: sp.name || "", filename: `${base}_표지${i + 1}.png`, ready: true,
-        make: async () => canvasBlob(await snap(renderCover(sp), 2)) });
+        make: () => coverPng(sp) });
       items.push({ group: "표지와 3D 목업", folder: "3_표지와 목업", label: `3D 목업 ${i + 1}안 PNG${tag}`, meta: "판매 페이지·홍보용", filename: `${base}_목업${i + 1}.png`, ready: true,
-        make: async () => canvasBlob(await coverMockup(sp)) });
+        make: () => mockPng(sp) });
     });
     else items.push({ group: "표지와 3D 목업", folder: "3_표지와 목업", label: "표지·3D 목업 PNG", meta: "표지 디자인에서 3안을 뽑으면 생겨요", filename: "", ready: false });
     return { title, base, items };
@@ -2354,7 +2365,20 @@ ${excerpt || "(원고 없음)"}`;
       list.appendChild(sec);
     });
   }
-  window.__renderFinal = renderFinal;
+  // 탭을 열면 받을 파일을 뒤에서 미리 만들어 둔다. 버튼을 누를 땐 대부분 이미 준비돼 있다
+  let warmChain = Promise.resolve();
+  function prewarmFinal() {
+    finalItems().items.filter(x => x.ready).forEach(it => {
+      warmChain = warmChain.then(() => new Promise(r => setTimeout(r, 30))).then(() => it.make()).catch(() => {});
+    });
+  }
+  window.__renderFinal = () => { renderFinal(); prewarmFinal(); };
+  // 전체 원고가 나오면 원고 PDF·DOCX를 뒤에서 미리 만들어 둔다 (표지·본문 디자인하는 동안)
+  window.__prewarmDraft = () => {
+    const parts = draftParts;
+    warmChain = warmChain.then(() => cached(parts, "docx" + parts.length, () => makeDocx()))
+      .then(() => cached(parts, "pdf" + parts.length, () => makePdf())).catch(() => {});
+  };
   $("finalZip").addEventListener("click", async () => {
     if (finalBusy) return;
     const { base, items } = finalItems();
