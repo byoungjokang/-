@@ -1424,15 +1424,44 @@ ${outline.slice(0, 30000)}`;
   }
 
   // ---- 표지 그리기 ----
-  function motifSvg(m, a, W, H) {
+  // 전자책 디자인 템플릿 10선(ebook-design-templates 스킬)의 컬러·폰트·표지 비주얼·금지 요소
+  const TEMPLATES = [
+    ["01 아이보리 라인", "경제·재테크/미니멀", "F3EFE7", "FBF8F2", "2B2621", "B5493B", "노토세리프", "모래시계 하나, 중앙 하단, 여백 강조, 레드는 선·글자에만", "화려한 3D, 비주얼 과밀", "hourglass"],
+    ["02 미드나잇 골드", "자기계발/다크·골드", "12141C", "F7F5EE", "F3EDE0", "C9A227", "노토세리프", "금빛 태양·동심원·궤도선·점형 별빛, 다크+웅장+절제", "SF 포스터 같은 과장, 복잡한 우주 그래픽", "orbit"],
+    ["03 차콜 모노", "마인드·철학/흑백 미니멀", "FFFFFF", "FFFFFF", "161616", "6B6B68", "노토산스", "검은 돌 3~4개, 극도로 단순한 정적 오브젝트, 넓은 여백", "알록달록한 포인트, 감성 과잉", "stones"],
+    ["04 테라코타 웜", "라이프스타일·에세이/따뜻함", "F7EFE3", "FBF5EA", "3A2A20", "C1512F", "고운바탕", "아치형 창문, 화병과 가지, 따뜻한 햇살", "차가운 사진, 네온 컬러", "arch"],
+    ["05 세이지 그린", "건강·습관·힐링", "ECEFE4", "F8F9F2", "28331F", "4C6B44", "노토세리프", "창가, 작은 식물, 오전 햇살", "병원 브로셔 느낌, 형광 그린", "leaf"],
+    ["06 파우더 블루", "커리어·직장·비즈니스", "EAF1F6", "F8FAFC", "1B2A3A", "2C5C8A", "노토산스", "열린 길·보행로, 걸어가는 실루엣, 시야가 열리는 구조", "딱딱한 기업 브로셔, 사이버 네온", "path"],
+    ["07 블러시 소프트", "연애·관계·감정", "F8EEEC", "FDF7F6", "3E2A26", "B8695C", "고운바탕", "꽃 한두 송이 드로잉, 넓은 여백, 성숙한 감정선", "과하게 귀여운 장식, 십대 로맨틱", "flower"],
+    ["08 라인 화이트", "소통·관계·대화법", "FFFFFF", "FFFFFF", "1A1A1A", "E23E31", "노토산스", "빨간 선 하나가 흘러 하트나 연결을 만듦, 극미니멀", "많은 사진, 다색 구성", "redline"],
+    ["09 볼드 타입", "동기부여·도전·강한 메시지", "171717", "F6F3EC", "F5F1EA", "E4402F", "블랙한산스", "작은 인물 실루엣, 빨간 삼각 스포트라이트, 강한 대비", "톤다운 파스텔, 약한 인상", "spotlight"],
+    ["10 페이퍼 아카데믹", "공부·지식·교양", "F4EFE3", "FAF6EC", "2E2116", "8B5E34", "노토세리프", "아치형 서재, 높은 책장, 따뜻한 조명", "현대 광고 느낌, 네온·메탈릭", "arch"],
+  ];
+  const TEMPLATE_TEXT = TEMPLATES.map(t => `${t[0]} (${t[1]}) — 표지배경 #${t[2]} · 내지 #${t[3]} · 잉크 #${t[4]} · 액센트 #${t[5]} · 제목글꼴 ${t[6]} · 비주얼: ${t[7]} · 추천 motif: ${t[9]} · 금지: ${t[8]}`).join("\n");
+  const SPEC_RULES = `[디자인 명세서 공통 규칙 — A5 전자책]
+- 표지 구조: 상단 키커 → 얇은 액센트 라인 → 메인 제목 → 부제 → 핵심 비주얼 하나 → 하단 룰 → 저자명. 제목은 축소 썸네일에서도 읽혀야 한다.
+- 타이포 위계: 키커 9~11pt · 부제 11~14pt · 본문 10.8~11.2pt · 소제목 13~16pt · 챕터 번호 14~18pt · 챕터 제목 22~32pt · 표지 제목 28~46pt.
+- 본문 줄간격 165~175%, 문단 간격 6~10pt, 너무 촘촘한 편집 금지. 인용문은 본문보다 130~160% 크게. 체크리스트는 ✓ 또는 □.
+- 액센트 컬러는 선·번호·강조에만 절제해서 쓴다. 비주얼은 하나만.`;
+
+  function motifSvg(m, a, W, H, ink) {
     const s = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="${W}" height="${H}" preserveAspectRatio="none" style="position:absolute;inset:0">${inner}</svg>`;
+    const k = ink || a;
     switch (m) {
       case "circle": return s(`<circle cx="470" cy="180" r="175" fill="${a}" opacity="0.9"/>`);
       case "lines": return s(Array.from({ length: 14 }, (_, i) => `<line x1="0" y1="${60 + i * 22}" x2="600" y2="${60 + i * 22}" stroke="${a}" stroke-width="2" opacity="0.45"/>`).join(""));
       case "grid": return s(Array.from({ length: 11 }, (_, i) => `<line x1="${i * 60}" y1="0" x2="${i * 60}" y2="800" stroke="${a}" stroke-width="1" opacity="0.22"/>`).join("") + Array.from({ length: 14 }, (_, i) => `<line x1="0" y1="${i * 60}" x2="600" y2="${i * 60}" stroke="${a}" stroke-width="1" opacity="0.22"/>`).join(""));
       case "stripe": return s(`<polygon points="330,0 600,0 600,330" fill="${a}" opacity="0.95"/><polygon points="250,0 300,0 600,300 600,350" fill="${a}" opacity="0.5"/>`);
-      case "arch": return s(`<path d="M150 800 L150 470 A150 150 0 0 1 450 470 L450 800 Z" fill="${a}" opacity="0.9"/>`);
+      case "arch": return s(`<path d="M190 690 L190 500 A110 110 0 0 1 410 500 L410 690 Z" fill="${a}" opacity="0.16"/><path d="M190 690 L190 500 A110 110 0 0 1 410 500 L410 690" fill="none" stroke="${a}" stroke-width="3"/><line x1="300" y1="392" x2="300" y2="690" stroke="${a}" stroke-width="1.5" opacity="0.6"/><line x1="190" y1="560" x2="410" y2="560" stroke="${a}" stroke-width="1.5" opacity="0.6"/>`);
       case "dots": return s(Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, c) => `<circle cx="${330 + c * 32}" cy="${60 + r * 32}" r="5" fill="${a}" opacity="0.6"/>`).join("")).join(""));
+      case "hourglass": return s(`<path d="M250 500 L350 500 L306 590 L350 680 L250 680 L294 590 Z" fill="none" stroke="${k}" stroke-width="2.5" opacity="0.85"/><path d="M272 660 L328 660 L340 680 L260 680 Z" fill="${a}"/><line x1="240" y1="500" x2="360" y2="500" stroke="${k}" stroke-width="4"/><line x1="240" y1="680" x2="360" y2="680" stroke="${k}" stroke-width="4"/>`);
+      case "orbit": return s(`<circle cx="300" cy="560" r="62" fill="${a}"/>` + [110, 160, 215].map((r, i) => `<circle cx="300" cy="560" r="${r}" fill="none" stroke="${a}" stroke-width="1.5" opacity="${0.7 - i * 0.18}"/>`).join("") + Array.from({ length: 22 }, (_, i) => `<circle cx="${(i * 97) % 580 + 10}" cy="${(i * 53) % 330 + 380}" r="${i % 3 ? 1.5 : 2.5}" fill="${a}" opacity="0.7"/>`).join(""));
+      case "stones": return s(`<ellipse cx="300" cy="668" rx="95" ry="30" fill="${k}"/><ellipse cx="300" cy="616" rx="70" ry="25" fill="${k}" opacity="0.92"/><ellipse cx="300" cy="573" rx="48" ry="20" fill="${k}" opacity="0.85"/><ellipse cx="300" cy="540" rx="28" ry="14" fill="${a}"/>`);
+      case "leaf": return s(`<path d="M300 690 C300 610 300 560 300 500" stroke="${a}" stroke-width="3" fill="none"/><path d="M300 590 C250 580 225 540 232 500 C272 508 298 540 300 590 Z" fill="${a}" opacity="0.85"/><path d="M300 555 C352 545 378 505 370 462 C330 472 302 505 300 555 Z" fill="${a}" opacity="0.6"/><path d="M262 690 L338 690 L330 730 L270 730 Z" fill="${k}" opacity="0.85"/>`);
+      case "path": return s(`<polygon points="120,800 480,800 318,470 282,470" fill="${a}" opacity="0.18"/><line x1="300" y1="800" x2="300" y2="470" stroke="${a}" stroke-width="3" stroke-dasharray="18 14"/><line x1="0" y1="470" x2="600" y2="470" stroke="${a}" stroke-width="1.5" opacity="0.5"/><circle cx="300" cy="600" r="9" fill="${k}"/><rect x="293" y="610" width="14" height="34" rx="6" fill="${k}"/>`);
+      case "flower": return s([0, 72, 144, 216, 288].map(r => `<ellipse cx="300" cy="530" rx="26" ry="52" transform="rotate(${r} 300 582)" fill="none" stroke="${a}" stroke-width="2.5"/>`).join("") + `<circle cx="300" cy="582" r="14" fill="${a}"/><path d="M300 596 C300 640 290 680 300 720" stroke="${a}" stroke-width="2.5" fill="none"/>`);
+      case "redline": return s(`<path d="M-10 640 C120 640 170 560 230 520 C280 486 330 520 300 570 C270 520 220 486 190 520 C150 565 240 620 300 660 C360 620 450 565 410 520 C380 486 330 520 300 570" fill="none" stroke="${a}" stroke-width="4" stroke-linecap="round"/><path d="M300 660 C380 700 470 690 610 700" fill="none" stroke="${a}" stroke-width="4" stroke-linecap="round"/>`);
+      case "spotlight": return s(`<polygon points="300,330 150,760 450,760" fill="${a}" opacity="0.9"/><circle cx="300" cy="640" r="11" fill="${readable("#111111", a)}"/><rect x="291" y="652" width="18" height="46" rx="8" fill="${readable("#111111", a)}"/>`);
       default: return "";
     }
   }
@@ -1440,40 +1469,51 @@ ${outline.slice(0, 30000)}`;
     const k = W / 600;
     const bg = hex(sp.bg, "#111111"), bg2 = hex(sp.bg2, bg), accent = hex(sp.accent, "#ffd400");
     const ink = readable(hex(sp.ink, "#ffffff"), bg), sub = readable(hex(sp.sub, ink), bg);
-    const root = mk("div", `position:relative;width:${W}px;height:${H}px;overflow:hidden;background:linear-gradient(165deg, ${bg}, ${bg2});font-family:${fam(sp.bodyFont)};`);
-    if (sp.layout === "split") root.appendChild(mk("div", `position:absolute;left:0;right:0;bottom:0;height:42%;background:${accent};`));
-    if (sp.layout === "frame") root.appendChild(mk("div", `position:absolute;inset:${26 * k}px;border:${3 * k}px solid ${accent};`));
-    const m = motifSvg(sp.motif, accent, W, H);
+    const layout = sp.layout || "classic";
+    const root = mk("div", `position:relative;width:${W}px;height:${H}px;overflow:hidden;background:${bg === bg2 ? bg : `linear-gradient(170deg, ${bg}, ${bg2})`};font-family:${fam(sp.bodyFont)};`);
+    if (layout === "split") root.appendChild(mk("div", `position:absolute;left:0;right:0;bottom:0;height:42%;background:${accent};`));
+    if (layout === "frame") root.appendChild(mk("div", `position:absolute;inset:${26 * k}px;border:${2 * k}px solid ${accent};`));
+    const m = motifSvg(sp.motif, accent, W, H, ink);
     if (m) {
       root.insertAdjacentHTML("beforeend", m);
-      // 제목색과 장식색이 비슷하면 장식을 흐리게 해서 제목이 묻히지 않게
-      if (contrast(ink, accent) < 3) root.lastElementChild.style.opacity = "0.28";
+      if (contrast(ink, accent) < 3 && /circle|stripe|dots|lines|grid/.test(sp.motif)) root.lastElementChild.style.opacity = "0.28";
     }
     const lines = (Array.isArray(sp.titleLines) && sp.titleLines.length ? sp.titleLines : [sp.title || "제목"]).slice(0, 4).map(String);
     const longest = Math.max(...lines.map(l => l.length), 1);
-    const tsize = Math.max(38, Math.min(92, Math.round(470 / longest))) * k;
+    // 명세서 표지 제목 28~46pt → 600px 폭 기준 약 42~70px (썸네일 가독성을 위해 위쪽 끝까지 허용)
+    const tsize = Math.max(42, Math.min(70, Math.round(440 / longest))) * k;
+    const centered = /center|frame/.test(layout);
     const pos = {
-      "center": `left:${56 * k}px;right:${56 * k}px;top:0;bottom:0;justify-content:center;align-items:center;text-align:center;`,
-      "top-left": `left:${56 * k}px;right:${56 * k}px;top:${70 * k}px;`,
-      "bottom-left": `left:${56 * k}px;right:${56 * k}px;bottom:${90 * k}px;`,
-      "split": `left:${50 * k}px;right:${50 * k}px;top:${120 * k}px;`,
-      "frame": `left:${70 * k}px;right:${70 * k}px;top:0;bottom:0;justify-content:center;align-items:center;text-align:center;`,
-      "bignumber": `left:${56 * k}px;right:${56 * k}px;bottom:${90 * k}px;`,
-    }[sp.layout] || `left:${56 * k}px;right:${56 * k}px;top:${70 * k}px;`;
-    if (sp.layout === "bignumber") {
+      "classic": `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`,
+      "center": `left:${56 * k}px;right:${56 * k}px;top:${120 * k}px;align-items:center;text-align:center;`,
+      "top-left": `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`,
+      "bottom-left": `left:${58 * k}px;right:${58 * k}px;bottom:${110 * k}px;`,
+      "split": `left:${50 * k}px;right:${50 * k}px;top:${110 * k}px;`,
+      "frame": `left:${70 * k}px;right:${70 * k}px;top:${120 * k}px;align-items:center;text-align:center;`,
+      "bignumber": `left:${58 * k}px;right:${58 * k}px;bottom:${110 * k}px;`,
+    }[layout] || `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`;
+    if (layout === "bignumber") {
       const num = (String(sp.badge || "").match(/\d+/) || ["1"])[0];
-      root.appendChild(mk("div", `position:absolute;right:${-10 * k}px;top:${10 * k}px;font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${380 * k}px;line-height:1;color:${accent};opacity:0.9;`, num));
+      root.appendChild(mk("div", `position:absolute;right:${-10 * k}px;top:${10 * k}px;font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${360 * k}px;line-height:1;color:${accent};opacity:0.9;`, num));
     }
-    const box = mk("div", `position:absolute;display:flex;flex-direction:column;gap:${14 * k}px;${pos}`);
-    if (sp.kicker) box.appendChild(mk("div", `font-size:${15 * k}px;letter-spacing:0.18em;font-weight:700;color:${sp.layout === "split" ? ink : accent};`, sp.kicker));
-    const t = mk("div", `font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${tsize}px;line-height:1.18;color:${ink};font-weight:${/세리프|명조|바탕/.test(sp.titleFont) ? 900 : 400};letter-spacing:-0.01em;`);
+    const box = mk("div", `position:absolute;display:flex;flex-direction:column;${pos}`);
+    // 1) 상단 키커 2) 얇은 액센트 라인
+    if (sp.kicker) box.appendChild(mk("div", `font-size:${14 * k}px;letter-spacing:0.16em;font-weight:700;color:${layout === "split" ? ink : readable(accent, bg) === accent ? accent : sub};margin-bottom:${12 * k}px;`, sp.kicker));
+    box.appendChild(mk("div", `width:${46 * k}px;height:${3 * k}px;background:${accent};margin-bottom:${20 * k}px;`));
+    // 3) 메인 제목
+    const serif = /세리프|명조|바탕|송명/.test(sp.titleFont || "");
+    const t = mk("div", `font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${tsize}px;line-height:1.12;color:${ink};font-weight:${serif ? 900 : 400};letter-spacing:-0.015em;`);
     lines.forEach((l, i) => { if (i) t.appendChild(document.createElement("br")); t.appendChild(document.createTextNode(l)); });
     box.appendChild(t);
-    if (sp.subtitle) box.appendChild(mk("div", `font-size:${19 * k}px;line-height:1.55;color:${sub};max-width:${440 * k}px;`, sp.subtitle));
-    if (sp.badge && sp.layout !== "bignumber") box.appendChild(mk("div", `align-self:${/center|frame/.test(sp.layout) ? "center" : "flex-start"};margin-top:${6 * k}px;padding:${6 * k}px ${14 * k}px;background:${accent};color:${readable("#111111", accent)};font-weight:700;font-size:${15 * k}px;border-radius:${999}px;`, sp.badge));
+    // 4) 부제
+    if (sp.subtitle) box.appendChild(mk("div", `margin-top:${18 * k}px;font-size:${18 * k}px;line-height:1.55;color:${sub};max-width:${430 * k}px;`, sp.subtitle));
+    if (sp.badge && layout !== "bignumber") box.appendChild(mk("div", `align-self:${centered ? "center" : "flex-start"};margin-top:${16 * k}px;padding:${5 * k}px ${13 * k}px;border:${1.5 * k}px solid ${accent};color:${readable(accent, bg)};font-weight:700;font-size:${14 * k}px;border-radius:999px;`, sp.badge));
     root.appendChild(box);
-    const authorOn = sp.layout === "split" ? accent : bg2;
-    if (sp.author) root.appendChild(mk("div", `position:absolute;left:${56 * k}px;right:${56 * k}px;bottom:${36 * k}px;font-size:${15 * k}px;letter-spacing:0.08em;color:${readable(sub, authorOn)};text-align:${/center|frame/.test(sp.layout) ? "center" : "left"};`, sp.author));
+    // 6) 하단 룰 7) 저자명
+    const footOn = layout === "split" ? accent : bg2;
+    const footInk = readable(sub, footOn);
+    root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${70 * k}px;height:${1 * k}px;background:${footInk};opacity:0.5;`));
+    root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${36 * k}px;font-size:${14 * k}px;letter-spacing:0.1em;color:${footInk};text-align:${centered ? "center" : "left"};`, sp.author || sp.kicker || ""));
     return root;
   }
 
@@ -1484,13 +1524,13 @@ ${outline.slice(0, 30000)}`;
     return {
       paper, ink: readable(hex(sp.ink, "#1a1a1a"), paper), accent: hex(sp.accent, "#ffd400"),
       muted: readable(hex(sp.muted, "#666666"), paper), head: fam(sp.headFont, "노토산스"), body: fam(sp.bodyFont, "노토산스"),
-      size: Math.max(11.5, Math.min(14, Number(sp.bodySize) || 12.5)),
+      size: Math.max(14, Math.min(15.5, Number(sp.bodySize) || 14.7)),
       chapter: sp.chapterStyle, h2: sp.h2Style, quote: sp.quoteStyle, sp,
     };
   }
   function pageShell(th, n) {
     const p = mk("div", `position:relative;width:${PW}px;height:${PH}px;background:${th.paper};color:${th.ink};font-family:${th.body};overflow:hidden;box-sizing:border-box;`);
-    if (n) p.appendChild(mk("div", `position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:10px;color:${th.muted};letter-spacing:0.1em;`, String(n)));
+    if (n) p.appendChild(mk("div", `position:absolute;bottom:34px;left:0;right:0;text-align:center;font-size:11px;color:${th.muted};letter-spacing:0.1em;`, String(n)));
     return p;
   }
   function chapterPage(th, title, idx, n) {
@@ -1498,40 +1538,44 @@ ${outline.slice(0, 30000)}`;
     const num = String(idx).padStart(2, "0");
     const clean = title.replace(/^\s*(\d{1,2}[\.\s]+)/, "");
     const onAccent = readable(th.ink, th.accent);
-    if (th.chapter === "fullbleed") {
+    if (th.chapter === "badge") {
+      if (idx) { const b = mk("div", `position:absolute;left:64px;top:230px;width:60px;height:60px;border-radius:50%;border:2px solid ${th.accent};display:flex;align-items:center;justify-content:center;font-family:${th.head};font-size:19px;font-weight:700;color:${th.accent === th.paper ? th.ink : th.accent};`, num); p.appendChild(b); }
+      p.appendChild(mk("div", `position:absolute;left:64px;right:64px;top:${idx ? 316 : 260}px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;`, clean));
+      p.appendChild(mk("div", `position:absolute;left:64px;top:${idx ? 316 : 260}px;margin-top:-18px;width:40px;height:2px;background:${th.accent};`));
+    } else if (th.chapter === "fullbleed") {
       p.style.background = th.accent;
       p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:230px;font-family:${th.head};font-size:15px;letter-spacing:0.25em;color:${onAccent};`, idx ? "CHAPTER " + num : ""));
-      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:262px;font-family:${th.head};font-size:30px;line-height:1.35;font-weight:900;color:${onAccent};`, clean));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:262px;font-family:${th.head};font-size:34px;line-height:1.35;font-weight:900;color:${onAccent};`, clean));
     } else if (th.chapter === "band") {
       p.appendChild(mk("div", `position:absolute;left:0;right:0;top:0;height:300px;background:${th.accent};`));
       p.appendChild(mk("div", `position:absolute;left:52px;top:200px;font-family:${th.head};font-size:64px;line-height:1;color:${onAccent};`, idx ? num : ""));
-      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:340px;font-family:${th.head};font-size:28px;line-height:1.4;font-weight:900;`, clean));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:340px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;`, clean));
     } else if (th.chapter === "bignumber") {
       p.appendChild(mk("div", `position:absolute;right:30px;top:40px;font-family:${th.head};font-size:220px;line-height:1;color:${th.accent};opacity:0.9;`, idx ? num : "✦"));
-      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;bottom:200px;font-family:${th.head};font-size:28px;line-height:1.4;font-weight:900;`, clean));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;bottom:200px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;`, clean));
     } else {
       p.appendChild(mk("div", `position:absolute;left:52px;top:250px;font-size:13px;letter-spacing:0.25em;color:${th.muted};`, idx ? "CHAPTER " + num : ""));
-      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:280px;font-family:${th.head};font-size:28px;line-height:1.4;font-weight:900;padding-bottom:18px;border-bottom:4px solid ${th.accent};`, clean));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:280px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;padding-bottom:18px;border-bottom:4px solid ${th.accent};`, clean));
     }
     return p;
   }
   function blockEl(th, b) {
     const s = th.size;
     if (b.type === "h") {
-      const base = `font-family:${th.head};font-size:${s + 4}px;font-weight:900;line-height:1.45;margin:18px 0 10px;`;
+      const base = `font-family:${th.head};font-size:${Math.round(s * 1.3)}px;font-weight:900;line-height:1.45;margin:22px 0 10px;`;
       if (th.h2 === "bar") return mk("div", base + `padding-left:12px;border-left:5px solid ${th.accent};`, b.text);
       if (th.h2 === "underline") return mk("div", base + `padding-bottom:6px;border-bottom:2px solid ${th.accent};`, b.text);
       if (th.h2 === "marker") { const d = mk("div", base); d.appendChild(mk("span", `background:linear-gradient(transparent 55%, ${th.accent}88 55%);`, b.text)); return d; }
       return mk("div", base + `color:${th.accent === th.paper ? th.ink : th.ink};`, b.text);
     }
     if (b.type === "q") {
-      const base = `font-size:${s + 1}px;line-height:1.8;margin:12px 0;font-family:${th.head};`;
+      const base = `font-size:${Math.round(s * 1.35)}px;line-height:1.6;margin:16px 0;font-family:${th.head};`;
       if (th.quote === "box") return mk("div", base + `background:${th.accent}22;border:1px solid ${th.accent};padding:12px 16px;`, b.text);
       if (th.quote === "bigquote") { const d = mk("div", base + "position:relative;padding:8px 8px 8px 38px;"); d.appendChild(mk("span", `position:absolute;left:0;top:-10px;font-size:48px;line-height:1;color:${th.accent};font-family:Georgia,serif;`, "“")); d.appendChild(document.createTextNode(b.text)); return d; }
       return mk("div", base + `padding:4px 0 4px 14px;border-left:3px solid ${th.accent};color:${th.ink};`, b.text);
     }
-    if (b.type === "li") { const d = mk("div", `font-size:${s}px;line-height:1.75;margin:0 0 6px;padding-left:22px;position:relative;`); d.appendChild(mk("span", `position:absolute;left:0;top:0;color:${th.accent === th.paper ? th.ink : th.accent};font-weight:900;`, "✓")); d.appendChild(document.createTextNode(b.text)); return d; }
-    return mk("p", `font-size:${s}px;line-height:1.85;margin:0 0 9px;word-break:keep-all;`, b.text);
+    if (b.type === "li") { const d = mk("div", `font-size:${s}px;line-height:1.7;margin:0 0 7px;padding-left:24px;position:relative;`); d.appendChild(mk("span", `position:absolute;left:0;top:0;color:${th.accent === th.paper ? th.ink : th.accent};font-weight:900;`, "✓")); d.appendChild(document.createTextNode(b.text)); return d; }
+    return mk("p", `font-size:${s}px;line-height:1.7;margin:0 0 11px;word-break:keep-all;`, b.text);
   }
   function richBlocks(text) {
     return text.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => {
@@ -1606,15 +1650,19 @@ ${outline.slice(0, 30000)}`;
     const prompt = `너는 한국 전자책 표지 아트디렉터다. 아래 [원고]를 분석해서 전자책 표지 디자인 3안을 설계한다.
 ${g.title ? `책 제목은 "${g.title}"${g.subtitle ? `, 부제는 "${g.subtitle}"` : ""}. 제목·부제 글자는 바꾸지 않는다(줄바꿈만 정한다).\n` : "원고에서 책 제목과 부제를 찾고, 없으면 원고 내용으로 짓는다.\n"}
 [원칙]
-- 먼저 원고의 독자·정서·약속을 읽고, 3안은 서로 확실히 다른 방향으로: 예) 타이포 중심의 강한 표지 / 상징 도형 하나로 말하는 표지 / 여백 많은 미니멀 표지.
-- 표지는 판매 썸네일로 작게 봐도 제목이 읽혀야 한다. 제목 줄은 한 줄에 8자 안팎으로 끊는다.
-- 글자색(ink)과 배경(bg)은 대비가 커야 한다. 색은 주제의 정서에 맞게, 뻔한 파랑·보라 그라데이션은 피한다.
-- 글꼴은 이 목록에서만: ${FONT_KEYS}
-- layout은 center, top-left, bottom-left, split, frame, bignumber 중 하나. bignumber는 badge에 숫자가 있을 때만.
-- motif는 none, circle, lines, grid, stripe, arch, dots 중 하나.
+- 먼저 원고의 독자·정서·약속을 읽고, 아래 [디자인 템플릿 10선]에서 이 책에 맞는 템플릿 3개를 서로 다르게 고른다. 3안은 각각 그 템플릿의 컬러·제목글꼴·비주얼 방향을 따르되, 이 책의 주제에 맞게 조금 다듬어도 된다. 템플릿의 금지 요소는 지킨다.
+- 표지는 판매 썸네일로 작게 봐도 제목이 읽혀야 한다. 제목 줄은 한 줄에 8자 안팎으로 끊는다. 글자색(ink)과 배경(bg)은 대비가 커야 한다.
+- 글꼴은 이 목록에서만: ${FONT_KEYS} (명세서의 Pretendard는 노토산스로 대신한다)
+- layout은 classic(명세서 기본 구조, 가장 우선), center, top-left, bottom-left, split, frame, bignumber 중 하나. bignumber는 badge에 숫자가 있을 때만.
+- motif는 템플릿의 추천 motif를 우선: hourglass, orbit, stones, arch, leaf, path, flower, redline, spotlight, circle, lines, grid, stripe, dots, none.
+
+${SPEC_RULES}
+
+[디자인 템플릿 10선]
+${TEMPLATE_TEXT}
 ${avoid}
 [출력] JSON 배열 3개만:
-[{"name":"안 이름(짧게)","concept":"이 표지가 독자에게 주는 느낌 한 줄","title":"책 제목","titleLines":["제목 1행","제목 2행"],"subtitle":"부제","kicker":"제목 위 작은 라벨(없으면 빈 문자열)","badge":"숫자가 들어간 짧은 약속(예: 2주 완성, 없으면 빈 문자열)","author":"저자명(원고에 없으면 빈 문자열)","bg":"#hex","bg2":"#hex","ink":"#hex","sub":"#hex","accent":"#hex","titleFont":"목록 중 하나","bodyFont":"목록 중 하나","layout":"…","motif":"…"}]
+[{"template":"고른 템플릿 번호와 이름","name":"안 이름(짧게)","concept":"이 표지가 독자에게 주는 느낌 한 줄","title":"책 제목","titleLines":["제목 1행","제목 2행"],"subtitle":"부제","kicker":"제목 위 작은 라벨(없으면 빈 문자열)","badge":"숫자가 들어간 짧은 약속(예: 2주 완성, 없으면 빈 문자열)","author":"저자명(원고에 없으면 빈 문자열)","bg":"#hex","bg2":"#hex","ink":"#hex","sub":"#hex","accent":"#hex","titleFont":"목록 중 하나","bodyFont":"목록 중 하나","layout":"…","motif":"…"}]
 
 [원고]
 ${text.slice(0, 14000)}`;
@@ -1640,7 +1688,7 @@ ${text.slice(0, 14000)}`;
       const card = mk("article", ""); card.className = "ref";
       card.appendChild(scaled(renderCover(sp), 600, 800, 0.3));
       card.appendChild(mk("div", "", `${i + 1}안 · ${sp.name || ""}`)).className = "ref-name";
-      card.appendChild(mk("div", "", sp.concept || "")).className = "ref-concept";
+      card.appendChild(mk("div", "", [sp.template && "템플릿 " + sp.template, sp.concept].filter(Boolean).join(" · "))).className = "ref-concept";
       const acts = mk("div", ""); acts.className = "ref-actions";
       const png = mk("button", "", "PNG 저장"); png.className = "btn ghost"; png.type = "button";
       const pick = mk("button", "", chosenCover === sp ? "확정됨 ✓" : "이 표지로 확정"); pick.className = "btn ghost"; pick.type = "button";
@@ -1707,7 +1755,7 @@ ${text.slice(0, 14000)}`;
     const th = bodyTheme(sp), s = sampleBlocks();
     const row = mk("div", "display:flex;gap:10px;");
     row.appendChild(scaled(chapterPage(th, s.chapter, /프롤로그|에필로그|들어가며|나가며|시작하며/.test(s.chapter) ? 0 : 1, 0), PW, PH, 0.42));
-    const pg = pageShell(th, 12); const inner = mk("div", "position:absolute;left:52px;right:52px;top:56px;bottom:60px;overflow:hidden;");
+    const pg = pageShell(th, 12); const inner = mk("div", "position:absolute;left:64px;right:64px;top:68px;bottom:80px;overflow:hidden;");
     s.blocks.forEach(b => inner.appendChild(blockEl(th, b))); pg.appendChild(inner);
     row.appendChild(scaled(pg, PW, PH, 0.42));
     return row;
@@ -1727,13 +1775,18 @@ ${text.slice(0, 14000)}`;
     const prompt = `너는 한국 전자책 본문(내지) 디자이너다. ${images ? "첨부한 이미지는 이 책의 확정된 표지다. 표지의 디자인·컬러·톤·폰트 느낌·정보 위계(제목/부제/라벨의 크기 차이)를 먼저 분석하고," : "아래 [확정 표지 설계값]이 이 책의 확정된 표지다. 표지의 컬러·톤·폰트·위계를 먼저 분석하고,"} 그 표지와 한 권으로 이어지는 A5 본문 디자인 3안을 설계한다.
 ${chosenCover ? `\n[확정 표지 설계값]\n${JSON.stringify(chosenCover)}\n` : ""}
 [원칙]
-- 본문은 오래 읽는 면이다. 종이색(paper)과 글자색(ink)은 대비가 크게, 강조색(accent)은 표지에서 가져온다. 어두운 표지라도 본문 종이는 밝게 가는 안을 최소 1개 넣는다.
-- 3안은 서로 다르게: 표지를 가장 충실히 이은 안 / 더 차분한 안 / 더 과감한 안.
-- 글꼴은 이 목록에서만: ${FONT_KEYS}. 제목용(headFont)은 표지 제목 느낌과 맞추고, 본문용(bodyFont)은 읽기 쉬운 것으로.
-- chapterStyle: band, bignumber, rule, fullbleed 중 하나. h2Style: bar, underline, marker, plain 중 하나. quoteStyle: sidebar, box, bigquote 중 하나. bodySize: 11.5~14.
+- 본문은 오래 읽는 면이다. 종이색(paper)과 글자색(ink)은 대비가 크게, 강조색(accent)은 표지에서 가져온다. 어두운 표지라도 본문 종이는 밝게 간다(템플릿의 내지색 참고).
+- 표지가 [디자인 템플릿 10선] 중 어느 것과 가까운지 먼저 판단하고, 그 템플릿의 내지 명세(내지색·잉크·액센트·제목글꼴)를 기준으로 3안을 만든다: 표지를 가장 충실히 이은 안 / 더 차분한 안 / 더 과감한 안.
+- 글꼴은 이 목록에서만: ${FONT_KEYS}. 제목용(headFont)은 표지 제목 느낌과 맞추고, 본문용(bodyFont)은 읽기 쉬운 노토산스·IBM플렉스·고운바탕 중에서.
+- chapterStyle: badge(원형 번호 배지), band, bignumber, rule, fullbleed 중 하나. h2Style: bar, underline, marker, plain 중 하나. quoteStyle: sidebar, box, bigquote 중 하나. bodySize: 14~15.5 (A5 기준 본문 10.8~11.2pt).
+
+${SPEC_RULES}
+
+[디자인 템플릿 10선]
+${TEMPLATE_TEXT}
 ${avoid}
 [출력] JSON 배열 3개만:
-[{"name":"안 이름","concept":"한 줄 설명","analysis":"표지에서 읽은 것 한 줄(색·톤·폰트·위계)","paper":"#hex","ink":"#hex","accent":"#hex","muted":"#hex","headFont":"…","bodyFont":"…","bodySize":12.5,"chapterStyle":"…","h2Style":"…","quoteStyle":"…"}]
+[{"template":"기준으로 삼은 템플릿","name":"안 이름","concept":"한 줄 설명","analysis":"표지에서 읽은 것 한 줄(색·톤·폰트·위계)","paper":"#hex","ink":"#hex","accent":"#hex","muted":"#hex","headFont":"…","bodyFont":"…","bodySize":14.7,"chapterStyle":"…","h2Style":"…","quoteStyle":"…"}]
 
 [원고 일부]
 ${excerpt || "(원고 없음)"}`;
@@ -1801,7 +1854,7 @@ ${excerpt || "(원고 없음)"}`;
           let pg, inner;
           const fresh = () => {
             pg = pageShell(th, ++pageNo);
-            inner = mk("div", `position:absolute;left:52px;right:52px;top:56px;height:${PH - 56 - 64}px;overflow:hidden;`);
+            inner = mk("div", `position:absolute;left:64px;right:64px;top:68px;height:${PH - 68 - 80}px;overflow:hidden;`);
             pg.appendChild(inner); host.appendChild(pg); pages.push(pg);
           };
           fresh();
