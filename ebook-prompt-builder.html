@@ -311,9 +311,9 @@
       <div class="field">
         <label class="lbl" for="bookText">원고 <small>원고 전체, 또는 제목·목차만 있어도 돼요</small></label>
         <div class="attach-row">
-          <label class="btn ghost file-btn" for="bookFile">원고 파일 첨부<input type="file" id="bookFile" accept=".txt,.md,.docx,.pdf" hidden></label>
+          <label class="btn ghost file-btn" for="bookFile">원고 첨부 (DOCX)<input type="file" id="bookFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label>
           <button class="btn ghost" id="bookFromDraft" type="button">원고 집필에서 가져오기</button>
-          <span class="attach-note" id="bookNote">TXT · DOCX · PDF</span>
+          <span class="attach-note" id="bookNote">워드(DOCX) 파일만 돼요</span>
         </div>
         <textarea id="bookText" style="min-height:130px" placeholder="파일을 첨부하거나, 원고를 여기에 붙여넣으세요."></textarea>
       </div>
@@ -1374,27 +1374,14 @@ ${outline.slice(0, 30000)}`;
 
   // ---- 원고 첨부 ----
   const bookState = { text: "" };
-  const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-  const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   async function readManuscriptFile(file) {
     const name = file.name.toLowerCase();
-    if (name.endsWith(".txt") || name.endsWith(".md")) return await file.text();
     if (name.endsWith(".docx")) {
       await loadScript(CDN.jszip);
       const zip = await window.JSZip.loadAsync(file);
       const xml = await zip.file("word/document.xml").async("string");
       return xml.split(/<\/w:p>/).map(p => (p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []).map(t => t.replace(/<[^>]+>/g, "")).join(""))
         .map(t => t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&")).join("\n").replace(/\n{3,}/g, "\n\n").trim();
-    }
-    if (name.endsWith(".pdf")) {
-      await loadScript(PDFJS_WORKER); await loadScript(PDFJS);  // 워커를 먼저 올려 메인 스레드에서 돌린다
-      const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-      const out = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const tc = await (await pdf.getPage(i)).getTextContent();
-        out.push(tc.items.map(it => it.str + (it.hasEOL ? "\n" : "")).join(""));
-      }
-      return out.join("\n\n").trim();
     }
     throw new Error("type");
   }
@@ -1412,7 +1399,7 @@ ${outline.slice(0, 30000)}`;
       if (!t.trim()) throw new Error("empty");
       setBook(t, `${f.name} · ${t.length.toLocaleString()}자`);
     } catch (e) {
-      $("bookNote").textContent = e.message === "type" ? "TXT·DOCX·PDF 파일만 읽을 수 있어요." : e.message === "empty" ? "이 파일에서 글자를 읽지 못했어요. 스캔본이거나 특수 글꼴 PDF일 수 있어요. DOCX·TXT로 첨부하거나 원고를 붙여넣어주세요." : "파일을 읽지 못했어요. 원고를 직접 붙여넣어주세요.";
+      $("bookNote").textContent = e.message === "type" ? "워드(DOCX) 파일만 첨부할 수 있어요. 한글(HWP)·PDF는 워드로 저장해서 올리거나 원고를 붙여넣어주세요." : e.message === "empty" ? "파일에 글자가 없어요. 원고를 붙여넣어주세요." : "파일을 읽지 못했어요. 원고를 직접 붙여넣어주세요.";
     }
     ev.target.value = "";
   });
