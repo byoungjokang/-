@@ -509,8 +509,31 @@
   $("modeAi").addEventListener("click", () => { manualMode = false; applyPanes(); });
   $("modeManual").addEventListener("click", () => { manualMode = true; applyPanes(); });
 
+  // 앞 단계 결과를 다음 탭 첫 칸에 자동으로 넘긴다. 사용자가 직접 고친 내용은 덮어쓰지 않는다.
+  const autoFilled = {};
+  var lastResearch = "";
+  function upstreamFor(key) {
+    if (key === "toc") {
+      const topic = $("r_topic").value.trim();
+      const rep = lastResearch || "";
+      if (!topic && !rep) return "";
+      return topic + (rep ? `\n\n[주제 리서치 보고서]\n${rep}` : "");
+    }
+    if (key === "chapter") return $("tocOut").hidden ? "" : $("tocText").textContent.trim();
+    return "";
+  }
+  function carryForward(key) {
+    const up = upstreamFor(key);
+    if (!up) return;
+    const cur = drafts[key];
+    if (cur === undefined || cur.trim() === "" || cur === autoFilled[key]) {
+      drafts[key] = up; autoFilled[key] = up;
+    }
+  }
+
   function selectTab(i) {
     if (!TABS[current].custom) drafts[TABS[current].key] = $("src").value;
+    carryForward(TABS[i].key);
     const prev = current;
     current = i;
     const t = TABS[i];
@@ -800,7 +823,7 @@ JSON 배열 하나만. 설명·코드블록 없이. 시장성+대중성 합이 �
     el.className = "note" + (kind ? " " + kind : "");
   }
 
-  let rctl = null, lastResearch = "";
+  let rctl = null;
   $("goResearch").addEventListener("click", async () => {
     const topic = $("r_topic").value.trim();
     if (!topic) { researchState("리서치할 주제를 적거나, 팔리는 주제에서 하나 골라주세요.", "err"); $("r_topic").focus(); return; }
