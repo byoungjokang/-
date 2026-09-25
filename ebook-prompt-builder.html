@@ -160,7 +160,8 @@
   /* PDF로 그릴 A5 페이지 (화면 밖에서만 쓰임) */
   .pdf-host { position: fixed; left: -10000px; top: 0; }
   .pdf-page { box-sizing: border-box; background: #fff; color: #1a1a1a; font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; overflow: hidden; }
-  .pdf-inner { height: 100%; overflow: hidden; }
+  .pdf-inner { height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+  .pdf-inner > * { flex: none; }
   .pdf-cover { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px; }
   .pdf-cover-title { font-family: "Black Han Sans", "Noto Sans KR", sans-serif; font-size: 34px; line-height: 1.3; color: #111; }
   .pdf-cover-title::after { content: ""; display: block; width: 48px; height: 5px; background: #ffd400; margin: 18px auto 0; }
@@ -1300,6 +1301,82 @@ ${outline.slice(0, 30000)}`;
     return zip.generateAsync({ type: "blob" });
   }
 
+  // ---------- 페이지 나누기 (혼자 남는 줄 방지) ----------
+  // 규칙: 1) 소제목·장 제목은 다음 블록과 붙여 넘긴다
+  //       2) 체크리스트·번호 목록은 5개 이하면 통째로, 더 길면 양쪽에 최소 2개씩 남게 나눈다
+  //       3) 장의 마지막 페이지가 너무 비면(4분의 1 미만) 앞 페이지에서 블록을 가져와 균형을 맞춘다
+  function measureBlocks(box, els) {
+    return els.map(el => {
+      box.appendChild(el);
+      const cs = getComputedStyle(el);
+      const h = el.getBoundingClientRect().height + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0);
+      box.removeChild(el);
+      return h;
+    });
+  }
+  function paginate(items, cap) {
+    const isHead = (k) => items[k].kind === "title" || items[k].kind === "h";
+    const H = (idx) => idx.reduce((a, k) => a + items[k].h, 0);
+    // 1) 묶음 만들기: 목록은 한 묶음, 제목은 뒤 묶음에 붙인다
+    let units = [];
+    for (let i = 0; i < items.length;) {
+      if (items[i].kind === "li") { let j = i; while (j < items.length && items[j].kind === "li") j++; units.push({ idx: Array.from({ length: j - i }, (_, n) => i + n) }); i = j; }
+      else { units.push({ idx: [i] }); i++; }
+    }
+    for (let u = units.length - 2; u >= 0; u--) {
+      if (units[u].idx.every(isHead)) { units[u + 1] = { idx: units[u].idx.concat(units[u + 1].idx) }; units.splice(u, 1); }
+    }
+    // 2) 채우기
+    const pages = [[]]; let used = 0;
+    const put = (idx) => { pages[pages.length - 1].push(...idx); used += H(idx); };
+    const newPg = () => { if (pages[pages.length - 1].length) { pages.push([]); used = 0; } };
+    for (const u of units) {
+      let rest = u.idx.slice();
+      while (rest.length) {
+        if (used + H(rest) <= cap) { put(rest); rest = []; break; }
+        const heads = rest.findIndex(k => !isHead(k)); const lis = rest.filter(k => items[k].kind === "li").length;
+        // 들어가는 개수
+        let n = 0, acc = 0; for (const k of rest) { if (used + acc + items[k].h > cap) break; acc += items[k].h; n++; }
+        const empty = !pages[pages.length - 1].length;
+        if (lis > 5 && heads >= 0) {
+          // 긴 목록: 이 페이지 목록 2개 이상, 다음 페이지 2개 이상 남을 때만 나눈다
+          let m = n; while (m > heads && (rest.length - m) < 2) m--;
+          if (m - heads >= 2 && rest.length - m >= 2) { put(rest.slice(0, m)); rest = rest.slice(m); newPg(); continue; }
+        }
+        if (empty) { // 빈 페이지에도 안 들어가는 긴 묶음은 들어가는 만큼
+          const m = Math.max(1, n - ((rest.length - n) === 1 ? 1 : 0));
+          put(rest.slice(0, m)); rest = rest.slice(m); if (rest.length) newPg(); continue;
+        }
+        newPg();
+      }
+    }
+    // 3) 마지막 페이지 균형 맞추기
+    for (let g = 0; g < 8 && pages.length > 1; g++) {
+      const last = pages[pages.length - 1], prev = pages[pages.length - 2];
+      if (H(last) >= cap * 0.25 || prev.length < 2) break;
+      // prev 끝에서 옮길 덩어리: 끝 블록 하나(목록이면 그 목록 전체), 그 앞 제목까지
+      let a = prev.length - 1;
+      if (items[prev[a]].kind === "li") { while (a > 0 && items[prev[a - 1]].kind === "li") a--; }
+      while (a > 0 && isHead(prev[a - 1])) a--;
+      if (a === 0) a = prev.length; // 통째로는 못 옮김
+      let chunk = prev.slice(a);
+      if (a === prev.length || H(last) + H(chunk) > cap || H(prev) - H(chunk) < cap * 0.35) {
+        // 긴 목록 꼬리 옮기기: 뒤에서 2개 이상, 앞에도 2개 이상 남게
+        const e = prev.length; let s0 = e; while (s0 > 0 && items[prev[s0 - 1]].kind === "li") s0--;
+        let done = false;
+        for (let t = 2; e - s0 - t >= 2; t++) {
+          const c = prev.slice(e - t);
+          if (H(last) + H(c) > cap) break;
+          if (H(last) + H(c) >= cap * 0.25) { chunk = c; a = e - t; done = true; break; }
+        }
+        if (!done) break;
+      }
+      pages[pages.length - 2] = prev.slice(0, a);
+      pages[pages.length - 1] = chunk.concat(last);
+    }
+    return pages.filter(pg => pg.length);
+  }
+
   // PDF: A5 페이지로 나눠 그린 뒤 이미지로 담는다 (한글 글꼴이 깨지지 않게)
   async function makePdf(onProgress) {
     await Promise.all([loadScript(CDN.jspdf), loadScript(CDN.h2c)]);
@@ -1316,23 +1393,21 @@ ${outline.slice(0, 30000)}`;
       inner = document.createElement("div"); inner.className = "pdf-inner";
       page.appendChild(inner); host.appendChild(page); pages.push(page);
     };
-    const add = (el) => {
-      inner.appendChild(el);
-      if (inner.scrollHeight > H - PAD * 2 && inner.children.length > 1) {
-        inner.removeChild(el); newPage(); inner.appendChild(el);
-      }
-    };
     const el = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
     try {
       newPage();
       inner.classList.add("pdf-cover");
       inner.append(el("div", "pdf-cover-title", title));
       if (subtitle) inner.append(el("div", "pdf-cover-sub", subtitle));
+      await (document.fonts?.ready || Promise.resolve());
+      newPage(); const probe = inner; const probePage = pages.pop();
       draftParts.forEach(part => {
-        newPage();
-        add(el("h2", "pdf-h1", part.title));
-        blocks(part.text).forEach(b => add(el(b.type === "h" ? "h3" : "p", b.type === "h" ? "pdf-h2" : "pdf-p", b.text)));
+        const els = [el("h2", "pdf-h1", part.title)], kinds = ["title"];
+        blocks(part.text).forEach(b => { els.push(el(b.type === "h" ? "h3" : "p", b.type === "h" ? "pdf-h2" : "pdf-p", b.text)); kinds.push(b.type === "h" ? "h" : "p"); });
+        const hs = measureBlocks(probe, els);
+        paginate(hs.map((h, i) => ({ h, kind: kinds[i] })), H - PAD * 2).forEach(pg => { newPage(); pg.forEach(k => inner.appendChild(els[k])); });
       });
+      probePage.remove();
       await (document.fonts?.ready || Promise.resolve());
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit: "mm", format: "a5" });
@@ -1929,28 +2004,24 @@ ${excerpt || "(원고 없음)"}`;
       parts.slice(0, 22).forEach(pt => list.appendChild(mk("div", "", noDash(pt.title))));
       toc.appendChild(list); pages.push(toc);
       const host = mk("div", "position:fixed;left:-20000px;top:0;"); document.body.appendChild(host);
+      const probePage = pageShell(th, 0);
+      const probe = mk("div", `position:absolute;left:64px;right:64px;top:68px;height:${PH - 68 - 80}px;overflow:hidden;display:flex;flex-direction:column;`);
+      probePage.appendChild(probe); host.appendChild(probePage);
+      probe.appendChild(mk("div", `font-family:${th.head};`, "가나다")); probe.appendChild(mk("div", `font-family:${th.sub};font-weight:700;`, "가나다")); probe.appendChild(mk("div", `font-family:${th.body};`, "가나다"));
+      await fontsReady(probePage); probe.innerHTML = "";
       let pageNo = 1;
       try {
         parts.forEach((pt, idx) => {
           const isNum = !/프롤로그|에필로그|들어가며|나가며|시작하며/.test(pt.title);
           pages.push(chapterPage(th, pt.title, isNum ? idx : 0, 0));
-          let pg, inner;
-          const fresh = () => {
-            pg = pageShell(th, ++pageNo);
-            inner = mk("div", `position:absolute;left:64px;right:64px;top:68px;height:${PH - 68 - 80}px;overflow:hidden;`);
-            pg.appendChild(inner); host.appendChild(pg); pages.push(pg);
-          };
-          fresh();
-          richBlocks(pt.text).forEach(b => {
-            const el = blockEl(th, b); el.dataset.kind = b.type; inner.appendChild(el);
-            if (inner.scrollHeight > inner.clientHeight + 1 && inner.children.length > 1) {
-              inner.removeChild(el);
-              // 소제목이 페이지 끝에 혼자 남지 않게 다음 페이지로 같이 넘긴다
-              const last = inner.lastElementChild;
-              const carry = last && last.dataset.kind === "h" && inner.children.length > 1 ? last : null;
-              if (carry) inner.removeChild(carry);
-              fresh(); if (carry) inner.appendChild(carry); inner.appendChild(el);
-            }
+          const els = [], kinds = [];
+          richBlocks(pt.text).forEach(b => { els.push(blockEl(th, b)); kinds.push(b.type); });
+          const hs = measureBlocks(probe, els);
+          paginate(hs.map((h, i) => ({ h, kind: kinds[i] })), probe.clientHeight).forEach(pgIdx => {
+            const pg = pageShell(th, ++pageNo);
+            const inner = mk("div", `position:absolute;left:64px;right:64px;top:68px;height:${PH - 68 - 80}px;overflow:hidden;display:flex;flex-direction:column;`);
+            pgIdx.forEach(k => { els[k].style.flex = "none"; inner.appendChild(els[k]); });
+            pg.appendChild(inner); pages.push(pg);
           });
         });
       } finally { host.remove(); }
