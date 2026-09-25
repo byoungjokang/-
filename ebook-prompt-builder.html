@@ -1,26 +1,27 @@
 <title>전자책 생성기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Do+Hyeon&family=Jua&family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;800&family=Song+Myung&family=IBM+Plex+Sans+KR:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Do+Hyeon&family=Jua&family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;800&family=Song+Myung&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 <style>
-  /* 검정 바탕 + 노란 글씨 — 한 가지 테마로 고정 */
+  /* 검정 바탕 + 노란 글씨, 한 가지 테마로 고정 */
   :root, :root[data-theme="light"], :root[data-theme="dark"] {
     color-scheme: dark;
-    --ground: #0a0a09;
+    --ground: #0c0c0b;
     --panel: #121210;
     --field: #0d0d0c;
-    --line: #2a2718;
-    --line-strong: #4a4424;
-    --ink: #fff4c2;
-    --ink-soft: #e8d98f;
-    --ink-faint: #9c9166;
-    --accent: #ffd400;
-    --accent-soft: #ffe14d;
-    --accent-ink: #0a0a09;
-    --accent-wash: rgba(255, 212, 0, 0.10);
+    --line: #26241c;
+    --line-strong: #423d26;
+    --ink: #f4ecd0;
+    --ink-soft: #d6c99c;
+    --ink-faint: #958b69;
+    --accent: #e8c547;
+    --accent-soft: #f0d36a;
+    --accent-ink: #0c0c0b;
+    --accent-wash: rgba(232, 197, 71, 0.10);
+    --r: 6px;
     --ok: #b8e986;
     --display: "Black Han Sans", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-    --body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    --body: "IBM Plex Sans KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   }
 
   * { box-sizing: border-box; }
@@ -36,27 +37,29 @@
   }
   .wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
   h1, h2 { font-family: var(--display); font-weight: 400; color: var(--accent); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
-  h1 { font-size: clamp(34px, 8vw, 52px); line-height: 1.15; letter-spacing: -0.005em; }
+  h1 { font-size: clamp(40px, 9vw, 60px); line-height: 1.08; letter-spacing: -0.02em; }
   h1::after { content: ""; display: block; width: 56px; height: 5px; background: var(--accent); margin-top: 16px; }
   h2 { font-size: clamp(22px, 5vw, 28px); line-height: 1.35; font-weight: 400; }
-  .lede { color: var(--ink-soft); margin: 10px 0 0; max-width: 60ch; }
+  .lede { color: var(--ink-soft); margin: 18px 0 0; max-width: 46ch; font-size: 16px; line-height: 1.75; }
   .eyebrow { font-size: 12px; letter-spacing: 0.2em; color: var(--ink-faint); font-weight: 700; margin-bottom: 12px; }
 
-  .flow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; font-size: 13px; color: var(--ink-faint); align-items: center; }
-  .flow span.step { border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 11px; color: var(--ink-soft); }
-  .flow { color: var(--accent); }
 
-  .panel { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 2px; padding: 28px 24px; display: flex; flex-direction: column; gap: 22px; }
-  @media (max-width: 480px) { .panel { padding: 22px 16px; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 28px 32px; display: flex; flex-direction: column; gap: 22px; }
+  @media (max-width: 480px) { .panel { padding: 4px 16px 24px; } }
 
-  .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-bottom: 1px solid var(--line); margin: 0 -28px; padding: 0 16px; }
+  @media (max-width: 640px) { .tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 -16px; padding: 0 4px; } }
   .tab {
-    font: inherit; font-weight: 700; font-size: 15px;
-    padding: 14px 10px; border-radius: 4px; cursor: pointer;
-    background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong);
+    font: inherit; font-weight: 600; font-size: 14px; line-height: 1.35; text-align: left;
+    padding: 18px 10px 14px; cursor: pointer; background: transparent; border: 0;
+    color: var(--ink-faint); box-shadow: inset 0 -2px 0 transparent;
+    display: flex; flex-direction: column; gap: 4px; transition: color .18s, box-shadow .18s;
   }
-  .tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 900; }
-  .tab:hover:not([aria-selected="true"]) { border-color: var(--accent); color: var(--accent-soft); }
+  .tab-no { font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; color: var(--line-strong); font-variant-numeric: tabular-nums; transition: color .18s; }
+  .tab[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+  .tab[aria-selected="true"] .tab-no { color: var(--accent); }
+  .tab:hover:not([aria-selected="true"]) { color: var(--ink-soft); }
+  .tab:hover .tab-no { color: var(--ink-faint); }
   .tab:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
 
   .field { display: flex; flex-direction: column; gap: 8px; }
@@ -64,24 +67,27 @@
   label.lbl small, div.lbl small { font-weight: 400; color: var(--ink-faint); font-size: 13px; margin-left: 4px; }
   textarea, input[type="text"], select {
     width: 100%; font: inherit; color: var(--ink);
-    background: var(--field); border: 1px solid var(--line-strong); border-radius: 4px;
-    padding: 12px 14px;
+    background: var(--field); border: 1px solid var(--line-strong); border-radius: var(--r);
+    padding: 12px 14px; transition: border-color .18s;
   }
   textarea { min-height: 150px; resize: vertical; line-height: 1.7; }
   textarea::placeholder, input::placeholder { color: var(--ink-faint); }
+  textarea:hover, input[type="text"]:hover, select:hover { border-color: var(--ink-faint); }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
 
   .btn {
     font: inherit; font-weight: 700; font-size: 16px; cursor: pointer;
-    width: 100%; padding: 15px; border-radius: 4px; border: 0;
+    width: 100%; padding: 15px; border-radius: var(--r); border: 0;
     background: var(--accent-soft); color: var(--accent-ink);
+    transition: background-color .18s, transform .12s, border-color .18s, color .18s;
   }
-  .btn { background: var(--accent); font-weight: 900; }
+  .btn:active:not([disabled]) { transform: scale(0.985); }
+  .btn { background: var(--accent); font-weight: 700; letter-spacing: -0.005em; }
   .btn:hover { background: var(--accent-soft); }
   .btn.ghost:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
   .btn[disabled] { opacity: 0.55; cursor: progress; }
-  .btn.ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong); font-size: 14px; padding: 10px 14px; width: auto; }
+  .btn.ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong); font-size: 14px; font-weight: 600; padding: 10px 14px; width: auto; }
 
   .out { border-top: 1px solid var(--line); padding-top: 20px; display: flex; flex-direction: column; gap: 12px; }
   .out-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -91,7 +97,7 @@
   pre.result {
     margin: 0; white-space: pre-wrap; word-break: break-word;
     font-family: var(--body); font-size: 14.5px; line-height: 1.8;
-    background: var(--field); border: 1px solid var(--line); border-radius: 4px;
+    background: var(--field); border: 1px solid var(--line); border-radius: var(--r);
     padding: 16px; max-height: 520px; overflow: auto; color: var(--ink);
   }
   .note { font-size: 13px; color: var(--ink-faint); margin: 0; }
@@ -103,18 +109,18 @@
   .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
   .chip {
     font: inherit; font-size: 14px; cursor: pointer;
-    padding: 9px 18px; border-radius: 999px;
+    padding: 9px 16px; border-radius: var(--r);
     background: transparent; color: var(--accent-soft); border: 1px solid var(--line-strong);
   }
   .chip:hover { background: var(--accent-wash); }
 
-  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-strong); border-radius: 4px; overflow: hidden; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-strong); border-radius: var(--r); overflow: hidden; }
   .seg-btn { font: inherit; font-size: 14px; font-weight: 700; padding: 11px 8px; cursor: pointer; background: transparent; color: var(--ink-faint); border: 0; }
   .seg-btn + .seg-btn { border-left: 1px solid var(--line-strong); }
   .seg-btn[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent-soft); }
   .levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   @media (max-width: 520px) { .levels { grid-template-columns: 1fr; } }
-  .level { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; border: 1px solid var(--line-strong); border-radius: 4px; padding: 11px 12px; }
+  .level { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; border: 1px solid var(--line-strong); border-radius: var(--r); padding: 11px 12px; }
   .level input { accent-color: var(--accent); margin: 4px 0 0; flex: none; }
   .level span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--ink-soft); }
   .level small { font-size: 12.5px; color: var(--ink-faint); line-height: 1.5; }
@@ -129,7 +135,7 @@
   .src-head { font-weight: 700; color: var(--ink-soft); margin-bottom: 4px; }
   .src-list a { color: var(--accent-soft); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .src-list a:hover { text-decoration: underline; }
-  .gate { border: 2px solid var(--accent); background: var(--accent-wash); border-radius: 2px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .gate { border: 1px solid var(--accent); background: var(--accent-wash); border-radius: var(--r); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
   .gate strong { color: var(--accent); font-size: 17px; font-weight: 900; }
   .gate ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; color: var(--ink); }
   .gate b { color: var(--accent); }
@@ -148,7 +154,7 @@
   pre.result.manuscript { max-height: 70vh; font-size: 15px; line-height: 1.95; }
   .draft-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .draft-actions .btn { padding: 13px 8px; font-size: 15px; }
-  .save-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: 4px; }
+  .save-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--r); }
   .save-row span { color: var(--ink-soft); font-size: 14px; flex: 1 1 100%; }
   .save-row .btn { flex: 1 1 0; }
   /* PDF로 그릴 A5 페이지 (화면 밖에서만 쓰임) */
@@ -168,7 +174,7 @@
   .refs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
   @media (max-width: 640px) { .refs { grid-template-columns: 1fr; } .refs .ref { align-items: center; } }
   .refs.body { grid-template-columns: 1fr; }
-  .ref { border: 1px solid var(--line-strong); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--field); align-items: flex-start; }
+  .ref { border: 1px solid var(--line-strong); border-radius: var(--r); padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--field); align-items: flex-start; }
   .refs.body .ref > div:first-child { max-width: 100%; overflow-x: auto; }
   .ref-name { font-weight: 900; color: var(--accent); font-size: 14px; }
   .ref-concept { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
@@ -177,14 +183,14 @@
   .ref-actions .btn { width: 100%; padding: 9px 6px; font-size: 13.5px; }
   .draft-actions.single { grid-template-columns: 1fr; }
   .cover-drop { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-  .cover-drop img { width: 120px; height: 160px; object-fit: cover; border: 1px solid var(--line-strong); border-radius: 2px; }
+  .cover-drop img { width: 120px; height: 160px; object-fit: cover; border: 1px solid var(--line-strong); border-radius: var(--r); }
   .cover-drop-side { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
   .pane { display: flex; flex-direction: column; gap: 22px; }
   .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .cats.sub { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
   .check {
     display: flex; align-items: center; gap: 9px; cursor: pointer;
-    border: 1px solid var(--line-strong); border-radius: 4px; padding: 10px 12px;
+    border: 1px solid var(--line-strong); border-radius: var(--r); padding: 10px 12px;
     font-size: 14px; color: var(--ink-soft); line-height: 1.4;
   }
   .check.other { grid-column: span 2; }
@@ -195,7 +201,7 @@
   .check:has(input:focus-visible) { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
 
   .topics { display: flex; flex-direction: column; gap: 12px; }
-  .topic { border: 1px solid var(--line); border-radius: 4px; padding: 16px; background: var(--field); display: flex; flex-direction: column; gap: 10px; }
+  .topic { border: 1px solid var(--line); border-radius: var(--r); padding: 16px; background: var(--field); display: flex; flex-direction: column; gap: 10px; }
   .topic-head { display: flex; gap: 10px; align-items: baseline; }
   .topic-no { font-family: var(--display); color: var(--accent); font-size: 22px; font-variant-numeric: tabular-nums; flex: none; }
   .topic-title { font-weight: 700; font-size: 16px; line-height: 1.5; color: var(--ink); }
@@ -205,7 +211,7 @@
   .meter { display: inline-flex; gap: 2px; vertical-align: middle; margin-left: 4px; }
   .meter i { width: 9px; height: 9px; border-radius: 2px; background: var(--line-strong); }
   .meter i.on { background: var(--accent); }
-  .tag { font-size: 12px; border: 1px solid var(--line-strong); border-radius: 999px; padding: 1px 9px; color: var(--ink-soft); }
+  .tag { font-size: 12px; border: 1px solid var(--line-strong); border-radius: var(--r); padding: 1px 9px; color: var(--ink-soft); }
   .why { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
   .why b { color: var(--ink); }
   .topic-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -221,9 +227,6 @@
     <div class="eyebrow">EBOOK · GENERATOR</div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
-    <div class="flow" aria-label="전자책 제작 순서">
-      <span class="step">팔리는 주제</span>→<span class="step">주제 리서치</span>→<span class="step">목차 설계</span>→<span class="step">원고 집필</span>→<span class="step">표지 디자인</span>→<span class="step">본문 디자인</span>
-    </div>
   </header>
 
   <!-- AI 섹션 -->
@@ -256,9 +259,9 @@
         <div class="field">
           <label class="lbl" for="t_link">나와의 접점</label>
           <select id="t_link">
-            <option value="① 이미 극복했다 — 내 이야기가 곧 증거">① 이미 극복했다</option>
-            <option value="② 극복하고 싶다/극복 중이다 — 연구하며 쓰는 연구 기반 메신저">② 극복 중이다</option>
-            <option value="③ 관심이 있다 — 관심이 연구의 연료">③ 관심만 있다</option>
+            <option value="① 이미 극복했다 · 내 이야기가 곧 증거">① 이미 극복했다</option>
+            <option value="② 극복하고 싶다/극복 중이다 · 연구하며 쓰는 연구 기반 메신저">② 극복 중이다</option>
+            <option value="③ 관심이 있다 · 관심이 연구의 연료">③ 관심만 있다</option>
           </select>
         </div>
         <div class="field">
@@ -317,14 +320,27 @@
         </div>
         <textarea id="bookText" style="min-height:130px" placeholder="파일을 첨부하거나, 원고를 여기에 붙여넣으세요."></textarea>
       </div>
+      <div class="field">
+        <div class="lbl">표지 그림 <small>선택 · 넣으면 그림 위에 제목을 얹은 표지를 만들어요</small></div>
+        <div class="cover-drop">
+          <img id="artThumb" alt="표지 그림" hidden>
+          <div class="cover-drop-side">
+            <div class="attach-row">
+              <label class="btn ghost file-btn" for="artFile">그림 넣기<input type="file" id="artFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+              <button class="btn ghost" id="artClear" type="button" hidden>그림 빼기</button>
+            </div>
+            <span class="attach-note" id="artNote">그림이 없으면 도형으로 표지를 그려요. 그림은 맨 아래 '표지 그림 프롬프트'를 이미지 AI(미드저니·나노바나나·ChatGPT)에 넣어 만들 수 있어요.</span>
+          </div>
+        </div>
+      </div>
       <button class="btn" id="goCover" type="button">원고 분석해서 표지 디자인 3개 뽑기</button>
       <p class="note" id="coverState" hidden></p>
       <div class="refs" id="coverRefs" hidden></div>
       <div class="draft-actions single" id="coverActions" hidden>
         <button class="btn secondary" id="regenCover" type="button">다시 생성 (3개 새로)</button>
       </div>
-      <div class="divider"><span>이미지 AI용 표지 프롬프트만 받기</span><small>(미드저니·나노바나나 같은 이미지 AI에 넣으면 또 다른 표지가 나와요)</small></div>
-      <button class="btn secondary" id="coverPromptBtn" type="button">표지 이미지 프롬프트 생성</button>
+      <div class="divider"><span>표지 그림 프롬프트</span><small>(이미지 AI에 넣어 그림을 만든 뒤, 위 '그림 넣기'로 올리면 그 그림으로 표지를 만들어요)</small></div>
+      <button class="btn secondary" id="coverPromptBtn" type="button">표지 그림 프롬프트 생성</button>
       <pre class="result" id="coverPromptOut" hidden></pre>
     </div>
 
@@ -455,7 +471,7 @@
     <div id="manualPane" class="pane" hidden>
       <p class="hint" style="margin:0">항목을 손으로 채우면 AI 없이 바로 전자책 집필 프롬프트가 완성돼요. 원고가 아직 없을 때 쓰세요.</p>
       <div>
-        <div class="chips-lbl">책 유형 <span>— 눌러서 기본값 채우기</span></div>
+        <div class="chips-lbl">책 유형 <span>· 눌러서 기본값 채우기</span></div>
         <div class="chips" id="presets"></div>
       </div>
 
@@ -568,13 +584,14 @@
     }
   ];
 
+  const mk0 = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
   let current = 0;
   const drafts = {};
   const tabsEl = $("tabs");
   TABS.forEach((t, i) => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "tab"; b.role = "tab"; b.id = "tab-" + t.key;
-    b.textContent = t.label;
+    b.append(mk0("span", "tab-no", String(i + 1).padStart(2, "0")), document.createTextNode(t.label));
     b.addEventListener("click", () => selectTab(i));
     tabsEl.appendChild(b);
   });
@@ -727,11 +744,11 @@ ${src.slice(0, 50000)}`;
     ["돈 버는 법", "가장 경쟁이 심하다. 직업(보험/학원/병원/프리랜서) × 채널(카톡/인스타/전화/대면) × 단계(0→1, 첫 매출)로 쪼개야 살아남는다.", ["세일즈", "마케팅", "퍼스널 브랜딩", "카피라이팅", "SNS 수익화", "취직", "사업 시작", "사업 자동화", "온라인 교육 코스"]],
     ["기업가 교육", "회사 규모(5인 미만/30인)·리더 상태(처음 팀장/내향형)·직원 유형(MZ/연상 부하/알바). 대기업 리더십 책과 소상공인 사장의 결핍은 다르다.", ["리더십", "직원 관리", "재무", "운영", "세무"]],
     ["사랑 & 인간관계", "성별 × 나이 × 상태(모솔/이별 직후/결혼 앞둔/재혼) × 채널(앱/소개팅/모임/회사). 결핍이 가장 뜨거워 쪼갤수록 팔린다.", ["더 많은 이성을 만나는 법", "이상형의 배우자를 얻는 법", "관계 갈등·재결합", "연애 커뮤니케이션", "이별 후 멘탈"]],
-    ["시간관리 & 생산성", "시간이 없는 이유가 원씽이다. 야근·아이·미루기·유튜브 중 무엇 때문인지 — 원인 × 직업 상태로 쪼갠다.", ["시간관리", "생산성"]],
+    ["시간관리 & 생산성", "시간이 없는 이유가 원씽이다. 야근·아이·미루기·유튜브 중 무엇 때문인지 · 원인 × 직업 상태로 쪼갠다.", ["시간관리", "생산성"]],
     ["부동산", "자본 규모(5천/1억 이하) × 단계(권리분석/임장/명도) × 독자 상태(직장인 주말/주부). 숫자를 제목에 넣을수록 원씽이 선명해진다.", ["부동산 경매", "소액 부동산", "저평가 지역", "공인중개사"]],
     ["돈 관리", "소득 상태(사회초년생/월급 250/프리랜서 불규칙) × 문제(카드값/충동구매/물린 주식) × 목표 숫자(1천만 원). 숫자와 상황을 제목에 박아야 한다.", ["목돈 만들기", "투자·재테크", "주식", "가계부", "돈 마인드셋"]],
     ["전문가 스킬", "장면(결혼식 사회/축사/면접/카메라 앞) × 결핍 유형(떨림/논리/목소리) × 대상(신입/경력/공무원). '어디서 쓰는 스킬이냐'로 쪼갠다.", ["스피치", "인터뷰", "자기소개서", "정부지원금·투자", "코딩", "세일즈 피치", "책 쓰기", "디자인", "영상 편집"]],
-    ["개인 성장", "비라스의 본거지. 자존감·감정은 '어떤 장면에서 무너지느냐'로 쪼갠다. 남 눈치, 비교, 거절 못 함, 외모, 실패 후 — 장면 하나가 책 하나다.", ["자존감", "감정", "행복", "라이프스타일", "명상", "외국어", "뇌 기능"]],
+    ["개인 성장", "비라스의 본거지. 자존감·감정은 '어떤 장면에서 무너지느냐'로 쪼갠다. 남 눈치, 비교, 거절 못 함, 외모, 실패 후 · 장면 하나가 책 하나다.", ["자존감", "감정", "행복", "라이프스타일", "명상", "외국어", "뇌 기능"]],
     ["종교·신념·영성", "신앙 단계(초신자/오래된 신자) × 형태(혼자/자녀와/매일 아침) × 종교 유무. '종교 없이'라는 조건이 큰 시장이다.", ["성경", "신념 강화", "개인적 신념"]],
     ["집 꾸미기", "집 형태(원룸/전세/신혼집) × 제약(못 안 박고/50만 원/혼자) × 부위(조명/침실/베란다). 제약 조건이 원씽이다.", ["셀프 인테리어", "홈가드닝", "집수리", "풍수", "DIY"]],
     ["생존·캠핑", "경험 수준(첫 캠핑/혼캠) × 동반자(아이/반려견/혼자) × 형태(차박/백패킹). 응급처치는 '누구를 위한'이 원씽이다.", ["캠핑", "야생 생존", "응급처치", "자급자족", "낚시"]],
@@ -857,20 +874,20 @@ ${cat}${sub ? " > " + sub : " (세부 분야 자유)"}
 ${who ? "대상 좁히기: " + who + "\n" : ""}나와의 접점: ${$("t_link").value}
 저자 경험·강점: ${me || "(없음)"}
 
-[원칙 — 주제 쪼개기]
-- 넓은 주제는 팔리지 않는다. 5개의 칼로 쪼갠다: ①대상(누가) ②상황(어디서·언제) ③결핍(뭐가 막히나 — 몰라서/떨려서/시간·돈이 없어서/자꾸 포기해서) ④결과(눈에 보이는 한 장면) ⑤방법(저자의 무기).
+[원칙 · 주제 쪼개기]
+- 넓은 주제는 팔리지 않는다. 5개의 칼로 쪼갠다: ①대상(누가) ②상황(어디서·언제) ③결핍(뭐가 막히나 · 몰라서/떨려서/시간·돈이 없어서/자꾸 포기해서) ④결과(눈에 보이는 한 장면) ⑤방법(저자의 무기).
 - 이 분야의 칼: ${knife}
 - 원씽 한 문장 형식: "(누가) (어떤 상황에서) (뭐가 안 돼서) (어떤 결과를 얻는) (무슨 방법)". 빈칸이 있으면 덜 쪼갠 것.
 - 결핍은 뾰족하게, 시장은 살아 있게. 너무 잘게 쪼개 검색하는 사람이 없는 주제는 한 칸 넓힌다.
 - 저자 경험·강점이 있으면 최소 5개 주제의 ⑤방법에 그것을 넣는다. 원씽은 '남과 다른 주제'가 아니라 '나만 이렇게 말할 수 있는 주제'다.
 - 결핍 6종(외모·내면·관계·돈·성적 욕망·행복) 중 사람들이 돈을 쓰는 결핍에 붙인다.
 
-[원칙 — 숫자 제목]
+[원칙 · 숫자 제목]
 - 10개 제목 모두 숫자를 하나 이상 넣는다. 숫자는 독자가 치를 비용 또는 얻을 결과를 미리 알려줘야 한다.
 - 숫자 꼴을 섞는다: 기간(2주 만에, 30일), 하루 투자 시간(하루 10분), 개수(20개 기본템, 3단계, 5가지), 금액(월 100만 원, 50만 원으로), 확률 폭로(100명 중 99명이 ~하는), 변화량(10kg, 5살 어려 보이는, 100타 깨기). 같은 꼴은 3번까지만.
 - 제목은 그대로 판매 페이지 제목이 되게, 25~40자, 대상이 얼굴이 그려지게 쓴다. "아무도 알려주지 않는", "진짜 이유", "절대"는 10개 전체에서 합쳐 1번까지만.
 
-[평가 — 각 주제마다]
+[평가 · 각 주제마다]
 - market(시장성, 1~5): 이 결핍에 사람들이 실제로 돈을 쓰는가. 크몽·클래스101·유튜브에 비슷한 유료 상품·강의가 팔리고 있는가.
 - mass(대중성, 1~5): 이 고민을 가진 사람이 얼마나 많은가. 네이버 지식인·카페·유튜브 댓글에 이 질문이 흔한가.
 - evidence(팔릴 근거, 1~2문장): 왜 팔리는지 구체적으로. 어떤 플랫폼에 어떤 유형 상품이 있는지, 어떤 검색·질문이 흔한지, 어떤 시기적 수요가 있는지. 모르는 수치는 지어내지 말고 "~로 보인다"처럼 추정임을 드러낸다.
@@ -890,7 +907,7 @@ JSON 배열 하나만. 설명·코드블록 없이. 시장성+대중성 합이 �
       const arr = Array.isArray(list) ? list : (list?.topics || []);
       if (!arr.length) throw { code: "empty_completion" };
       renderTopics(arr.slice(0, 10));
-      topicState(`${cat}${sub ? " · " + sub : ""} — 팔리는 주제 ${Math.min(arr.length, 10)}개를 뽑았어요. 마음에 드는 걸 골라 '이 주제로 리서치하기'를 누르세요.`, "ok");
+      topicState(`${cat}${sub ? " · " + sub : ""} · 팔리는 주제 ${Math.min(arr.length, 10)}개를 뽑았어요. 마음에 드는 걸 골라 '이 주제로 리서치하기'를 누르세요.`, "ok");
     } catch (e) {
       topicState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "결과 형식이 깨졌어요. 한 번만 다시 눌러주세요." : (ERR[e?.code] || "생성에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
     } finally {
@@ -927,9 +944,9 @@ JSON 배열 하나만. 설명·코드블록 없이. 시장성+대중성 합이 �
 [확정 주제]
 ${topic}
 
-[분량] ${lv.label} — ${lv.depth}
+[분량] ${lv.label} · ${lv.depth}
 
-[1단계 — 리서치 지도 (먼저 스스로 판단)]
+[1단계 · 리서치 지도 (먼저 스스로 판단)]
 - 주제 유형: 심리/관계/멘탈형, 실무 스킬/취미형, 재무/전문지식형, 육아/가족/반려동물형, 신념/영성형 중 무엇인지 (섞이면 섞인 대로).
 - 관련 학문·전문 분야 2~4개 (심리학이 늘 정답은 아니다).
 - 검증된 방법론·고전 계보가 있으면 적고, 없으면 억지로 만들지 않는다.
@@ -966,10 +983,10 @@ ${topic}
       if (lv.passes > 1) {
         researchState("1차 완료 · 2차 심화 리서치 중…");
         const deep = `아래는 [확정 주제]에 대한 1차 리서치 보고서다. 1차와 겹치지 않게 2차 심화 리서치를 쓴다.
-【2차 심화 — 통념 검증】 1차의 【걸러야 할 통념】과 이 주제에서 유행하는 조언 3~5개를 하나씩: 어디까지 근거가 있고 어디부터 과장인지
-【2차 심화 — 놓친 각도】 1차에 없던 대상·상황·방법 각도 3~5개
-【2차 심화 — 챕터별 근거 매핑】 1차 【목차 재료】 각 챕터에 쓸 구체 근거·사례·장면 1~2줄씩
-【2차 심화 — 차별화 한 줄】 이 책만 할 수 있는 말 한 문장
+【2차 심화 · 통념 검증】 1차의 【걸러야 할 통념】과 이 주제에서 유행하는 조언 3~5개를 하나씩: 어디까지 근거가 있고 어디부터 과장인지
+【2차 심화 · 놓친 각도】 1차에 없던 대상·상황·방법 각도 3~5개
+【2차 심화 · 챕터별 근거 매핑】 1차 【목차 재료】 각 챕터에 쓸 구체 근거·사례·장면 1~2줄씩
+【2차 심화 · 차별화 한 줄】 이 책만 할 수 있는 말 한 문장
 확실하지 않은 수치·연구·인용은 쓰지 않는다. 마크다운 기호 없이 일반 텍스트.
 
 [확정 주제]
@@ -1044,7 +1061,7 @@ ${reader ? "[독자] " + reader + "\n" : ""}${tone ? "[톤] " + tone + "\n" : ""
 - 육아·건강·상실처럼 독자가 이미 죄책감을 안고 있는 주제는 도발·훈계조를 쓰지 않는다.
 - 저자 경험이 필요한 장은 [원료 필요]를 붙인다. 없는 경험을 지어내지 않는다.
 
-[출력 — 마크다운 기호(#, **, 표) 없이 일반 텍스트, 이 순서 그대로]
+[출력 · 마크다운 기호(#, **, 표) 없이 일반 텍스트, 이 순서 그대로]
 책 제목: …
 부제: …
 원씽: …
@@ -1129,7 +1146,7 @@ ${src.slice(0, 50000)}`;
       // 1) 목차에서 쓸 섹션 목록 뽑기
       let sections = await sample.json(`아래 전자책 목차에서 원고로 쓸 섹션을 순서대로 뽑아라.
 맨 앞에 프롤로그, 그다음 각 챕터(PART 제목은 챕터에 붙여서), 맨 끝에 에필로그. 목차에 프롤로그·에필로그가 없어도 넣는다.
-JSON 배열만: [{"title":"프롤로그 — 제목","summary":"이 섹션에서 할 말 한 줄"}]
+JSON 배열만: [{"title":"프롤로그: 제목","summary":"이 섹션에서 할 말 한 줄"}]
 
 [목차]
 ${outline.slice(0, 30000)}`, { signal: dctl.signal, modelTier: "quick" });
@@ -1162,7 +1179,7 @@ ${sec.title}${sec.summary ? "\n할 말: " + sec.summary : ""}
 
 [전체 섹션 순서]
 ${sections.map((s, k) => (k === i ? "▶ " : "  ") + s.title).join("\n")}
-${done ? "\n[바로 앞 섹션의 끝부분 — 흐름만 이어받고 내용 반복 금지]\n" + done.slice(-800) + "\n" : ""}
+${done ? "\n[바로 앞 섹션의 끝부분 · 흐름만 이어받고 내용 반복 금지]\n" + done.slice(-800) + "\n" : ""}
 [책 정보와 목차]
 ${outline.slice(0, 30000)}`;
         const before = $("draftText").textContent + head;
@@ -1369,6 +1386,27 @@ ${outline.slice(0, 30000)}`;
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   }
   const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  // 테이스트 규칙: 순수 검정·흰색 대신 톤 있는 검정·흰색, 강조색 채도는 80% 이하, 줄표 금지
+  const soften = (h) => /^#f{6}$/i.test(h) ? "#fbfaf7" : /^#0{6}$/.test(h) ? "#0c0c0b" : h;
+  function desat(h, max = 0.8) {
+    let [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    if (!d) return h;
+    const sat = d / (1 - Math.abs(2 * l - 1));
+    if (sat <= max) return h;
+    const k = max / sat; [r, g, b] = [r, g, b].map(v => l + (v - l) * k);
+    return "#" + [r, g, b].map(v => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, "0")).join("");
+  }
+  const noDash = (x) => String(x || "").replace(/\s*[—–]\s*/g, " · ");
+  let grainUrl = "";
+  function grain() {
+    if (grainUrl) return grainUrl;
+    const c = document.createElement("canvas"); c.width = c.height = 140;
+    const g = c.getContext("2d"), im = g.createImageData(140, 140);
+    for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+    g.putImageData(im, 0, 0); grainUrl = c.toDataURL("image/png"); return grainUrl;
+  }
+  const grainLayer = (op) => mk("div", `position:absolute;inset:0;background-image:url(${grain()});background-size:140px 140px;opacity:${op};pointer-events:none;`);
   const readable = (ink, bg) => contrast(ink, bg) >= 4.5 ? ink : (lum(bg) > 0.4 ? "#111111" : "#ffffff");
   const mk = (tag, style, text) => { const e = document.createElement(tag); if (style) e.style.cssText = style; if (text != null) e.textContent = text; return e; };
 
@@ -1437,8 +1475,8 @@ ${outline.slice(0, 30000)}`;
     ["09 볼드 타입", "동기부여·도전·강한 메시지", "171717", "F6F3EC", "F5F1EA", "E4402F", "블랙한산스", "작은 인물 실루엣, 빨간 삼각 스포트라이트, 강한 대비", "톤다운 파스텔, 약한 인상", "spotlight"],
     ["10 페이퍼 아카데믹", "공부·지식·교양", "F4EFE3", "FAF6EC", "2E2116", "8B5E34", "노토세리프", "아치형 서재, 높은 책장, 따뜻한 조명", "현대 광고 느낌, 네온·메탈릭", "arch"],
   ];
-  const TEMPLATE_TEXT = TEMPLATES.map(t => `${t[0]} (${t[1]}) — 표지배경 #${t[2]} · 내지 #${t[3]} · 잉크 #${t[4]} · 액센트 #${t[5]} · 제목글꼴 ${t[6]} · 비주얼: ${t[7]} · 추천 motif: ${t[9]} · 금지: ${t[8]}`).join("\n");
-  const SPEC_RULES = `[디자인 명세서 공통 규칙 — A5 전자책]
+  const TEMPLATE_TEXT = TEMPLATES.map(t => `${t[0]} (${t[1]}) · 표지배경 #${t[2]} · 내지 #${t[3]} · 잉크 #${t[4]} · 액센트 #${t[5]} · 제목글꼴 ${t[6]} · 비주얼: ${t[7]} · 추천 motif: ${t[9]} · 금지: ${t[8]}`).join("\n");
+  const SPEC_RULES = `[디자인 명세서 공통 규칙 · A5 전자책]
 - 표지 구조: 상단 키커 → 얇은 액센트 라인 → 메인 제목 → 부제 → 핵심 비주얼 하나 → 하단 룰 → 저자명. 제목은 축소 썸네일에서도 읽혀야 한다.
 - 타이포 위계: 키커 9~11pt · 부제 11~14pt · 본문 10.8~11.2pt · 소제목 13~16pt · 챕터 번호 14~18pt · 챕터 제목 22~32pt · 표지 제목 28~46pt.
 - 본문 줄간격 165~175%, 문단 간격 6~10pt, 너무 촘촘한 편집 금지. 인용문은 본문보다 130~160% 크게. 체크리스트는 ✓ 또는 □.
@@ -1467,21 +1505,37 @@ ${outline.slice(0, 30000)}`;
   }
   function renderCover(sp, W = 600, H = 800) {
     const k = W / 600;
-    const bg = hex(sp.bg, "#111111"), bg2 = hex(sp.bg2, bg), accent = hex(sp.accent, "#ffd400");
-    const ink = readable(hex(sp.ink, "#ffffff"), bg), sub = readable(hex(sp.sub, ink), bg);
-    const layout = sp.layout || "classic";
+    const bg = soften(hex(sp.bg, "#111111")), bg2 = soften(hex(sp.bg2, bg)), accent = desat(hex(sp.accent, "#e8c547"));
+    let layout = sp.layout || "classic";
+    const photo = /^photo/.test(layout) && artUrl;
+    if (/^photo/.test(layout) && !artUrl) layout = "classic";
+    const scrim = hex(sp.scrim, "#0c0c0b");
+    const textBg = photo && layout === "photo-full" ? scrim : bg;
+    const ink = readable(soften(hex(sp.ink, "#fbfaf7")), textBg), sub = readable(soften(hex(sp.sub, ink)), textBg);
     const root = mk("div", `position:relative;width:${W}px;height:${H}px;overflow:hidden;background:${bg === bg2 ? bg : `linear-gradient(170deg, ${bg}, ${bg2})`};font-family:${fam(sp.bodyFont)};`);
+    const img = (css) => { const i = mk("img", `position:absolute;object-fit:cover;display:block;${css}`); i.src = artUrl; root.appendChild(i); return i; };
+    if (photo) {
+      if (layout === "photo-full") {
+        img(`inset:0;width:100%;height:100%;`);
+        const top = sp.titlePos === "top";
+        root.appendChild(mk("div", `position:absolute;left:0;right:0;${top ? "top:0" : "bottom:0"};height:62%;background:linear-gradient(${top ? "180deg" : "0deg"}, ${scrim}f2 0%, ${scrim}c0 45%, ${scrim}00 100%);`));
+      } else if (layout === "photo-top") {
+        img(`left:0;top:0;width:100%;height:55%;`);
+      } else {
+        img(`left:${58 * k}px;right:${58 * k}px;top:${392 * k}px;width:${W - 116 * k}px;height:${300 * k}px;`);
+      }
+    }
     if (layout === "split") root.appendChild(mk("div", `position:absolute;left:0;right:0;bottom:0;height:42%;background:${accent};`));
     if (layout === "frame") root.appendChild(mk("div", `position:absolute;inset:${26 * k}px;border:${2 * k}px solid ${accent};`));
-    const m = motifSvg(sp.motif, accent, W, H, ink);
+    const m = photo ? "" : motifSvg(sp.motif, accent, W, H, ink);
     if (m) {
       root.insertAdjacentHTML("beforeend", m);
       if (contrast(ink, accent) < 3 && /circle|stripe|dots|lines|grid/.test(sp.motif)) root.lastElementChild.style.opacity = "0.28";
     }
-    const lines = (Array.isArray(sp.titleLines) && sp.titleLines.length ? sp.titleLines : [sp.title || "제목"]).slice(0, 4).map(String);
+    const lines = (Array.isArray(sp.titleLines) && sp.titleLines.length ? sp.titleLines : [sp.title || "제목"]).slice(0, 4).map(noDash);
     const longest = Math.max(...lines.map(l => l.length), 1);
     // 명세서 표지 제목 28~46pt → 600px 폭 기준 약 42~70px (썸네일 가독성을 위해 위쪽 끝까지 허용)
-    const tsize = Math.max(42, Math.min(70, Math.round(440 / longest))) * k;
+    const tsize = Math.max(38, Math.min(/photo-top|photo-window/.test(layout) ? 54 : 70, Math.round(440 / longest))) * k;
     const centered = /center|frame/.test(layout);
     const pos = {
       "classic": `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`,
@@ -1491,6 +1545,9 @@ ${outline.slice(0, 30000)}`;
       "split": `left:${50 * k}px;right:${50 * k}px;top:${110 * k}px;`,
       "frame": `left:${70 * k}px;right:${70 * k}px;top:${120 * k}px;align-items:center;text-align:center;`,
       "bignumber": `left:${58 * k}px;right:${58 * k}px;bottom:${110 * k}px;`,
+      "photo-full": sp.titlePos === "top" ? `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;` : `left:${58 * k}px;right:${58 * k}px;bottom:${110 * k}px;`,
+      "photo-top": `left:${58 * k}px;right:${58 * k}px;top:${480 * k}px;`,
+      "photo-window": `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`,
     }[layout] || `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`;
     if (layout === "bignumber") {
       const num = (String(sp.badge || "").match(/\d+/) || ["1"])[0];
@@ -1502,27 +1559,28 @@ ${outline.slice(0, 30000)}`;
     box.appendChild(mk("div", `width:${46 * k}px;height:${3 * k}px;background:${accent};margin-bottom:${20 * k}px;`));
     // 3) 메인 제목
     const serif = /세리프|명조|바탕|송명/.test(sp.titleFont || "");
-    const t = mk("div", `font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${tsize}px;line-height:1.12;color:${ink};font-weight:${serif ? 900 : 400};letter-spacing:-0.015em;`);
+    const t = mk("div", `font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${tsize}px;line-height:1.12;color:${ink};font-weight:${serif ? 900 : 400};letter-spacing:-0.025em;`);
     lines.forEach((l, i) => { if (i) t.appendChild(document.createElement("br")); t.appendChild(document.createTextNode(l)); });
     box.appendChild(t);
     // 4) 부제
-    if (sp.subtitle) box.appendChild(mk("div", `margin-top:${18 * k}px;font-size:${18 * k}px;line-height:1.55;color:${sub};max-width:${430 * k}px;`, sp.subtitle));
-    if (sp.badge && layout !== "bignumber") box.appendChild(mk("div", `align-self:${centered ? "center" : "flex-start"};margin-top:${16 * k}px;padding:${5 * k}px ${13 * k}px;border:${1.5 * k}px solid ${accent};color:${readable(accent, bg)};font-weight:700;font-size:${14 * k}px;border-radius:999px;`, sp.badge));
+    if (sp.subtitle) box.appendChild(mk("div", `margin-top:${18 * k}px;font-size:${18 * k}px;line-height:1.55;color:${sub};max-width:${430 * k}px;`, noDash(sp.subtitle)));
+    if (sp.badge && !/bignumber|photo-top|photo-window/.test(layout)) box.appendChild(mk("div", `align-self:${centered ? "center" : "flex-start"};margin-top:${16 * k}px;padding:${5 * k}px ${13 * k}px;border:${1.5 * k}px solid ${accent};color:${readable(accent, bg)};font-weight:700;font-size:${14 * k}px;border-radius:999px;`, sp.badge));
     root.appendChild(box);
     // 6) 하단 룰 7) 저자명
-    const footOn = layout === "split" ? accent : bg2;
+    const footOn = layout === "split" ? accent : (photo && layout === "photo-full" && sp.titlePos !== "top") ? scrim : bg2;
     const footInk = readable(sub, footOn);
     root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${70 * k}px;height:${1 * k}px;background:${footInk};opacity:0.5;`));
     root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${36 * k}px;font-size:${14 * k}px;letter-spacing:0.1em;color:${footInk};text-align:${centered ? "center" : "left"};`, sp.author || sp.kicker || ""));
+    root.appendChild(grainLayer(photo ? 0.04 : 0.06));
     return root;
   }
 
   // ---- 본문 페이지 그리기 (A5 = 560 × 794) ----
   const PW = 560, PH = 794;
   function bodyTheme(sp) {
-    const paper = hex(sp.paper, "#ffffff");
+    const paper = soften(hex(sp.paper, "#fbfaf7"));
     return {
-      paper, ink: readable(hex(sp.ink, "#1a1a1a"), paper), accent: hex(sp.accent, "#ffd400"),
+      paper, ink: readable(soften(hex(sp.ink, "#1a1a1a")), paper), accent: desat(hex(sp.accent, "#e8c547")),
       muted: readable(hex(sp.muted, "#666666"), paper), head: fam(sp.headFont, "노토산스"), body: fam(sp.bodyFont, "노토산스"),
       size: Math.max(14, Math.min(15.5, Number(sp.bodySize) || 14.7)),
       chapter: sp.chapterStyle, h2: sp.h2Style, quote: sp.quoteStyle, sp,
@@ -1536,7 +1594,7 @@ ${outline.slice(0, 30000)}`;
   function chapterPage(th, title, idx, n) {
     const p = pageShell(th, n);
     const num = String(idx).padStart(2, "0");
-    const clean = title.replace(/^\s*(\d{1,2}[\.\s]+)/, "");
+    const clean = noDash(title.replace(/^\s*(\d{1,2}[\.\s]+)/, ""));
     const onAccent = readable(th.ink, th.accent);
     if (th.chapter === "badge") {
       if (idx) { const b = mk("div", `position:absolute;left:64px;top:230px;width:60px;height:60px;border-radius:50%;border:2px solid ${th.accent};display:flex;align-items:center;justify-content:center;font-family:${th.head};font-size:19px;font-weight:700;color:${th.accent === th.paper ? th.ink : th.accent};`, num); p.appendChild(b); }
@@ -1638,6 +1696,22 @@ ${outline.slice(0, 30000)}`;
   const noteFn = (id) => (msg, kind) => { const el = $(id); el.hidden = !msg; el.textContent = msg || ""; el.className = "note" + (kind ? " " + kind : ""); };
   const coverState = noteFn("coverState"), bodyState = noteFn("bodyState"), bookMsg = noteFn("bookState");
 
+  // ---- 표지 그림 (선택) ----
+  let artBlob = null, artUrl = "";
+  $("artFile").addEventListener("change", (ev) => {
+    const f = ev.target.files?.[0]; if (!f) return;
+    if (artUrl) URL.revokeObjectURL(artUrl);
+    artBlob = f; artUrl = URL.createObjectURL(f);
+    $("artThumb").src = artUrl; $("artThumb").hidden = false; $("artClear").hidden = false;
+    $("artNote").textContent = `${f.name} · 이 그림으로 표지 3안을 만들어요.`;
+    ev.target.value = "";
+  });
+  $("artClear").addEventListener("click", () => {
+    if (artUrl) URL.revokeObjectURL(artUrl);
+    artBlob = null; artUrl = ""; $("artThumb").hidden = true; $("artClear").hidden = true;
+    $("artNote").textContent = "그림을 뺐어요. 이제 도형으로 표지를 그려요.";
+  });
+
   // ---- 표지 디자인 3개 ----
   let coverSpecs = [], chosenCover = null, coverBlob = null, cvCtl = null;
   async function runCover() {
@@ -1646,7 +1720,10 @@ ${outline.slice(0, 30000)}`;
     const sample = await samplePromise;
     if (!sample) { coverState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
     const g = guessTitle();
-    const avoid = coverSpecs.length ? `\n[지난번 3안 — 이번엔 겹치지 않게 완전히 다른 방향으로]\n${coverSpecs.map(s => `${s.name}: ${s.layout}/${s.motif}/${s.bg}/${s.titleFont}`).join("\n")}\n` : "";
+    let images;
+    if (artBlob) { try { const lim = await sample.limits?.(); if (lim?.images) images = [await shrink(artBlob)]; } catch (e) { images = undefined; } }
+    const artRule = artBlob ? `\n[표지 그림이 있다]\n${images ? "첨부한 이미지가 표지에 쓸 그림이다. 그림의 색·밝기·빈 공간(제목을 얹을 자리)을 먼저 분석한다." : "표지에 쓸 그림이 있지만 이번엔 볼 수 없다. 어떤 그림이든 읽히도록 안전하게 설계한다."}\n- 이번 3안의 layout은 반드시 photo-full(그림을 꽉 채우고 위나 아래에 제목), photo-top(위 55%는 그림, 아래는 색 블록에 제목), photo-window(색 배경 위에 그림 창을 두고 위에 제목) 중에서 서로 다르게 고른다. motif는 none.\n- photo-full에는 titlePos(top 또는 bottom: 그림에서 비어 있거나 어두운 쪽)와 scrim(제목 뒤에 깔 반투명 색, 그림의 어두운 색에서 뽑은 #hex)을 넣는다.\n- 색(bg·accent·ink)은 그림에서 뽑는다.\n` : "";
+    const avoid = coverSpecs.length ? `\n[지난번 3안 · 이번엔 겹치지 않게 완전히 다른 방향으로]\n${coverSpecs.map(s => `${s.name}: ${s.layout}/${s.motif}/${s.bg}/${s.titleFont}`).join("\n")}\n` : "";
     const prompt = `너는 한국 전자책 표지 아트디렉터다. 아래 [원고]를 분석해서 전자책 표지 디자인 3안을 설계한다.
 ${g.title ? `책 제목은 "${g.title}"${g.subtitle ? `, 부제는 "${g.subtitle}"` : ""}. 제목·부제 글자는 바꾸지 않는다(줄바꿈만 정한다).\n` : "원고에서 책 제목과 부제를 찾고, 없으면 원고 내용으로 짓는다.\n"}
 [원칙]
@@ -1660,17 +1737,18 @@ ${SPEC_RULES}
 
 [디자인 템플릿 10선]
 ${TEMPLATE_TEXT}
-${avoid}
+${artRule}${avoid}
+- 줄표(긴 대시 기호)는 어디에도 쓰지 않는다.
 [출력] JSON 배열 3개만:
-[{"template":"고른 템플릿 번호와 이름","name":"안 이름(짧게)","concept":"이 표지가 독자에게 주는 느낌 한 줄","title":"책 제목","titleLines":["제목 1행","제목 2행"],"subtitle":"부제","kicker":"제목 위 작은 라벨(없으면 빈 문자열)","badge":"숫자가 들어간 짧은 약속(예: 2주 완성, 없으면 빈 문자열)","author":"저자명(원고에 없으면 빈 문자열)","bg":"#hex","bg2":"#hex","ink":"#hex","sub":"#hex","accent":"#hex","titleFont":"목록 중 하나","bodyFont":"목록 중 하나","layout":"…","motif":"…"}]
+[{"template":"고른 템플릿 번호와 이름","name":"안 이름(짧게)","concept":"이 표지가 독자에게 주는 느낌 한 줄","title":"책 제목","titleLines":["제목 1행","제목 2행"],"subtitle":"부제","kicker":"제목 위 작은 라벨(없으면 빈 문자열)","badge":"숫자가 들어간 짧은 약속(예: 2주 완성, 없으면 빈 문자열)","author":"저자명(원고에 없으면 빈 문자열)","bg":"#hex","bg2":"#hex","ink":"#hex","sub":"#hex","accent":"#hex","titleFont":"목록 중 하나","bodyFont":"목록 중 하나","layout":"…","motif":"…","titlePos":"top 또는 bottom(photo-full일 때)","scrim":"#hex(photo-full일 때)"}]
 
 [원고]
 ${text.slice(0, 14000)}`;
     cvCtl = new AbortController();
     $("goCover").disabled = $("regenCover").disabled = true;
-    coverState("원고를 읽고 표지 3개를 설계하는 중… (20초~1분)");
+    coverState(artBlob ? "그림과 원고를 읽고 표지 3개를 설계하는 중… (20초~1분)" : "원고를 읽고 표지 3개를 설계하는 중… (20초~1분)");
     try {
-      const arr = await sample.json(prompt, { signal: cvCtl.signal, modelTier: "default", cache: false });
+      const arr = await sample.json(prompt, { signal: cvCtl.signal, modelTier: "default", cache: false, images });
       const specs = (Array.isArray(arr) ? arr : arr?.covers || []).slice(0, 3);
       if (!specs.length) throw { code: "empty_completion" };
       coverSpecs = specs;
@@ -1770,7 +1848,7 @@ ${text.slice(0, 14000)}`;
       if (lim?.images && coverBlob) images = [await shrink(coverBlob)];
     } catch (e) { images = undefined; }
     if (!images && !chosenCover) { bodyState("이 화면에서는 이미지를 AI에게 보낼 수 없어요. 표지 디자인 탭에서 표지를 만들어 '이 표지로 확정'을 누르면 설계값으로 분석해요.", "err"); return; }
-    const avoid = bodySpecs.length ? `\n[지난번 3안 — 이번엔 다르게]\n${bodySpecs.map(s => `${s.name}: ${s.chapterStyle}/${s.h2Style}/${s.quoteStyle}/${s.paper}`).join("\n")}\n` : "";
+    const avoid = bodySpecs.length ? `\n[지난번 3안 · 이번엔 다르게]\n${bodySpecs.map(s => `${s.name}: ${s.chapterStyle}/${s.h2Style}/${s.quoteStyle}/${s.paper}`).join("\n")}\n` : "";
     const excerpt = currentBookText().slice(0, 4000);
     const prompt = `너는 한국 전자책 본문(내지) 디자이너다. ${images ? "첨부한 이미지는 이 책의 확정된 표지다. 표지의 디자인·컬러·톤·폰트 느낌·정보 위계(제목/부제/라벨의 크기 차이)를 먼저 분석하고," : "아래 [확정 표지 설계값]이 이 책의 확정된 표지다. 표지의 컬러·톤·폰트·위계를 먼저 분석하고,"} 그 표지와 한 권으로 이어지는 A5 본문 디자인 3안을 설계한다.
 ${chosenCover ? `\n[확정 표지 설계값]\n${JSON.stringify(chosenCover)}\n` : ""}
@@ -1785,6 +1863,7 @@ ${SPEC_RULES}
 [디자인 템플릿 10선]
 ${TEMPLATE_TEXT}
 ${avoid}
+- 줄표(긴 대시 기호)는 쓰지 않는다.
 [출력] JSON 배열 3개만:
 [{"template":"기준으로 삼은 템플릿","name":"안 이름","concept":"한 줄 설명","analysis":"표지에서 읽은 것 한 줄(색·톤·폰트·위계)","paper":"#hex","ink":"#hex","accent":"#hex","muted":"#hex","headFont":"…","bodyFont":"…","bodySize":14.7,"chapterStyle":"…","h2Style":"…","quoteStyle":"…"}]
 
@@ -1843,7 +1922,7 @@ ${excerpt || "(원고 없음)"}`;
       const toc = pageShell(th, 0);
       toc.appendChild(mk("div", `position:absolute;left:52px;top:70px;font-family:${th.head};font-size:24px;font-weight:900;padding-bottom:10px;border-bottom:3px solid ${th.accent};`, "차례"));
       const list = mk("div", `position:absolute;left:52px;right:52px;top:140px;display:flex;flex-direction:column;gap:10px;font-size:${th.size}px;line-height:1.5;`);
-      parts.slice(0, 22).forEach(pt => list.appendChild(mk("div", "", pt.title)));
+      parts.slice(0, 22).forEach(pt => list.appendChild(mk("div", "", noDash(pt.title))));
       toc.appendChild(list); pages.push(toc);
       const host = mk("div", "position:fixed;left:-20000px;top:0;"); document.body.appendChild(host);
       let pageNo = 1;
@@ -1978,7 +2057,7 @@ ${v("m_tone", "(원하는 말투)")}
 ${$("m_size").value}
 
 【저자 경험·사례】
-${story || "(없음 — 경험이 필요한 자리는 [저자 경험 넣기]로 비워둘 것)"}
+${story || "(없음 · 경험이 필요한 자리는 [저자 경험 넣기]로 비워둘 것)"}
 
 【진행 순서】
 1단계. 제목 후보 5개 + 부제 → 내가 고르면 다음 단계
