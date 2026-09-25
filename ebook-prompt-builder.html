@@ -347,6 +347,10 @@
         <button class="btn secondary" id="regenCover" type="button">다시 생성 (3개 새로)</button>
       </div>
       <div class="divider"><span>목업 프롬프트</span><small>(이미지 AI에 넣으면 사진 같은 책 목업이나 표지 그림이 나와요. 확정한 표지가 있으면 그 제목·색을 그대로 써요)</small></div>
+      <div class="seg" id="mpLang" role="group" aria-label="프롬프트 언어">
+        <button type="button" class="seg-btn" id="mpKo" aria-pressed="true">한국어 프롬프트</button>
+        <button type="button" class="seg-btn" id="mpEn" aria-pressed="false">영어 프롬프트 (미드저니 등 해외 도구용)</button>
+      </div>
       <button class="btn secondary" id="mockPromptBtn" type="button">목업 프롬프트 만들기</button>
       <p class="note" id="mockPromptState" hidden></p>
       <div class="mp" id="mockPromptOut" hidden>
@@ -2243,6 +2247,34 @@ ${excerpt || "(원고 없음)"}`;
   }
   // ---- 목업 프롬프트: AI는 그림 콘셉트·색만 정하고, 프롬프트 뼈대와 한글 글자는 페이지가 정확히 채운다 ----
   const mpState = noteFn("mockPromptState");
+  let mpLangKo = true, mpLast = null;
+  const setMpLang = (ko) => { mpLangKo = ko; $("mpKo").setAttribute("aria-pressed", String(ko)); $("mpEn").setAttribute("aria-pressed", String(!ko)); if (mpLast) renderMp(mpLast); };
+  $("mpKo").addEventListener("click", () => setMpLang(true));
+  $("mpEn").addEventListener("click", () => setMpLang(false));
+  function buildMockPromptsKo(c) {
+    const q = (x) => `"${String(x || "").replace(/"/g, "'")}"`;
+    const full = `하드커버 책 한 권의 제품 사진 목업을 만들어 주세요. 책은 똑바로 서 있고, 앞표지와 왼쪽 책등이 함께 보이는 3/4 각도입니다. 정사각형(1:1) 화면 가운데에 두고 양옆 여백을 넉넉히 주세요. 왼쪽 위에서 오는 부드럽고 따뜻한 스튜디오 조명, ${c.backgroundKo || "아주 연한 웜 베이지 단색 배경"}, 바닥에 자연스러운 부드러운 그림자, 은은한 질감의 무광 표지 종이, 광택 없음.
+
+앞표지 디자인 (${c.coverBaseKo || "아이보리 종이"}, 여백이 넉넉한 깔끔한 한국 출판 편집 디자인):
+- 맨 위 가까이에 ${c.accentKo || "차분한 벽돌색"} 짧고 가는 선 하나.
+- 제목은 굵은 현대적 한글 고딕체, 가운데 정렬.${c.titleLines.length > 1 ? `
+  첫째 줄은 ${c.titleColorKo || "진한 차콜색"}, 정확한 글자: ${q(c.titleLines[0])}
+  둘째 줄은 조금 더 크게 ${c.accentKo || "차분한 벽돌색"}, 정확한 글자: ${q(c.titleLines.slice(1).join(" "))}` : ` ${c.titleColorKo || "진한 차콜색"}, 정확한 글자: ${q(c.titleLines[0])}`}
+${c.subtitle ? `- 그 아래 가는 명조체로 작은 한 줄, 정확한 글자: ${q(c.subtitle)}
+` : ""}- 아래쪽 절반: ${c.illustrationKo}. ${c.styleKo}. 그림은 표지 종이 쪽으로 부드럽게 스며들듯 이어집니다.
+${c.author ? `- 맨 아래 작은 글자, 정확한 글자: ${q(c.author)}
+` : ""}책등: 표지와 같은 색, 위에서 아래로 세로쓰기, 정확한 글자: ${q(c.spine)}.
+모든 한글은 위에 적은 그대로, 글자를 더하거나 바꾸지 말고, 영어 글자는 어디에도 넣지 마세요.`;
+    const art = `세로 3:4 비율의 책 표지 일러스트를 그려 주세요. 글자·로고·워터마크는 넣지 마세요.
+${c.illustrationKo}. ${c.styleKo}.
+색감: ${c.paletteKo}.
+위쪽 40%는 제목을 넣을 자리라서 조용하고 거의 비워 두세요 (${c.emptyAreaKo || "부드러운 단색 배경"}). 주인공은 아래쪽 60%의 가운데에 두세요.`;
+    return { full, art };
+  }
+  function renderMp(c) {
+    const p = mpLangKo ? buildMockPromptsKo(c) : buildMockPrompts(c);
+    $("mpFull").textContent = p.full; $("mpArt").textContent = p.art; $("mockPromptOut").hidden = false;
+  }
   function buildMockPrompts(c) {
     const q = (x) => `"${String(x || "").replace(/"/g, "'")}"`;
     const full = `Product photo of a single hardcover book mockup, standing upright at a three-quarter angle so the front cover and the left spine are both visible, centered in a square 1:1 frame with generous empty margins. Soft warm studio light from the upper left, ${c.background || "very light warm beige seamless background"}, soft natural contact shadow on the floor, matte cover paper with subtle texture, no gloss.
@@ -2268,19 +2300,20 @@ Keep the top 40% of the image calm and nearly empty (${c.emptyArea || "soft plai
     const sample = await samplePromise;
     const lines = (base?.titleLines?.length ? base.titleLines : (title ? [title] : [])).map(noDash);
     const fill = (c) => {
-      const p = buildMockPrompts(Object.assign({
+      mpLast = Object.assign({
         titleLines: lines.length ? lines : [c.title || "제목"],
         subtitle: noDash(base?.subtitle || g.subtitle || c.subtitle || ""),
         author: base?.author || c.author || "",
         spine: noDash((base?.title || g.title || c.title || lines.join(" ")).replace(/,\s*$/, "")),
-      }, c));
-      $("mpFull").textContent = p.full; $("mpArt").textContent = p.art; $("mockPromptOut").hidden = false;
+      }, c);
+      renderMp(mpLast);
     };
-    const fallback = { illustration: "a warm, gentle hand-drawn scene that shows the reader of this book in the moment the book is about, soft expression, simple background", style: "soft pastel editorial illustration, delicate lines, warm light", palette: "warm ivory, soft beige, one muted accent color", accent: "muted brick red", titleColor: "dark charcoal" };
+    const fallback = { illustration: "a warm, gentle hand-drawn scene that shows the reader of this book in the moment the book is about, soft expression, simple background", style: "soft pastel editorial illustration, delicate lines, warm light", palette: "warm ivory, soft beige, one muted accent color", accent: "muted brick red", titleColor: "dark charcoal",
+      illustrationKo: "이 책의 독자가 책이 다루는 바로 그 순간에 있는 모습을 담은 따뜻하고 부드러운 손그림 장면, 편안한 표정, 단순한 배경", styleKo: "부드러운 파스텔 톤의 출판 일러스트, 섬세한 선, 따뜻한 빛", paletteKo: "따뜻한 아이보리, 부드러운 베이지, 차분한 포인트 색 하나", accentKo: "차분한 벽돌색", titleColorKo: "진한 차콜색" };
     if (!sample) { fill(fallback); mpState("AI 없이 기본 그림 설명으로 만들었어요. 그림 설명 부분은 직접 고쳐 쓰셔도 돼요.", "ok"); return; }
     $("mockPromptBtn").disabled = true; mpState("원고를 읽고 표지 그림 콘셉트를 정하는 중… (10~30초)");
     try {
-      const c = await sample.json(`너는 한국 전자책 표지 아트디렉터다. 아래 [원고]와 [표지 정보]를 보고, 이미지 AI에게 줄 표지 일러스트 설명을 영어로 정한다.
+      const c = await sample.json(`너는 한국 전자책 표지 아트디렉터다. 아래 [원고]와 [표지 정보]를 보고, 이미지 AI에게 줄 표지 일러스트 설명을 정한다 (영어와 한국어 둘 다).
 - illustration: 이 책 독자가 공감할 한 장면. 인물이 있으면 나이대·옷·표정·동작을 구체적으로, 배경은 단순하게. 1~2문장 영어.
 - style: 그림체 (예: soft pastel hand-drawn illustration, warm watercolor, minimal flat editorial illustration 등) 영어 한 구절. 주제의 정서에 맞게.
 - palette: 색 3~4개를 영어 단어로 (예: warm ivory, dusty rose, soft beige, charcoal).
@@ -2291,12 +2324,13 @@ Keep the top 40% of the image calm and nearly empty (${c.emptyArea || "soft plai
 - emptyArea: 제목 자리가 될 윗부분 묘사 영어 (예: soft cream sky).
 ${base ? `[표지 정보] 확정 표지 색: 배경 ${base.bg}, 강조 ${base.accent}, 템플릿 ${base.template || ""}. 이 색감과 어울리게.` : ""}
 글자·로고·영문 문구는 그림에 넣지 않는다. 실존 인물·캐릭터·브랜드는 쓰지 않는다.
-JSON 객체 하나만: {"illustration":"…","style":"…","palette":"…","coverBase":"…","background":"…","accent":"…","titleColor":"…","emptyArea":"…"}
+같은 내용을 한국어로도 쓴다: illustrationKo, styleKo, paletteKo, coverBaseKo, backgroundKo, accentKo, titleColorKo, emptyAreaKo (자연스러운 한국어, 이미지 AI가 알아듣기 쉽게 구체적으로).
+JSON 객체 하나만: {"illustration":"…","style":"…","palette":"…","coverBase":"…","background":"…","accent":"…","titleColor":"…","emptyArea":"…","illustrationKo":"…","styleKo":"…","paletteKo":"…","coverBaseKo":"…","backgroundKo":"…","accentKo":"…","titleColorKo":"…","emptyAreaKo":"…"}
 
 [원고]
 ${(text || title).slice(0, 8000)}`, { modelTier: "default" });
       fill(Object.assign({}, fallback, c || {}));
-      mpState("완성됐어요. ①은 ChatGPT·제미나이에, ②는 아무 이미지 AI에 붙여넣으세요.", "ok");
+      mpState("완성됐어요. ①은 ChatGPT·제미나이에, ②는 아무 이미지 AI에 붙여넣으세요. 위 버튼으로 한국어·영어를 바꿀 수 있어요.", "ok");
     } catch (e) {
       fill(fallback);
       mpState("AI가 콘셉트를 못 정해서 기본 그림 설명으로 만들었어요. 그림 설명 부분은 직접 고쳐 쓰셔도 돼요.", "err");
