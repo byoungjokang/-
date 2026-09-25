@@ -179,8 +179,9 @@
   .refs.body .ref > div:first-child { max-width: 100%; overflow-x: auto; }
   .ref-name { font-weight: 900; color: var(--accent); font-size: 14px; }
   .ref-concept { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
-  .ref-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+  .ref-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; margin-top: auto; }
   .ref-actions.one { grid-template-columns: 1fr; }
+  .ref-actions .wide { grid-column: 1 / -1; }
   .ref-actions .btn { width: 100%; padding: 9px 6px; font-size: 13.5px; }
   .draft-actions.single { grid-template-columns: 1fr; }
   .cover-drop { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
@@ -1791,6 +1792,71 @@ ${outline.slice(0, 30000)}`;
     $("artNote").textContent = "그림을 뺐어요. 이제 도형으로 표지를 그려요.";
   });
 
+  // ---- 3D 책 목업 (디자인 명세서 0-8: 하드커버·3/4 시점·연한 배경·바닥 그림자·과한 광택 금지·매트·중간 두께) ----
+  function avgColor(src, x0, w) {
+    const c = document.createElement("canvas"); c.width = 8; c.height = 32;
+    const g = c.getContext("2d"); g.drawImage(src, x0, 0, w, src.height, 0, 0, 8, 32);
+    const d = g.getImageData(0, 0, 8, 32).data; let r = 0, gg = 0, b = 0;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; }
+    const n = d.length / 4; return [r / n, gg / n, b / n].map(Math.round);
+  }
+  const rgb = (a, k = 1) => `rgb(${a.map(v => Math.max(0, Math.min(255, Math.round(v * k)))).join(",")})`;
+  function makeMockup(src, opt = {}) {
+    const W = 1600, H = 1600, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const g = cv.getContext("2d");
+    // 배경: 아주 연한 웜 그레이
+    const bg = g.createRadialGradient(W * 0.45, H * 0.38, 80, W * 0.5, H * 0.5, W * 0.8);
+    bg.addColorStop(0, "#f7f5f1"); bg.addColorStop(1, "#e4e0d9"); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    const H1 = 1080, H2 = Math.round(H1 * 0.935), HS = Math.round(H1 * 0.965);   // 가까운 모서리 / 먼 모서리 / 책등 바깥
+    const fw = Math.round(H1 * 0.75 * 0.9), sw = 74, cy = 770, hx = 520;         // 앞면 폭(원근 축소) · 책등 두께 · 중심 · 접지선
+    const top = (h) => cy - h / 2;
+    // 바닥 그림자 (넓고 부드럽게 + 접지 그림자)
+    g.save(); g.filter = "blur(34px)"; g.fillStyle = "rgba(40,32,24,0.30)";
+    g.beginPath(); g.ellipse(hx + fw * 0.48, cy + H1 / 2 + 18, fw * 0.62, 34, 0, 0, Math.PI * 2); g.fill();
+    g.filter = "blur(10px)"; g.fillStyle = "rgba(20,16,12,0.45)";
+    g.beginPath(); g.moveTo(hx - sw, cy + HS / 2); g.lineTo(hx, cy + H1 / 2); g.lineTo(hx + fw, cy + H2 / 2); g.lineTo(hx + fw + 30, cy + H2 / 2 + 10); g.lineTo(hx - sw - 10, cy + HS / 2 + 12); g.closePath(); g.fill();
+    g.restore();
+    // 책등: 표지 왼쪽 색을 뽑아 조금 어둡게
+    const sc = opt.spine || avgColor(src, 0, Math.max(4, Math.round(src.width * 0.05)));
+    for (let i = 0; i < sw; i++) {
+      const t = i / sw, h = HS + (H1 - HS) * t;
+      g.fillStyle = rgb(sc, 0.62 + 0.28 * t); g.fillRect(hx - sw + i, top(h), 1.6, h);
+    }
+    if (opt.title) {  // 책등 세로 제목
+      g.save(); g.translate(hx - sw / 2, cy); g.rotate(Math.PI / 2);
+      const lum = (sc[0] * 0.299 + sc[1] * 0.587 + sc[2] * 0.114);
+      g.fillStyle = lum > 140 ? "rgba(20,18,16,0.85)" : "rgba(250,247,240,0.9)";
+      g.font = `700 26px ${opt.font || '"Noto Sans KR", sans-serif'}`; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(opt.title.length > 26 ? opt.title.slice(0, 25) + "…" : opt.title, -30, 0);
+      if (opt.author) { g.font = `500 17px "Noto Sans KR", sans-serif`; g.globalAlpha = 0.75; g.fillText(opt.author, H1 * 0.36, 0); }
+      g.restore();
+    }
+    // 앞면: 세로 띠로 잘라 원근을 준다 (가까운 쪽이 크고 먼 쪽이 작게)
+    for (let i = 0; i < fw; i++) {
+      const t = i / fw, h = H1 + (H2 - H1) * t;
+      const sx = src.width * (t * 0.92 + t * t * 0.08);   // 먼 쪽이 살짝 압축
+      g.drawImage(src, sx, 0, Math.max(1, src.width / fw), src.height, hx + i, top(h), 1.8, h);
+    }
+    // 매트 조명: 왼쪽 위 빛, 오른쪽으로 갈수록 살짝 어둡게 (광택 없음)
+    g.save(); g.beginPath(); g.moveTo(hx, top(H1)); g.lineTo(hx + fw, top(H2)); g.lineTo(hx + fw, top(H2) + H2); g.lineTo(hx, top(H1) + H1); g.closePath(); g.clip();
+    const lg = g.createLinearGradient(hx, 0, hx + fw, 0);
+    lg.addColorStop(0, "rgba(255,255,255,0.07)"); lg.addColorStop(0.5, "rgba(255,255,255,0)"); lg.addColorStop(1, "rgba(0,0,0,0.10)");
+    g.fillStyle = lg; g.fillRect(hx, 0, fw, H);
+    // 하드커버 접지선(힌지)
+    const hg = g.createLinearGradient(hx, 0, hx + 34, 0);
+    hg.addColorStop(0, "rgba(0,0,0,0.30)"); hg.addColorStop(0.45, "rgba(0,0,0,0.06)"); hg.addColorStop(0.55, "rgba(255,255,255,0.10)"); hg.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = hg; g.fillRect(hx, 0, 34, H);
+    g.restore();
+    // 모서리 선
+    g.strokeStyle = "rgba(0,0,0,0.18)"; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(hx + fw, top(H2)); g.lineTo(hx + fw, top(H2) + H2); g.stroke();
+    return cv;
+  }
+  async function coverMockup(sp) {
+    const c = await snap(renderCover(sp), 2);
+    return makeMockup(c, { title: noDash(sp.title || ""), author: sp.author || "", font: fam(sp.titleFont, "노토산스"), spine: null });
+  }
+
   // ---- 표지 디자인 3개 ----
   let coverSpecs = [], chosenCover = null, coverBlob = null, cvCtl = null;
   async function runCover() {
@@ -1843,17 +1909,30 @@ ${text.slice(0, 14000)}`;
     const box = $("coverRefs"); box.innerHTML = "";
     coverSpecs.forEach((sp, i) => {
       const card = mk("article", ""); card.className = "ref";
-      card.appendChild(scaled(renderCover(sp), 600, 800, 0.3));
+      // 카드 미리보기: 처음엔 평면, 목업이 그려지면 목업으로 (누르면 평면·목업 전환)
+      const view = mk("div", "position:relative;cursor:pointer;"); view.title = "눌러서 평면/목업 전환";
+      const flat = scaled(renderCover(sp), 600, 800, 0.3);
+      const mockImg = mk("img", "display:block;width:180px;height:240px;object-fit:cover;border-radius:4px;"); mockImg.alt = `${i + 1}안 목업`; mockImg.hidden = true;
+      view.append(flat, mockImg);
+      view.addEventListener("click", () => { if (!mockImg.src) return; const m = mockImg.hidden; mockImg.hidden = !m; flat.hidden = m; });
+      card.appendChild(view);
       card.appendChild(mk("div", "", `${i + 1}안 · ${sp.name || ""}`)).className = "ref-name";
       card.appendChild(mk("div", "", [sp.template && "템플릿 " + sp.template, sp.concept].filter(Boolean).join(" · "))).className = "ref-concept";
       const acts = mk("div", ""); acts.className = "ref-actions";
-      const png = mk("button", "", "PNG 저장"); png.className = "btn ghost"; png.type = "button";
-      const pick = mk("button", "", chosenCover === sp ? "확정됨 ✓" : "이 표지로 확정"); pick.className = "btn ghost"; pick.type = "button";
+      const png = mk("button", "", "표지 PNG"); png.className = "btn ghost"; png.type = "button";
+      const mock = mk("button", "", "목업 PNG"); mock.className = "btn ghost"; mock.type = "button";
+      const pick = mk("button", "", chosenCover === sp ? "확정됨 ✓" : "이 표지로 확정"); pick.className = "btn ghost wide"; pick.type = "button";
       png.addEventListener("click", async () => {
         png.disabled = true; coverState("PNG 만드는 중…");
         try { const c = await snap(renderCover(sp), 2); await saveTo(`${safeName(sp.title || "표지")}_표지${i + 1}.png`, await canvasBlob(c), coverState); }
         catch (e) { coverState("PNG를 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err"); }
         finally { png.disabled = false; }
+      });
+      mock.addEventListener("click", async () => {
+        mock.disabled = true; coverState("목업 만드는 중…");
+        try { const c = await coverMockup(sp); await saveTo(`${safeName(sp.title || "표지")}_목업${i + 1}.png`, await canvasBlob(c), coverState); }
+        catch (e) { coverState("목업을 만들지 못했어요. 다시 눌러주세요.", "err"); }
+        finally { mock.disabled = false; }
       });
       pick.addEventListener("click", async () => {
         pick.disabled = true;
@@ -1865,10 +1944,15 @@ ${text.slice(0, 14000)}`;
           coverState(`${i + 1}안으로 확정했어요. '본문 디자인 하기' 탭으로 넘어가면 이 표지로 본문을 디자인해요.`, "ok");
         } catch (e) { coverState("표지를 확정하지 못했어요. 다시 눌러주세요.", "err"); pick.disabled = false; }
       });
-      acts.append(png, pick); card.appendChild(acts); box.appendChild(card);
+      acts.append(png, mock, pick); card.appendChild(acts); box.appendChild(card);
+      // 목업 미리보기는 순서대로 그린다
+      mockQueue = mockQueue.then(async () => {
+        try { const c = await coverMockup(sp); mockImg.src = c.toDataURL("image/jpeg", 0.85); mockImg.hidden = false; flat.hidden = true; } catch (e) {}
+      });
     });
     box.hidden = false; $("coverActions").hidden = false;
   }
+  let mockQueue = Promise.resolve();
   $("goCover").addEventListener("click", runCover);
   $("regenCover").addEventListener("click", runCover);
 
