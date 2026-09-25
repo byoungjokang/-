@@ -1,7 +1,7 @@
 <title>전자책 생성기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Do+Hyeon&family=Jua&family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;800&family=Song+Myung&family=IBM+Plex+Sans+KR:wght@400;700&display=swap">
 <style>
   /* 검정 바탕 + 노란 글씨 — 한 가지 테마로 고정 */
   :root, :root[data-theme="light"], :root[data-theme="dark"] {
@@ -162,6 +162,23 @@
   .pdf-h1 { color: #111; font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; letter-spacing: 0; font-size: 21px; font-weight: 900; line-height: 1.4; margin: 0 0 22px; padding-bottom: 12px; border-bottom: 3px solid #ffd400; }
   .pdf-h2 { font-size: 15.5px; font-weight: 700; margin: 18px 0 8px; }
   .pdf-p { font-size: 12.5px; line-height: 1.85; margin: 0 0 9px; word-break: keep-all; }
+  .attach-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .file-btn { display: inline-flex; align-items: center; cursor: pointer; }
+  .attach-note { font-size: 13px; color: var(--ink-faint); margin: 0; }
+  .refs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 640px) { .refs { grid-template-columns: 1fr; } .refs .ref { align-items: center; } }
+  .refs.body { grid-template-columns: 1fr; }
+  .ref { border: 1px solid var(--line-strong); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--field); align-items: flex-start; }
+  .refs.body .ref > div:first-child { max-width: 100%; overflow-x: auto; }
+  .ref-name { font-weight: 900; color: var(--accent); font-size: 14px; }
+  .ref-concept { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+  .ref-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+  .ref-actions.one { grid-template-columns: 1fr; }
+  .ref-actions .btn { width: 100%; padding: 9px 6px; font-size: 13.5px; }
+  .draft-actions.single { grid-template-columns: 1fr; }
+  .cover-drop { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .cover-drop img { width: 120px; height: 160px; object-fit: cover; border: 1px solid var(--line-strong); border-radius: 2px; }
+  .cover-drop-side { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
   .pane { display: flex; flex-direction: column; gap: 22px; }
   .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .cats.sub { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
@@ -203,9 +220,9 @@
   <header>
     <div class="eyebrow">EBOOK · GENERATOR</div>
     <h1>전자책 생성기</h1>
-    <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 표지·본문 이미지는 이미지 AI에 넣을 프롬프트로 만들어줘요.</p>
+    <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
     <div class="flow" aria-label="전자책 제작 순서">
-      <span class="step">팔리는 주제</span>→<span class="step">주제 리서치</span>→<span class="step">목차 설계</span>→<span class="step">원고 집필</span>→<span class="step">표지 이미지</span>→<span class="step">본문 이미지</span>
+      <span class="step">팔리는 주제</span>→<span class="step">주제 리서치</span>→<span class="step">목차 설계</span>→<span class="step">원고 집필</span>→<span class="step">표지 디자인</span>→<span class="step">본문 디자인</span>
     </div>
   </header>
 
@@ -288,6 +305,51 @@
         <pre class="result" id="researchText"></pre>
         <button class="btn" id="toToc" type="button" hidden>이 리서치로 목차·초안 뽑기 →</button>
       </div>
+    </div>
+
+    <div id="coverPane" class="pane" hidden>
+      <div class="field">
+        <label class="lbl" for="bookText">원고 <small>원고 전체, 또는 제목·목차만 있어도 돼요</small></label>
+        <div class="attach-row">
+          <label class="btn ghost file-btn" for="bookFile">원고 파일 첨부<input type="file" id="bookFile" accept=".txt,.md,.docx,.pdf" hidden></label>
+          <button class="btn ghost" id="bookFromDraft" type="button">원고 집필에서 가져오기</button>
+          <span class="attach-note" id="bookNote">TXT · DOCX · PDF</span>
+        </div>
+        <textarea id="bookText" style="min-height:130px" placeholder="파일을 첨부하거나, 원고를 여기에 붙여넣으세요."></textarea>
+      </div>
+      <button class="btn" id="goCover" type="button">원고 분석해서 표지 디자인 3개 뽑기</button>
+      <p class="note" id="coverState" hidden></p>
+      <div class="refs" id="coverRefs" hidden></div>
+      <div class="draft-actions single" id="coverActions" hidden>
+        <button class="btn secondary" id="regenCover" type="button">다시 생성 (3개 새로)</button>
+      </div>
+      <div class="divider"><span>이미지 AI용 표지 프롬프트만 받기</span><small>(미드저니·나노바나나 같은 이미지 AI에 넣으면 또 다른 표지가 나와요)</small></div>
+      <button class="btn secondary" id="coverPromptBtn" type="button">표지 이미지 프롬프트 생성</button>
+      <pre class="result" id="coverPromptOut" hidden></pre>
+    </div>
+
+    <div id="bodyPane" class="pane" hidden>
+      <div class="field">
+        <div class="lbl">표지 디자인에서 확정된 이미지를 넣어주세요 <small>AI가 디자인·컬러·톤·폰트·위계를 분석해요</small></div>
+        <div class="cover-drop">
+          <img id="coverThumb" alt="확정한 표지" hidden>
+          <div class="cover-drop-side">
+            <label class="btn ghost file-btn" for="coverFile">표지 이미지 넣기<input type="file" id="coverFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+            <span class="attach-note" id="coverNote">PNG · JPG · WEBP</span>
+          </div>
+        </div>
+      </div>
+      <p class="attach-note" id="bodyBookNote"></p>
+      <button class="btn" id="goBody" type="button">표지 분석해서 본문 디자인 3개 뽑기</button>
+      <p class="note" id="bodyState" hidden></p>
+      <div class="refs body" id="bodyRefs" hidden></div>
+      <div class="draft-actions single" id="bodyActions" hidden>
+        <button class="btn secondary" id="regenBody" type="button">다시 생성 (3개 새로)</button>
+      </div>
+      <p class="note" id="bookState" hidden></p>
+      <div class="divider"><span>이미지 AI용 본문 삽화 프롬프트만 받기</span><small>(이미지 AI에 넣으면 본문에 넣을 삽화가 나와요)</small></div>
+      <button class="btn secondary" id="bodyPromptBtn" type="button">본문 삽화 프롬프트 생성</button>
+      <pre class="result" id="bodyPromptOut" hidden></pre>
     </div>
 
     <div class="seg" id="modeSeg" role="group" aria-label="원고 집필 방식" hidden>
@@ -486,7 +548,7 @@
 - 원고에 저자 경험이 있으면 그 표현을 살리고 지어내지 말라고 명시한다.`
     },
     {
-      key: "cover", label: "표지 이미지",
+      key: "cover", label: "표지 디자인", custom: true,
       srcLabel: "원고 전체 또는 제목·목차",
       ph: "표지 이미지를 만들기 위해 제목, 부제, 목차나 원고 전체를 붙여넣으세요.",
       btn: "표지 이미지 프롬프트 생성",
@@ -496,7 +558,7 @@
 - 마지막에 어울리는 제목 폰트 느낌과 컬러 팔레트(HEX 3개).`
     },
     {
-      key: "body", label: "본문 이미지 (일부분)",
+      key: "body", label: "본문 디자인 하기", custom: true,
       srcLabel: "챕터 본문 일부",
       ph: "이미지를 넣을 챕터나 단락을 붙여넣으세요. 앞뒤 흐름이 보이면 더 정확해요.",
       btn: "본문 이미지 프롬프트 생성",
@@ -523,6 +585,8 @@
     const isChapter = t.key === "chapter";
     $("topicPane").hidden = t.key !== "topic";
     $("researchPane").hidden = t.key !== "research";
+    $("coverPane").hidden = t.key !== "cover";
+    $("bodyPane").hidden = t.key !== "body";
     $("modeSeg").hidden = !isChapter;
     $("manualPane").hidden = !(isChapter && manualMode);
     $("genericPane").hidden = !!t.custom || (isChapter && manualMode);
@@ -1290,6 +1354,509 @@ ${outline.slice(0, 30000)}`;
   }
   $("savePdf").addEventListener("click", () => doSave("pdf"));
   $("saveDocx").addEventListener("click", () => doSave("docx"));
+
+  // ================= 표지 디자인 · 본문 디자인 =================
+  // AI는 그림을 직접 그리지 못해서, 디자인 설계(색·글꼴·배치·장식)를 JSON으로 받고 페이지가 그걸 그린다.
+  const FONTS = {
+    "블랙한산스": '"Black Han Sans"', "도현": '"Do Hyeon"', "주아": '"Jua"', "노토산스": '"Noto Sans KR"',
+    "노토세리프": '"Noto Serif KR"', "고운바탕": '"Gowun Batang"', "나눔명조": '"Nanum Myeongjo"', "송명": '"Song Myung"', "IBM플렉스": '"IBM Plex Sans KR"',
+  };
+  const FONT_KEYS = Object.keys(FONTS).join(", ");
+  const fam = (k, fb) => (FONTS[k] || FONTS[fb] || FONTS["노토산스"]) + ', "Noto Sans KR", sans-serif';
+  const hex = (x, fb) => /^#[0-9a-f]{6}$/i.test(String(x || "").trim()) ? String(x).trim() : fb;
+  function lum(h) {
+    const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const readable = (ink, bg) => contrast(ink, bg) >= 4.5 ? ink : (lum(bg) > 0.4 ? "#111111" : "#ffffff");
+  const mk = (tag, style, text) => { const e = document.createElement(tag); if (style) e.style.cssText = style; if (text != null) e.textContent = text; return e; };
+
+  // ---- 원고 첨부 ----
+  const bookState = { text: "" };
+  const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+  const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  async function readManuscriptFile(file) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".txt") || name.endsWith(".md")) return await file.text();
+    if (name.endsWith(".docx")) {
+      await loadScript(CDN.jszip);
+      const zip = await window.JSZip.loadAsync(file);
+      const xml = await zip.file("word/document.xml").async("string");
+      return xml.split(/<\/w:p>/).map(p => (p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []).map(t => t.replace(/<[^>]+>/g, "")).join(""))
+        .map(t => t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&")).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    }
+    if (name.endsWith(".pdf")) {
+      await loadScript(PDFJS_WORKER); await loadScript(PDFJS);  // 워커를 먼저 올려 메인 스레드에서 돌린다
+      const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+      const out = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const tc = await (await pdf.getPage(i)).getTextContent();
+        out.push(tc.items.map(it => it.str + (it.hasEOL ? "\n" : "")).join(""));
+      }
+      return out.join("\n\n").trim();
+    }
+    throw new Error("type");
+  }
+  function setBook(text, note) {
+    bookState.text = text;
+    $("bookText").value = text;
+    $("bookNote").textContent = note;
+    updateBodyBookNote();
+  }
+  $("bookFile").addEventListener("change", async (ev) => {
+    const f = ev.target.files?.[0]; if (!f) return;
+    $("bookNote").textContent = "읽는 중…";
+    try {
+      const t = await readManuscriptFile(f);
+      if (!t.trim()) throw new Error("empty");
+      setBook(t, `${f.name} · ${t.length.toLocaleString()}자`);
+    } catch (e) {
+      $("bookNote").textContent = e.message === "type" ? "TXT·DOCX·PDF 파일만 읽을 수 있어요." : e.message === "empty" ? "이 파일에서 글자를 읽지 못했어요. 스캔본이거나 특수 글꼴 PDF일 수 있어요. DOCX·TXT로 첨부하거나 원고를 붙여넣어주세요." : "파일을 읽지 못했어요. 원고를 직접 붙여넣어주세요.";
+    }
+    ev.target.value = "";
+  });
+  $("bookFromDraft").addEventListener("click", () => {
+    const t = $("draftText").textContent.trim();
+    if (!t) { $("bookNote").textContent = "원고 집필에서 뽑은 원고가 아직 없어요."; return; }
+    setBook(t, `원고 집필에서 가져옴 · ${t.length.toLocaleString()}자`);
+  });
+  $("bookText").addEventListener("input", () => { bookState.text = $("bookText").value; updateBodyBookNote(); });
+  function currentBookText() {
+    return (bookState.text || $("bookText").value || $("draftText").textContent || "").trim();
+  }
+  function updateBodyBookNote() {
+    const t = currentBookText();
+    $("bodyBookNote").textContent = t ? `연결된 원고: ${t.length.toLocaleString()}자 (표지 디자인 탭의 원고 · 없으면 원고 집필 결과)` : "연결된 원고가 없어요. 표지 디자인 탭에서 원고를 첨부하면 책 전체 디자인까지 할 수 있어요.";
+  }
+  function guessTitle() {
+    const pool = [drafts.chapter, drafts.toc, currentBookText(), $("r_topic").value].filter(Boolean).join("\n");
+    const t = (pool.match(/책 제목\s*[:：]\s*(.+)/) || pool.match(/\[확정 주제·제목\]\s*\n(.+)/) || [])[1];
+    const s = (pool.match(/부제\s*[:：]\s*(.+)/) || [])[1];
+    return { title: (t || "").trim(), subtitle: (s || "").trim() };
+  }
+
+  // ---- 표지 그리기 ----
+  function motifSvg(m, a, W, H) {
+    const s = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="${W}" height="${H}" preserveAspectRatio="none" style="position:absolute;inset:0">${inner}</svg>`;
+    switch (m) {
+      case "circle": return s(`<circle cx="470" cy="180" r="175" fill="${a}" opacity="0.9"/>`);
+      case "lines": return s(Array.from({ length: 14 }, (_, i) => `<line x1="0" y1="${60 + i * 22}" x2="600" y2="${60 + i * 22}" stroke="${a}" stroke-width="2" opacity="0.45"/>`).join(""));
+      case "grid": return s(Array.from({ length: 11 }, (_, i) => `<line x1="${i * 60}" y1="0" x2="${i * 60}" y2="800" stroke="${a}" stroke-width="1" opacity="0.22"/>`).join("") + Array.from({ length: 14 }, (_, i) => `<line x1="0" y1="${i * 60}" x2="600" y2="${i * 60}" stroke="${a}" stroke-width="1" opacity="0.22"/>`).join(""));
+      case "stripe": return s(`<polygon points="330,0 600,0 600,330" fill="${a}" opacity="0.95"/><polygon points="250,0 300,0 600,300 600,350" fill="${a}" opacity="0.5"/>`);
+      case "arch": return s(`<path d="M150 800 L150 470 A150 150 0 0 1 450 470 L450 800 Z" fill="${a}" opacity="0.9"/>`);
+      case "dots": return s(Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, c) => `<circle cx="${330 + c * 32}" cy="${60 + r * 32}" r="5" fill="${a}" opacity="0.6"/>`).join("")).join(""));
+      default: return "";
+    }
+  }
+  function renderCover(sp, W = 600, H = 800) {
+    const k = W / 600;
+    const bg = hex(sp.bg, "#111111"), bg2 = hex(sp.bg2, bg), accent = hex(sp.accent, "#ffd400");
+    const ink = readable(hex(sp.ink, "#ffffff"), bg), sub = readable(hex(sp.sub, ink), bg);
+    const root = mk("div", `position:relative;width:${W}px;height:${H}px;overflow:hidden;background:linear-gradient(165deg, ${bg}, ${bg2});font-family:${fam(sp.bodyFont)};`);
+    if (sp.layout === "split") root.appendChild(mk("div", `position:absolute;left:0;right:0;bottom:0;height:42%;background:${accent};`));
+    if (sp.layout === "frame") root.appendChild(mk("div", `position:absolute;inset:${26 * k}px;border:${3 * k}px solid ${accent};`));
+    const m = motifSvg(sp.motif, accent, W, H);
+    if (m) {
+      root.insertAdjacentHTML("beforeend", m);
+      // 제목색과 장식색이 비슷하면 장식을 흐리게 해서 제목이 묻히지 않게
+      if (contrast(ink, accent) < 3) root.lastElementChild.style.opacity = "0.28";
+    }
+    const lines = (Array.isArray(sp.titleLines) && sp.titleLines.length ? sp.titleLines : [sp.title || "제목"]).slice(0, 4).map(String);
+    const longest = Math.max(...lines.map(l => l.length), 1);
+    const tsize = Math.max(38, Math.min(92, Math.round(470 / longest))) * k;
+    const pos = {
+      "center": `left:${56 * k}px;right:${56 * k}px;top:0;bottom:0;justify-content:center;align-items:center;text-align:center;`,
+      "top-left": `left:${56 * k}px;right:${56 * k}px;top:${70 * k}px;`,
+      "bottom-left": `left:${56 * k}px;right:${56 * k}px;bottom:${90 * k}px;`,
+      "split": `left:${50 * k}px;right:${50 * k}px;top:${120 * k}px;`,
+      "frame": `left:${70 * k}px;right:${70 * k}px;top:0;bottom:0;justify-content:center;align-items:center;text-align:center;`,
+      "bignumber": `left:${56 * k}px;right:${56 * k}px;bottom:${90 * k}px;`,
+    }[sp.layout] || `left:${56 * k}px;right:${56 * k}px;top:${70 * k}px;`;
+    if (sp.layout === "bignumber") {
+      const num = (String(sp.badge || "").match(/\d+/) || ["1"])[0];
+      root.appendChild(mk("div", `position:absolute;right:${-10 * k}px;top:${10 * k}px;font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${380 * k}px;line-height:1;color:${accent};opacity:0.9;`, num));
+    }
+    const box = mk("div", `position:absolute;display:flex;flex-direction:column;gap:${14 * k}px;${pos}`);
+    if (sp.kicker) box.appendChild(mk("div", `font-size:${15 * k}px;letter-spacing:0.18em;font-weight:700;color:${sp.layout === "split" ? ink : accent};`, sp.kicker));
+    const t = mk("div", `font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${tsize}px;line-height:1.18;color:${ink};font-weight:${/세리프|명조|바탕/.test(sp.titleFont) ? 900 : 400};letter-spacing:-0.01em;`);
+    lines.forEach((l, i) => { if (i) t.appendChild(document.createElement("br")); t.appendChild(document.createTextNode(l)); });
+    box.appendChild(t);
+    if (sp.subtitle) box.appendChild(mk("div", `font-size:${19 * k}px;line-height:1.55;color:${sub};max-width:${440 * k}px;`, sp.subtitle));
+    if (sp.badge && sp.layout !== "bignumber") box.appendChild(mk("div", `align-self:${/center|frame/.test(sp.layout) ? "center" : "flex-start"};margin-top:${6 * k}px;padding:${6 * k}px ${14 * k}px;background:${accent};color:${readable("#111111", accent)};font-weight:700;font-size:${15 * k}px;border-radius:${999}px;`, sp.badge));
+    root.appendChild(box);
+    const authorOn = sp.layout === "split" ? accent : bg2;
+    if (sp.author) root.appendChild(mk("div", `position:absolute;left:${56 * k}px;right:${56 * k}px;bottom:${36 * k}px;font-size:${15 * k}px;letter-spacing:0.08em;color:${readable(sub, authorOn)};text-align:${/center|frame/.test(sp.layout) ? "center" : "left"};`, sp.author));
+    return root;
+  }
+
+  // ---- 본문 페이지 그리기 (A5 = 560 × 794) ----
+  const PW = 560, PH = 794;
+  function bodyTheme(sp) {
+    const paper = hex(sp.paper, "#ffffff");
+    return {
+      paper, ink: readable(hex(sp.ink, "#1a1a1a"), paper), accent: hex(sp.accent, "#ffd400"),
+      muted: readable(hex(sp.muted, "#666666"), paper), head: fam(sp.headFont, "노토산스"), body: fam(sp.bodyFont, "노토산스"),
+      size: Math.max(11.5, Math.min(14, Number(sp.bodySize) || 12.5)),
+      chapter: sp.chapterStyle, h2: sp.h2Style, quote: sp.quoteStyle, sp,
+    };
+  }
+  function pageShell(th, n) {
+    const p = mk("div", `position:relative;width:${PW}px;height:${PH}px;background:${th.paper};color:${th.ink};font-family:${th.body};overflow:hidden;box-sizing:border-box;`);
+    if (n) p.appendChild(mk("div", `position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:10px;color:${th.muted};letter-spacing:0.1em;`, String(n)));
+    return p;
+  }
+  function chapterPage(th, title, idx, n) {
+    const p = pageShell(th, n);
+    const num = String(idx).padStart(2, "0");
+    const clean = title.replace(/^\s*(\d{1,2}[\.\s]+)/, "");
+    const onAccent = readable(th.ink, th.accent);
+    if (th.chapter === "fullbleed") {
+      p.style.background = th.accent;
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:230px;font-family:${th.head};font-size:15px;letter-spacing:0.25em;color:${onAccent};`, idx ? "CHAPTER " + num : ""));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:262px;font-family:${th.head};font-size:30px;line-height:1.35;font-weight:900;color:${onAccent};`, clean));
+    } else if (th.chapter === "band") {
+      p.appendChild(mk("div", `position:absolute;left:0;right:0;top:0;height:300px;background:${th.accent};`));
+      p.appendChild(mk("div", `position:absolute;left:52px;top:200px;font-family:${th.head};font-size:64px;line-height:1;color:${onAccent};`, idx ? num : ""));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:340px;font-family:${th.head};font-size:28px;line-height:1.4;font-weight:900;`, clean));
+    } else if (th.chapter === "bignumber") {
+      p.appendChild(mk("div", `position:absolute;right:30px;top:40px;font-family:${th.head};font-size:220px;line-height:1;color:${th.accent};opacity:0.9;`, idx ? num : "✦"));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;bottom:200px;font-family:${th.head};font-size:28px;line-height:1.4;font-weight:900;`, clean));
+    } else {
+      p.appendChild(mk("div", `position:absolute;left:52px;top:250px;font-size:13px;letter-spacing:0.25em;color:${th.muted};`, idx ? "CHAPTER " + num : ""));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:280px;font-family:${th.head};font-size:28px;line-height:1.4;font-weight:900;padding-bottom:18px;border-bottom:4px solid ${th.accent};`, clean));
+    }
+    return p;
+  }
+  function blockEl(th, b) {
+    const s = th.size;
+    if (b.type === "h") {
+      const base = `font-family:${th.head};font-size:${s + 4}px;font-weight:900;line-height:1.45;margin:18px 0 10px;`;
+      if (th.h2 === "bar") return mk("div", base + `padding-left:12px;border-left:5px solid ${th.accent};`, b.text);
+      if (th.h2 === "underline") return mk("div", base + `padding-bottom:6px;border-bottom:2px solid ${th.accent};`, b.text);
+      if (th.h2 === "marker") { const d = mk("div", base); d.appendChild(mk("span", `background:linear-gradient(transparent 55%, ${th.accent}88 55%);`, b.text)); return d; }
+      return mk("div", base + `color:${th.accent === th.paper ? th.ink : th.ink};`, b.text);
+    }
+    if (b.type === "q") {
+      const base = `font-size:${s + 1}px;line-height:1.8;margin:12px 0;font-family:${th.head};`;
+      if (th.quote === "box") return mk("div", base + `background:${th.accent}22;border:1px solid ${th.accent};padding:12px 16px;`, b.text);
+      if (th.quote === "bigquote") { const d = mk("div", base + "position:relative;padding:8px 8px 8px 38px;"); d.appendChild(mk("span", `position:absolute;left:0;top:-10px;font-size:48px;line-height:1;color:${th.accent};font-family:Georgia,serif;`, "“")); d.appendChild(document.createTextNode(b.text)); return d; }
+      return mk("div", base + `padding:4px 0 4px 14px;border-left:3px solid ${th.accent};color:${th.ink};`, b.text);
+    }
+    if (b.type === "li") { const d = mk("div", `font-size:${s}px;line-height:1.75;margin:0 0 6px;padding-left:22px;position:relative;`); d.appendChild(mk("span", `position:absolute;left:0;top:0;color:${th.accent === th.paper ? th.ink : th.accent};font-weight:900;`, "✓")); d.appendChild(document.createTextNode(b.text)); return d; }
+    return mk("p", `font-size:${s}px;line-height:1.85;margin:0 0 9px;word-break:keep-all;`, b.text);
+  }
+  function richBlocks(text) {
+    return text.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => {
+      if (l.startsWith("■")) return { type: "h", text: l.replace(/^■\s*/, "") };
+      if (/^["“「『]/.test(l)) return { type: "q", text: l.replace(/^["“「『]|["”」』]$/g, "") };
+      if (/^([□☐✔✓☑·•\-]|\d{1,2}[.)])\s*/.test(l) && l.length < 120) return { type: "li", text: l.replace(/^([□☐✔✓☑·•\-]|\d{1,2}[.)])\s*/, "") };
+      return { type: "p", text: l };
+    });
+  }
+  // 원고를 섹션으로 나눈다: 원고 집필 결과(━ 구분선) 또는 '프롤로그/01/PART' 같은 제목 줄
+  function bookParts() {
+    const t = currentBookText();
+    if (draftParts.length && (!t || t === $("draftText").textContent.trim())) return draftParts;
+    if (!t) return [];
+    if (/━{4,}/.test(t)) {
+      const bits = t.split(/\n*━{4,}\n(.+)\n━{4,}\n*/);
+      const parts = [];
+      for (let i = 1; i < bits.length; i += 2) parts.push({ title: bits[i].trim(), text: (bits[i + 1] || "").trim() });
+      if (parts.length) return parts;
+    }
+    const H = /^(프롤로그|에필로그|들어가며|나가며|PART\s*\d+|CHAPTER\s*\d+|제\s*\d+\s*장|\d{1,2}\s*[.장)]\s*\S|\d{1,2}\s+\S)/i;
+    const parts = []; let cur = null;
+    t.split("\n").forEach(line => {
+      const l = line.trim();
+      if (l && l.length < 60 && H.test(l)) { cur = { title: l, text: "" }; parts.push(cur); }
+      else if (cur) cur.text += line + "\n";
+      else { cur = { title: "시작하며", text: line + "\n" }; parts.push(cur); }
+    });
+    // 첫 제목 앞의 짧은 머리말(책 제목·부제·분량 같은 정보)은 섹션으로 만들지 않는다
+    if (parts[0]?.title === "시작하며" && parts.length > 1 && parts[0].text.replace(/^\s*(책 제목|부제|원씽|분량|뼈대)\s*[:：].*$/gm, "").trim().length < 300) parts.shift();
+    return parts.filter(p => p.text.trim() || p.title);
+  }
+
+  // ---- 공통: 화면 밖에서 그려서 이미지로 ----
+  async function fontsReady(root) {
+    const fams = new Set(); root.querySelectorAll("*").forEach(e => { const f = e.style.fontFamily; if (f) fams.add(f.split(",")[0].trim()); });
+    const txt = root.textContent.slice(0, 400);
+    await Promise.all([...fams].map(f => document.fonts?.load(`20px ${f}`, txt).catch(() => {}) || 0));
+    await (document.fonts?.ready || Promise.resolve());
+  }
+  async function snap(el, scale = 2) {
+    await loadScript(CDN.h2c);
+    const host = mk("div", "position:fixed;left:-20000px;top:0;");
+    host.appendChild(el); document.body.appendChild(host);
+    try { await fontsReady(el); return await window.html2canvas(el, { scale, backgroundColor: null, logging: false }); }
+    finally { host.remove(); }
+  }
+  const canvasBlob = (c, type = "image/png", q) => new Promise(r => c.toBlob(r, type, q));
+  function scaled(el, w, h, k) {
+    const wrap = mk("div", `width:${w * k}px;height:${h * k}px;overflow:hidden;position:relative;`);
+    el.style.transform = `scale(${k})`; el.style.transformOrigin = "0 0"; el.style.position = "absolute"; el.style.left = "0"; el.style.top = "0";
+    wrap.appendChild(el); return wrap;
+  }
+  async function saveTo(filename, data, stateFn) {
+    const dl = window.claude?.use ? await window.claude.use("downloads") : null;
+    if (!dl) { stateFn("이 화면에서는 파일 저장을 할 수 없어요.", "err"); return; }
+    try { await dl.save({ filename, data }); stateFn(`${filename} 저장 창을 열었어요.`, "ok"); }
+    catch (e) { stateFn(e?.code === "declined" ? "저장을 취소했어요." : e?.code === "rate_limited" ? "저장 창이 이미 열려 있어요. 잠시 뒤 다시 눌러주세요." : "파일 저장이 안 돼요.", e?.code === "declined" ? "" : "err"); }
+  }
+  const noteFn = (id) => (msg, kind) => { const el = $(id); el.hidden = !msg; el.textContent = msg || ""; el.className = "note" + (kind ? " " + kind : ""); };
+  const coverState = noteFn("coverState"), bodyState = noteFn("bodyState"), bookMsg = noteFn("bookState");
+
+  // ---- 표지 디자인 3개 ----
+  let coverSpecs = [], chosenCover = null, coverBlob = null, cvCtl = null;
+  async function runCover() {
+    const text = currentBookText();
+    if (!text) { coverState("원고를 첨부하거나 붙여넣어주세요. 제목·목차만 있어도 돼요.", "err"); return; }
+    const sample = await samplePromise;
+    if (!sample) { coverState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
+    const g = guessTitle();
+    const avoid = coverSpecs.length ? `\n[지난번 3안 — 이번엔 겹치지 않게 완전히 다른 방향으로]\n${coverSpecs.map(s => `${s.name}: ${s.layout}/${s.motif}/${s.bg}/${s.titleFont}`).join("\n")}\n` : "";
+    const prompt = `너는 한국 전자책 표지 아트디렉터다. 아래 [원고]를 분석해서 전자책 표지 디자인 3안을 설계한다.
+${g.title ? `책 제목은 "${g.title}"${g.subtitle ? `, 부제는 "${g.subtitle}"` : ""}. 제목·부제 글자는 바꾸지 않는다(줄바꿈만 정한다).\n` : "원고에서 책 제목과 부제를 찾고, 없으면 원고 내용으로 짓는다.\n"}
+[원칙]
+- 먼저 원고의 독자·정서·약속을 읽고, 3안은 서로 확실히 다른 방향으로: 예) 타이포 중심의 강한 표지 / 상징 도형 하나로 말하는 표지 / 여백 많은 미니멀 표지.
+- 표지는 판매 썸네일로 작게 봐도 제목이 읽혀야 한다. 제목 줄은 한 줄에 8자 안팎으로 끊는다.
+- 글자색(ink)과 배경(bg)은 대비가 커야 한다. 색은 주제의 정서에 맞게, 뻔한 파랑·보라 그라데이션은 피한다.
+- 글꼴은 이 목록에서만: ${FONT_KEYS}
+- layout은 center, top-left, bottom-left, split, frame, bignumber 중 하나. bignumber는 badge에 숫자가 있을 때만.
+- motif는 none, circle, lines, grid, stripe, arch, dots 중 하나.
+${avoid}
+[출력] JSON 배열 3개만:
+[{"name":"안 이름(짧게)","concept":"이 표지가 독자에게 주는 느낌 한 줄","title":"책 제목","titleLines":["제목 1행","제목 2행"],"subtitle":"부제","kicker":"제목 위 작은 라벨(없으면 빈 문자열)","badge":"숫자가 들어간 짧은 약속(예: 2주 완성, 없으면 빈 문자열)","author":"저자명(원고에 없으면 빈 문자열)","bg":"#hex","bg2":"#hex","ink":"#hex","sub":"#hex","accent":"#hex","titleFont":"목록 중 하나","bodyFont":"목록 중 하나","layout":"…","motif":"…"}]
+
+[원고]
+${text.slice(0, 14000)}`;
+    cvCtl = new AbortController();
+    $("goCover").disabled = $("regenCover").disabled = true;
+    coverState("원고를 읽고 표지 3개를 설계하는 중… (20초~1분)");
+    try {
+      const arr = await sample.json(prompt, { signal: cvCtl.signal, modelTier: "default", cache: false });
+      const specs = (Array.isArray(arr) ? arr : arr?.covers || []).slice(0, 3);
+      if (!specs.length) throw { code: "empty_completion" };
+      coverSpecs = specs;
+      renderCoverRefs();
+      coverState("표지 3개가 나왔어요. 마음에 드는 걸 PNG로 저장하거나 '이 표지로 확정'을 누르세요.", "ok");
+    } catch (e) {
+      coverState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "설계 결과가 깨졌어요. 한 번만 다시 눌러주세요." : (ERR[e?.code] || "표지 설계에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
+    } finally {
+      $("goCover").disabled = $("regenCover").disabled = false;
+    }
+  }
+  function renderCoverRefs() {
+    const box = $("coverRefs"); box.innerHTML = "";
+    coverSpecs.forEach((sp, i) => {
+      const card = mk("article", ""); card.className = "ref";
+      card.appendChild(scaled(renderCover(sp), 600, 800, 0.3));
+      card.appendChild(mk("div", "", `${i + 1}안 · ${sp.name || ""}`)).className = "ref-name";
+      card.appendChild(mk("div", "", sp.concept || "")).className = "ref-concept";
+      const acts = mk("div", ""); acts.className = "ref-actions";
+      const png = mk("button", "", "PNG 저장"); png.className = "btn ghost"; png.type = "button";
+      const pick = mk("button", "", chosenCover === sp ? "확정됨 ✓" : "이 표지로 확정"); pick.className = "btn ghost"; pick.type = "button";
+      png.addEventListener("click", async () => {
+        png.disabled = true; coverState("PNG 만드는 중…");
+        try { const c = await snap(renderCover(sp), 2); await saveTo(`${safeName(sp.title || "표지")}_표지${i + 1}.png`, await canvasBlob(c), coverState); }
+        catch (e) { coverState("PNG를 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err"); }
+        finally { png.disabled = false; }
+      });
+      pick.addEventListener("click", async () => {
+        pick.disabled = true;
+        try {
+          const c = await snap(renderCover(sp), 2);
+          chosenCover = sp; coverBlob = await canvasBlob(c);
+          setCoverThumb(coverBlob, `표지 디자인에서 확정한 ${i + 1}안을 가져왔어요.`);
+          renderCoverRefs();
+          coverState(`${i + 1}안으로 확정했어요. '본문 디자인 하기' 탭으로 넘어가면 이 표지로 본문을 디자인해요.`, "ok");
+        } catch (e) { coverState("표지를 확정하지 못했어요. 다시 눌러주세요.", "err"); pick.disabled = false; }
+      });
+      acts.append(png, pick); card.appendChild(acts); box.appendChild(card);
+    });
+    box.hidden = false; $("coverActions").hidden = false;
+  }
+  $("goCover").addEventListener("click", runCover);
+  $("regenCover").addEventListener("click", runCover);
+
+  // ---- 본문 디자인: 표지 이미지 넣기 ----
+  let coverThumbUrl = "";
+  function setCoverThumb(blob, note) {
+    if (coverThumbUrl) URL.revokeObjectURL(coverThumbUrl);
+    coverThumbUrl = URL.createObjectURL(blob);
+    $("coverThumb").src = coverThumbUrl; $("coverThumb").hidden = false;
+    $("coverNote").textContent = note;
+  }
+  $("coverFile").addEventListener("change", (ev) => {
+    const f = ev.target.files?.[0]; if (!f) return;
+    coverBlob = f; chosenCover = null;
+    setCoverThumb(f, `${f.name} 을(를) 넣었어요.`);
+    ev.target.value = "";
+  });
+  async function shrink(blob, max = 1200) {
+    const img = await createImageBitmap(blob);
+    const k = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return canvasBlob(c, "image/jpeg", 0.9);
+  }
+
+  // ---- 본문 디자인 3개 ----
+  let bodySpecs = [], bdCtl = null;
+  function sampleBlocks() {
+    const parts = bookParts();
+    const p = parts.find(x => x.text && x.text.length > 200) || parts[0];
+    const bl = p ? richBlocks(p.text) : [];
+    const pick = (t) => bl.find(b => b.type === t);
+    const paras = bl.filter(b => b.type === "p").slice(0, 3);
+    return {
+      chapter: p?.title || "01 첫 번째 장",
+      blocks: [pick("h") || { type: "h", text: "소제목이 이렇게 들어가요" }, ...(paras.length ? paras.slice(0, 2) : [{ type: "p", text: "본문 문단이 이런 글꼴과 줄 간격으로 들어가요. 읽기 편한 길이와 여백을 확인하세요." }]),
+        pick("q") || { type: "q", text: "인용과 강조 문장은 이렇게 보여요." }, ...(bl.filter(b => b.type === "li").slice(0, 3).length ? bl.filter(b => b.type === "li").slice(0, 3) : [{ type: "li", text: "체크리스트 항목 하나" }, { type: "li", text: "체크리스트 항목 둘" }]), paras[2] || paras[0] || { type: "p", text: "" }].filter(b => b.text),
+    };
+  }
+  function renderBodyPreview(sp) {
+    const th = bodyTheme(sp), s = sampleBlocks();
+    const row = mk("div", "display:flex;gap:10px;");
+    row.appendChild(scaled(chapterPage(th, s.chapter, /프롤로그|에필로그|들어가며|나가며|시작하며/.test(s.chapter) ? 0 : 1, 0), PW, PH, 0.42));
+    const pg = pageShell(th, 12); const inner = mk("div", "position:absolute;left:52px;right:52px;top:56px;bottom:60px;overflow:hidden;");
+    s.blocks.forEach(b => inner.appendChild(blockEl(th, b))); pg.appendChild(inner);
+    row.appendChild(scaled(pg, PW, PH, 0.42));
+    return row;
+  }
+  async function runBody() {
+    const sample = await samplePromise;
+    if (!sample) { bodyState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
+    if (!coverBlob && !chosenCover) { bodyState("표지 이미지를 먼저 넣어주세요. 표지 디자인 탭에서 '이 표지로 확정'을 눌러도 돼요.", "err"); return; }
+    let images;
+    try {
+      const lim = await sample.limits?.();
+      if (lim?.images && coverBlob) images = [await shrink(coverBlob)];
+    } catch (e) { images = undefined; }
+    if (!images && !chosenCover) { bodyState("이 화면에서는 이미지를 AI에게 보낼 수 없어요. 표지 디자인 탭에서 표지를 만들어 '이 표지로 확정'을 누르면 설계값으로 분석해요.", "err"); return; }
+    const avoid = bodySpecs.length ? `\n[지난번 3안 — 이번엔 다르게]\n${bodySpecs.map(s => `${s.name}: ${s.chapterStyle}/${s.h2Style}/${s.quoteStyle}/${s.paper}`).join("\n")}\n` : "";
+    const excerpt = currentBookText().slice(0, 4000);
+    const prompt = `너는 한국 전자책 본문(내지) 디자이너다. ${images ? "첨부한 이미지는 이 책의 확정된 표지다. 표지의 디자인·컬러·톤·폰트 느낌·정보 위계(제목/부제/라벨의 크기 차이)를 먼저 분석하고," : "아래 [확정 표지 설계값]이 이 책의 확정된 표지다. 표지의 컬러·톤·폰트·위계를 먼저 분석하고,"} 그 표지와 한 권으로 이어지는 A5 본문 디자인 3안을 설계한다.
+${chosenCover ? `\n[확정 표지 설계값]\n${JSON.stringify(chosenCover)}\n` : ""}
+[원칙]
+- 본문은 오래 읽는 면이다. 종이색(paper)과 글자색(ink)은 대비가 크게, 강조색(accent)은 표지에서 가져온다. 어두운 표지라도 본문 종이는 밝게 가는 안을 최소 1개 넣는다.
+- 3안은 서로 다르게: 표지를 가장 충실히 이은 안 / 더 차분한 안 / 더 과감한 안.
+- 글꼴은 이 목록에서만: ${FONT_KEYS}. 제목용(headFont)은 표지 제목 느낌과 맞추고, 본문용(bodyFont)은 읽기 쉬운 것으로.
+- chapterStyle: band, bignumber, rule, fullbleed 중 하나. h2Style: bar, underline, marker, plain 중 하나. quoteStyle: sidebar, box, bigquote 중 하나. bodySize: 11.5~14.
+${avoid}
+[출력] JSON 배열 3개만:
+[{"name":"안 이름","concept":"한 줄 설명","analysis":"표지에서 읽은 것 한 줄(색·톤·폰트·위계)","paper":"#hex","ink":"#hex","accent":"#hex","muted":"#hex","headFont":"…","bodyFont":"…","bodySize":12.5,"chapterStyle":"…","h2Style":"…","quoteStyle":"…"}]
+
+[원고 일부]
+${excerpt || "(원고 없음)"}`;
+    bdCtl = new AbortController();
+    $("goBody").disabled = $("regenBody").disabled = true;
+    bodyState("표지를 분석하고 본문 디자인 3개를 설계하는 중… (20초~1분)");
+    try {
+      const arr = await sample.json(prompt, { signal: bdCtl.signal, modelTier: "default", cache: false, images });
+      const specs = (Array.isArray(arr) ? arr : arr?.designs || []).slice(0, 3);
+      if (!specs.length) throw { code: "empty_completion" };
+      bodySpecs = specs; renderBodyRefs();
+      bodyState(currentBookText() ? "본문 디자인 3개가 나왔어요. 마음에 드는 안에서 '이대로 책 전체 디자인 하기'를 누르세요." : "본문 디자인 3개가 나왔어요. 책 전체 디자인을 하려면 표지 디자인 탭에서 원고를 먼저 연결해주세요.", "ok");
+    } catch (e) {
+      bodyState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "설계 결과가 깨졌어요. 한 번만 다시 눌러주세요." : e?.code === "image_rejected" ? "표지 이미지를 읽지 못했어요. PNG나 JPG로 다시 넣어주세요." : (ERR[e?.code] || "본문 설계에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
+    } finally { $("goBody").disabled = $("regenBody").disabled = false; }
+  }
+  function renderBodyRefs() {
+    const box = $("bodyRefs"); box.innerHTML = "";
+    bodySpecs.forEach((sp, i) => {
+      const card = mk("article", ""); card.className = "ref";
+      card.appendChild(renderBodyPreview(sp));
+      card.appendChild(mk("div", "", `${i + 1}안 · ${sp.name || ""}`)).className = "ref-name";
+      card.appendChild(mk("div", "", [sp.concept, sp.analysis && "표지 분석: " + sp.analysis].filter(Boolean).join(" · "))).className = "ref-concept";
+      const b = mk("button", "", "이대로 책 전체 디자인 하기"); b.className = "btn"; b.type = "button";
+      b.addEventListener("click", () => designWholeBook(sp, b));
+      const acts = mk("div", ""); acts.className = "ref-actions one"; acts.appendChild(b); card.appendChild(acts);
+      box.appendChild(card);
+    });
+    box.hidden = false; $("bodyActions").hidden = false;
+  }
+  $("goBody").addEventListener("click", runBody);
+  $("regenBody").addEventListener("click", runBody);
+
+  // ---- 이대로 책 전체 디자인 하기 → PDF ----
+  let building = false;
+  async function designWholeBook(sp, btn) {
+    if (building) return;
+    const parts = bookParts();
+    if (!parts.length) { bookMsg("연결된 원고가 없어요. 표지 디자인 탭에서 원고를 첨부하거나 원고 집필에서 가져와주세요.", "err"); return; }
+    building = true; btn.disabled = true;
+    const th = bodyTheme(sp);
+    const g = guessTitle(); const title = chosenCover?.title || g.title || "전자책";
+    try {
+      await Promise.all([loadScript(CDN.jspdf), loadScript(CDN.h2c)]);
+      bookMsg("페이지를 나누는 중…");
+      // 1) 페이지 만들기
+      const pages = [];
+      if (coverBlob) {
+        const url = URL.createObjectURL(coverBlob);
+        const cp = mk("div", `width:${PW}px;height:${PH}px;background:#000;`);
+        const im = mk("img", `width:100%;height:100%;object-fit:cover;display:block;`); im.src = url;
+        await new Promise(r => { im.onload = r; im.onerror = r; }); cp.appendChild(im); pages.push(cp);
+      } else if (chosenCover) pages.push(renderCover(chosenCover, PW, PH));
+      const toc = pageShell(th, 0);
+      toc.appendChild(mk("div", `position:absolute;left:52px;top:70px;font-family:${th.head};font-size:24px;font-weight:900;padding-bottom:10px;border-bottom:3px solid ${th.accent};`, "차례"));
+      const list = mk("div", `position:absolute;left:52px;right:52px;top:140px;display:flex;flex-direction:column;gap:10px;font-size:${th.size}px;line-height:1.5;`);
+      parts.slice(0, 22).forEach(pt => list.appendChild(mk("div", "", pt.title)));
+      toc.appendChild(list); pages.push(toc);
+      const host = mk("div", "position:fixed;left:-20000px;top:0;"); document.body.appendChild(host);
+      let pageNo = 1;
+      try {
+        parts.forEach((pt, idx) => {
+          const isNum = !/프롤로그|에필로그|들어가며|나가며|시작하며/.test(pt.title);
+          pages.push(chapterPage(th, pt.title, isNum ? idx : 0, 0));
+          let pg, inner;
+          const fresh = () => {
+            pg = pageShell(th, ++pageNo);
+            inner = mk("div", `position:absolute;left:52px;right:52px;top:56px;height:${PH - 56 - 64}px;overflow:hidden;`);
+            pg.appendChild(inner); host.appendChild(pg); pages.push(pg);
+          };
+          fresh();
+          richBlocks(pt.text).forEach(b => {
+            const el = blockEl(th, b); inner.appendChild(el);
+            if (inner.scrollHeight > inner.clientHeight + 1 && inner.children.length > 1) { inner.removeChild(el); fresh(); inner.appendChild(el); }
+          });
+        });
+      } finally { host.remove(); }
+      // 2) PDF로 담기
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: "mm", format: "a5" });
+      for (let i = 0; i < pages.length; i++) {
+        bookMsg(`책 전체 디자인 중… ${i + 1}/${pages.length}쪽`);
+        const c = await snap(pages[i], 2);
+        if (i) pdf.addPage();
+        pdf.addImage(c.toDataURL("image/jpeg", 0.88), "JPEG", 0, 0, 148, 210);
+      }
+      await saveTo(`${safeName(title)}_디자인.pdf`, pdf.output("blob"), bookMsg);
+    } catch (e) {
+      bookMsg("책 디자인을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err");
+    } finally { building = false; btn.disabled = false; }
+  }
+
+  // ---- 이미지 AI용 프롬프트만 받기 ----
+  async function promptOnly(key, getText, outId, btnId) {
+    const text = getText();
+    const out = $(outId);
+    if (!text) { out.hidden = false; out.textContent = "원고를 먼저 연결해주세요."; return; }
+    const sample = await samplePromise;
+    if (!sample) { out.hidden = false; out.textContent = "이 화면에서는 AI 생성을 쓸 수 없어요."; return; }
+    const t = TABS.find(x => x.key === key);
+    $(btnId).disabled = true; out.hidden = false; out.textContent = "만드는 중…";
+    try {
+      await sample(`너는 한국 PDF 전자책 기획·편집 전문가다. 아래 [원고]를 읽고 작업을 수행한다. 원고에 없는 사실은 지어내지 않는다.\n\n[작업]\n${t.task}\n\n[출력 형식]\n마크다운 기호 없이 일반 텍스트. 섹션은 【 】 제목과 빈 줄로 구분.\n\n[원고]\n${text.slice(0, 30000)}`,
+        { modelTier: "default", onText: ({ text }) => { out.textContent = text; } });
+    } catch (e) { out.textContent = e?.text || (ERR[e?.code] || "생성에 실패했어요. 잠시 뒤 다시 눌러주세요."); }
+    finally { $(btnId).disabled = false; }
+  }
+  $("coverPromptBtn").addEventListener("click", () => promptOnly("cover", currentBookText, "coverPromptOut", "coverPromptBtn"));
+  $("bodyPromptBtn").addEventListener("click", () => promptOnly("body", currentBookText, "bodyPromptOut", "bodyPromptBtn"));
+  updateBodyBookNote();
 
   // ---------- 복사 ----------
   async function copy(text, noteEl) {
