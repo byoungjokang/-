@@ -146,6 +146,22 @@
   .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); font-size: 15px; padding: 12px; }
   .btn.secondary:hover { background: var(--accent-wash); }
   pre.result.manuscript { max-height: 70vh; font-size: 15px; line-height: 1.95; }
+  .draft-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .draft-actions .btn { padding: 13px 8px; font-size: 15px; }
+  .save-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: 4px; }
+  .save-row span { color: var(--ink-soft); font-size: 14px; flex: 1 1 100%; }
+  .save-row .btn { flex: 1 1 0; }
+  /* PDF로 그릴 A5 페이지 (화면 밖에서만 쓰임) */
+  .pdf-host { position: fixed; left: -10000px; top: 0; }
+  .pdf-page { box-sizing: border-box; background: #fff; color: #1a1a1a; font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; overflow: hidden; }
+  .pdf-inner { height: 100%; overflow: hidden; }
+  .pdf-cover { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px; }
+  .pdf-cover-title { font-family: "Black Han Sans", "Noto Sans KR", sans-serif; font-size: 34px; line-height: 1.3; color: #111; }
+  .pdf-cover-title::after { content: ""; display: block; width: 48px; height: 5px; background: #ffd400; margin: 18px auto 0; }
+  .pdf-cover-sub { font-size: 15px; color: #555; line-height: 1.6; }
+  .pdf-h1 { color: #111; font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; letter-spacing: 0; font-size: 21px; font-weight: 900; line-height: 1.4; margin: 0 0 22px; padding-bottom: 12px; border-bottom: 3px solid #ffd400; }
+  .pdf-h2 { font-size: 15.5px; font-weight: 700; margin: 18px 0 8px; }
+  .pdf-p { font-size: 12.5px; line-height: 1.85; margin: 0 0 9px; word-break: keep-all; }
   .pane { display: flex; flex-direction: column; gap: 22px; }
   .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .cats.sub { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
@@ -346,6 +362,16 @@
           </div>
         </div>
         <pre class="result manuscript" id="draftText"></pre>
+        <div class="draft-actions" id="draftActions" hidden>
+          <button class="btn secondary" id="regenDraft" type="button">다시 생성</button>
+          <button class="btn" id="saveDraft" type="button">파일로 저장</button>
+        </div>
+        <div class="save-row" id="saveRow" hidden>
+          <span>어떤 파일로 저장할까요?</span>
+          <button class="btn ghost" id="savePdf" type="button">PDF로 저장</button>
+          <button class="btn ghost" id="saveDocx" type="button">DOCX(워드)로 저장</button>
+        </div>
+        <p class="note" id="saveState" hidden></p>
       </div>
       <div class="divider" id="promptDivider"><span>원고 대신 집필 프롬프트만 받기</span><small>(이 프롬프트를 개인 AI에게 맡기면 또 다른 원고가 나와요)</small></div>
     </div>
@@ -1017,7 +1043,7 @@ ${src.slice(0, 50000)}`;
     el.className = "note" + (kind ? " " + kind : "");
   }
 
-  let dctl = null;
+  let dctl = null, draftParts = [];
   $("goDraft").addEventListener("click", async () => {
     const outline = $("src").value.trim();
     if (!outline) { draftState("먼저 목차를 붙여넣어주세요. 목차 설계 결과의 '이 목차로 원고 뽑기'를 누르면 자동으로 채워져요.", "err"); $("src").focus(); return; }
@@ -1031,6 +1057,8 @@ ${src.slice(0, 50000)}`;
     $("goDraft").disabled = true; $("stopDraft").hidden = false;
     $("draftOut").hidden = false;
     $("draftText").textContent = "";
+    draftParts = [];
+    $("draftActions").hidden = true; $("saveRow").hidden = true; saveState("");
     draftState("목차를 읽고 원고 순서를 잡는 중…");
     let done = "";
     try {
@@ -1079,9 +1107,10 @@ ${outline.slice(0, 30000)}`;
           onText: ({ text }) => { $("draftText").textContent = before + text; },
         });
         $("draftText").textContent = before + text;
+        draftParts.push({ title: sec.title, text });
         done = text;
       }
-      draftState(all ? "전체 원고 완성. '전체 복사'로 가져가세요." : "테스트 원고 완성. 문체가 마음에 들면 '전체 원고'로 바꿔 다시 뽑아보세요.", "ok");
+      draftState(all ? "전체 원고 완성. 마음에 들면 '파일로 저장', 아니면 '다시 생성'을 누르세요." : "테스트 원고 완성. 문체가 마음에 들면 '전체 원고'로 바꿔 다시 뽑아보세요.", "ok");
     } catch (e) {
       if (e?.text) $("draftText").textContent += e.text;
       if (!$("draftText").textContent.trim()) $("draftOut").hidden = true;
@@ -1090,6 +1119,7 @@ ${outline.slice(0, 30000)}`;
       else draftState((ERR[e?.code] || "원고 생성이 중간에 멈췄어요. 잠시 뒤 다시 눌러주세요.") + (($("draftText").textContent.trim()) ? " 여기까지 쓴 원고는 남아 있어요." : ""), "err");
     } finally {
       $("goDraft").disabled = false; $("stopDraft").hidden = true;
+      $("draftActions").hidden = draftParts.length === 0;
     }
   });
   $("stopDraft").addEventListener("click", () => dctl?.abort());
@@ -1102,6 +1132,164 @@ ${outline.slice(0, 30000)}`;
     selectTab(TABS.findIndex(x => x.key === "chapter"));
     $("draftBox").scrollIntoView({ behavior: "smooth", block: "start" });
   });
+
+  // ---------- 다시 생성 · 파일로 저장 ----------
+  let regenArmed = false, regenTimer = null;
+  $("regenDraft").addEventListener("click", () => {
+    if (!regenArmed) {
+      regenArmed = true;
+      $("regenDraft").textContent = "한 번 더 누르면 새로 써요 (지금 원고는 사라져요)";
+      clearTimeout(regenTimer);
+      regenTimer = setTimeout(() => { regenArmed = false; $("regenDraft").textContent = "다시 생성"; }, 5000);
+      return;
+    }
+    regenArmed = false; clearTimeout(regenTimer); $("regenDraft").textContent = "다시 생성";
+    $("goDraft").click();
+  });
+  $("saveDraft").addEventListener("click", () => { $("saveRow").hidden = !$("saveRow").hidden; });
+
+  function saveState(msg, kind) {
+    const el = $("saveState");
+    el.hidden = !msg; el.textContent = msg || "";
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+  const scriptCache = {};
+  function loadScript(src) {
+    if (!scriptCache[src]) scriptCache[src] = new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = src; s.onload = res; s.onerror = () => { delete scriptCache[src]; rej(new Error("load")); };
+      document.head.appendChild(s);
+    });
+    return scriptCache[src];
+  }
+  const CDN = {
+    jszip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+    jspdf: "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+    h2c: "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+  };
+  function bookInfo() {
+    const outline = $("src").value;
+    const t = (outline.match(/책 제목\s*[:：]\s*(.+)/) || outline.match(/\[확정 주제·제목\]\s*\n(.+)/) || [])[1];
+    const sub = (outline.match(/부제\s*[:：]\s*(.+)/) || [])[1];
+    return { title: (t || "전자책 원고").trim(), subtitle: (sub || "").trim() };
+  }
+  const safeName = (x) => x.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 60) || "전자책 원고";
+  // 원고 한 섹션을 블록으로: 소제목(■) / 문단
+  function blocks(text) {
+    return text.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l =>
+      l.startsWith("■") ? { type: "h", text: l.replace(/^■\s*/, "") } : { type: "p", text: l });
+  }
+
+  async function offerFile(filename, data) {
+    const dl = window.claude?.use ? await window.claude.use("downloads") : null;
+    if (!dl) { saveState("이 화면에서는 파일 저장을 할 수 없어요. '전체 복사'로 가져가세요.", "err"); return; }
+    try {
+      await dl.save({ filename, data });
+      saveState(`${filename} 저장 창을 열었어요.`, "ok");
+    } catch (e) {
+      if (e?.code === "declined") saveState("저장을 취소했어요.");
+      else if (e?.code === "rate_limited") saveState("저장 창이 이미 열려 있어요. 잠시 뒤 다시 눌러주세요.", "err");
+      else saveState("파일 저장이 안 돼요. '전체 복사'로 가져가세요.", "err");
+    }
+  }
+
+  // DOCX: 워드 문서를 직접 조립한다 (A5 판형, 맑은 고딕)
+  const xmlEsc = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  function wPara(text, { size = 22, bold = false, color = "1A1A1A", align = "", before = 0, after = 160, pageBreak = false } = {}) {
+    return `<w:p><w:pPr>${pageBreak ? "<w:pageBreakBefore/>" : ""}<w:spacing w:before="${before}" w:after="${after}" w:line="${size >= 30 ? 400 : 380}" w:lineRule="auto"/>${align ? `<w:jc w:val="${align}"/>` : ""}</w:pPr>` +
+      `<w:r><w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="맑은 고딕"/>${bold ? "<w:b/>" : ""}<w:color w:val="${color}"/><w:sz w:val="${size}"/><w:szCs w:val="${size}"/></w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r></w:p>`;
+  }
+  async function makeDocx() {
+    await loadScript(CDN.jszip);
+    const { title, subtitle } = bookInfo();
+    let body = wPara(title, { size: 44, bold: true, align: "center", before: 3000, after: 300 });
+    if (subtitle) body += wPara(subtitle, { size: 24, color: "6B5B00", align: "center" });
+    draftParts.forEach(part => {
+      body += wPara(part.title, { size: 32, bold: true, color: "6B5B00", pageBreak: true, after: 400 });
+      blocks(part.text).forEach(b => {
+        body += b.type === "h" ? wPara(b.text, { size: 26, bold: true, before: 240, after: 120 }) : wPara(b.text);
+      });
+    });
+    const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="8391" w:h="11906"/><w:pgMar w:top="1134" w:right="1021" w:bottom="1134" w:left="1021" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+    const zip = new window.JSZip();
+    zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+    zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+    zip.file("word/document.xml", doc);
+    return zip.generateAsync({ type: "blob" });
+  }
+
+  // PDF: A5 페이지로 나눠 그린 뒤 이미지로 담는다 (한글 글꼴이 깨지지 않게)
+  async function makePdf(onProgress) {
+    await Promise.all([loadScript(CDN.jspdf), loadScript(CDN.h2c)]);
+    const { title, subtitle } = bookInfo();
+    const W = 560, H = 794, PAD = 56;
+    const host = document.createElement("div");
+    host.className = "pdf-host";
+    document.body.appendChild(host);
+    const pages = [];
+    let page, inner;
+    const newPage = () => {
+      page = document.createElement("div"); page.className = "pdf-page";
+      page.style.width = W + "px"; page.style.height = H + "px"; page.style.padding = PAD + "px";
+      inner = document.createElement("div"); inner.className = "pdf-inner";
+      page.appendChild(inner); host.appendChild(page); pages.push(page);
+    };
+    const add = (el) => {
+      inner.appendChild(el);
+      if (inner.scrollHeight > H - PAD * 2 && inner.children.length > 1) {
+        inner.removeChild(el); newPage(); inner.appendChild(el);
+      }
+    };
+    const el = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
+    try {
+      newPage();
+      inner.classList.add("pdf-cover");
+      inner.append(el("div", "pdf-cover-title", title));
+      if (subtitle) inner.append(el("div", "pdf-cover-sub", subtitle));
+      draftParts.forEach(part => {
+        newPage();
+        add(el("h2", "pdf-h1", part.title));
+        blocks(part.text).forEach(b => add(el(b.type === "h" ? "h3" : "p", b.type === "h" ? "pdf-h2" : "pdf-p", b.text)));
+      });
+      await (document.fonts?.ready || Promise.resolve());
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: "mm", format: "a5" });
+      for (let i = 0; i < pages.length; i++) {
+        onProgress?.(i + 1, pages.length);
+        const canvas = await window.html2canvas(pages[i], { scale: 2, backgroundColor: "#ffffff", logging: false });
+        if (i) pdf.addPage();
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.88), "JPEG", 0, 0, 148, 210);
+      }
+      return pdf.output("blob");
+    } finally {
+      host.remove();
+    }
+  }
+
+  let saving = false;
+  async function doSave(kind) {
+    if (saving) return;
+    if (!draftParts.length) { saveState("저장할 원고가 없어요. 먼저 원고를 뽑아주세요.", "err"); return; }
+    saving = true; $("savePdf").disabled = $("saveDocx").disabled = true;
+    const name = safeName(bookInfo().title);
+    try {
+      if (kind === "docx") {
+        saveState("워드 파일 만드는 중…");
+        await offerFile(name + ".docx", await makeDocx());
+      } else {
+        saveState("PDF 만드는 중…");
+        const blob = await makePdf((i, n) => saveState(`PDF 만드는 중… ${i}/${n}쪽`));
+        await offerFile(name + ".pdf", blob);
+      }
+    } catch (e) {
+      saveState("파일을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err");
+    } finally {
+      saving = false; $("savePdf").disabled = $("saveDocx").disabled = false;
+    }
+  }
+  $("savePdf").addEventListener("click", () => doSave("pdf"));
+  $("saveDocx").addEventListener("click", () => doSave("docx"));
 
   // ---------- 복사 ----------
   async function copy(text, noteEl) {
