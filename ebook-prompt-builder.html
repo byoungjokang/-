@@ -269,7 +269,11 @@
       <button class="btn" id="gateCopy" type="button">링크 복사</button>
     </div>
     <p class="note" id="gateNote" hidden></p>
-  </div>
+    <div id="diagBox" hidden style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:13px;color:var(--ink-soft)">문제가 계속되면 아래 진단 정보를 캡처해서 보내주세요.</div>
+      <pre class="result" id="diagText" style="font-size:12px;max-height:none"></pre>
+      <button class="btn ghost" id="diagRetry" type="button">AI 권한 다시 요청하기</button>
+    </div>
 
   <section class="panel" aria-label="AI로 만들기">
     <div class="tabs" role="tablist" id="tabs"></div>
@@ -727,14 +731,49 @@
   selectTab(startTab);
 
   // ---------- AI 호출 ----------
+  const diagT0 = performance.now();
   let samplePromise = window.claude?.use ? window.claude.use("sample") : Promise.resolve(null);
+  // AI가 연결되지 않을 때 원인을 화면에 보여준다 (캡처해서 보내면 원인을 알 수 있게)
+  async function runDiag(extra) {
+    const lines = [];
+    let framed = "?"; try { framed = window.self !== window.top ? "예" : "아니오"; } catch (e) { framed = "예(교차)"; }
+    lines.push("window.claude: " + (window.claude ? "있음" : "없음") + " · use: " + (typeof window.claude?.use));
+    lines.push("프레임 안: " + framed + " · 주소: " + location.host);
+    const fn = await samplePromise.catch(e => "오류:" + (e?.code || e?.message || e));
+    lines.push("sample: " + (fn ? (typeof fn === "string" ? fn : "연결됨") : "null") + " (" + ((performance.now() - diagT0) / 1000).toFixed(1) + "초)");
+    try {
+      const pm = window.claude?.use ? await window.claude.use("permissions") : null;
+      if (!pm) lines.push("permissions: null");
+      else {
+        lines.push("권한 전체: " + JSON.stringify(await pm.state()));
+        lines.push("sample 권한: " + await pm.state("sample") + " · downloads 권한: " + await pm.state("downloads"));
+      }
+    } catch (e) { lines.push("permissions 오류: " + (e?.code || e?.message || e)); }
+    try { const dl = window.claude?.use ? await window.claude.use("downloads") : null; lines.push("downloads: " + (dl ? "연결됨" : "null")); } catch (e) { lines.push("downloads 오류: " + (e?.code || e?.message)); }
+    if (extra) lines.push(extra);
+    lines.push("브라우저: " + navigator.userAgent);
+    lines.push("시각: " + new Date().toLocaleString("ko-KR"));
+    $("diagText").textContent = lines.join("\n");
+    $("diagBox").hidden = false;
+  }
   // 카톡 안 브라우저 등 Claude 로그인이 없는 곳이면 맨 위에 여는 법 안내
   const inKakao = /KAKAOTALK/i.test(navigator.userAgent || "");
   if (inKakao) {
     $("gateTitle").textContent = "카카오톡 안에서는 AI 기능이 안 돼요";
     $("gate").hidden = false;
   }
-  samplePromise.then(fn => { if (!fn) $("gate").hidden = false; });
+  samplePromise.then(fn => { if (!fn) { $("gate").hidden = false; runDiag(); } });
+  $("diagRetry").addEventListener("click", async () => {
+    let r = "";
+    try {
+      const pm = await window.claude?.use?.("permissions");
+      r = "요청 결과: " + (pm ? JSON.stringify(await pm.request(["sample"])) : "permissions 없음");
+      const again = await window.claude?.use?.("sample");
+      r += " · 다시 받은 sample: " + (again ? "연결됨" : "null");
+      if (again) { samplePromise = Promise.resolve(again); $("gate").hidden = true; }
+    } catch (e) { r = "요청 오류: " + (e?.code || e?.message || e); }
+    runDiag(r);
+  });
   $("gateCopy").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText($("gateUrl").value); flash($("gateNote"), "링크를 복사했어요. 크롬·사파리 주소창에 붙여넣으세요.", "ok"); }
     catch (e) { $("gateUrl").select(); flash($("gateNote"), "링크 칸을 길게 눌러 복사해주세요.", "err"); }
