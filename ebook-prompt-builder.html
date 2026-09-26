@@ -141,6 +141,13 @@
   .gate ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; color: var(--ink); }
   .gate b { color: var(--accent); }
   .gate-link { display: flex; gap: 8px; }
+  .voice-files { display: flex; flex-direction: column; gap: 6px; }
+  .voice-file { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line-strong); border-radius: var(--r); padding: 8px 12px; font-size: 13.5px; color: var(--ink-soft); }
+  .voice-file b { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .voice-file span { color: var(--ink-faint); white-space: nowrap; }
+  .voice-file .kind { color: var(--accent); font-weight: 700; flex: none; }
+  .voice-file button { margin-left: auto; flex: none; background: transparent; border: 0; color: var(--ink-faint); font: inherit; cursor: pointer; padding: 2px 6px; }
+  .voice-file button:hover { color: var(--accent); }
   .gate-link input { flex: 1; min-width: 0; font-size: 13px; padding: 10px 12px; }
   .gate-link .btn { width: auto; padding: 10px 16px; font-size: 14px; flex: none; }
   .scope { grid-template-columns: 1fr 1fr; }
@@ -253,7 +260,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.09.26b</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.09.26c</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -499,6 +506,12 @@
       <div class="field">
         <label class="lbl" for="myVoice">내 말투 샘플 <small>선택 · 강력 추천 · 평소 내가 쓴 글 5~10줄 (블로그·카톡·인스타)</small></label>
         <textarea id="myVoice" style="min-height:100px" placeholder="예: 저도 처음엔 면접만 가면 머리가 하얘졌거든요. 준비한 답은 다 외웠는데 막상 질문 들으면 첫마디부터 꼬이더라구요…&#10;이 칸을 채우면 AI가 이 말투를 따라 써서 AI 티가 확 줄어요."></textarea>
+        <div class="attach-row">
+          <label class="btn ghost file-btn" for="voiceFiles">파일 첨부 (여러 개 가능)<input type="file" id="voiceFiles" multiple accept=".docx,.pdf,.txt,.md,.skill,.zip" hidden></label>
+          <button class="btn ghost" id="voiceClear" type="button" hidden>첨부 모두 빼기</button>
+          <span class="attach-note" id="voiceNote">내가 쓴 원고·블로그 글이나 문체 가이드 · DOCX·PDF·TXT·MD·.skill</span>
+        </div>
+        <div class="voice-files" id="voiceList" hidden></div>
       </div>
       <div class="field">
         <label class="lbl" for="myStory">내 경험·에피소드 <small>선택 · 강력 추천 · 책에 넣을 실제 이야기 (챕터 번호를 붙이면 그 챕터에 넣어요)</small></label>
@@ -1265,9 +1278,21 @@ AI 티 나는 한국어 · 발견 즉시 고쳐 쓴다
 - 논문 괄호 인용 "(저자, 연도)" 금지. 필요하면 "한 연구에서는" 정도로만, 확실한 것만.
 - "여러분", "~하시기 바랍니다", "명심하세요", 이모지 금지. 느낌표는 섹션당 2개 이하.
 - 체크리스트 나열로 채우지 않는다. 서술형으로 쓰고, 1인칭 체험을 먼저 깔고 원리를 설명한다. 약점·실패를 먼저 꺼낸다.`;
+  // 첨부한 문체 자료: 가이드(규칙)는 규칙으로, 원고·글은 말투 견본으로 쓴다
+  let voiceFiles = [];
+  const voiceFilesBlock = () => {
+    if (!voiceFiles.length) return "";
+    let budget = 14000;
+    const guides = voiceFiles.filter(f => f.kind === "가이드"), samples = voiceFiles.filter(f => f.kind !== "가이드");
+    const take = (f, cap) => { const t = f.text.slice(0, Math.min(cap, budget)); budget -= t.length; return t; };
+    let out = "";
+    if (guides.length) out += `\n[첨부한 문체 가이드 · 아래 규칙을 그대로 지킨다. 위 [문체 규칙]과 부딪히면 이 가이드를 우선한다]\n` + guides.map(f => `(${f.name})\n${take(f, 8000)}`).join("\n\n") + "\n";
+    if (samples.length && budget > 500) out += `\n[첨부한 내 글 · 이 사람의 어휘·어미·문장 길이·호흡을 그대로 따라 쓴다. 내용은 가져오지 않는다]\n` + samples.map(f => `(${f.name})\n${take(f, 4000)}`).join("\n\n") + "\n";
+    return out;
+  };
   const voiceBlock = () => {
     const v = ($("myVoice")?.value || "").trim(), st = ($("myStory")?.value || "").trim();
-    return (v ? `\n[내 말투 샘플 · 이 사람의 어휘·어미·문장 길이·호흡을 그대로 따라 쓴다. 내용은 가져오지 않는다]\n${v.slice(0, 3000)}\n` : "") +
+    return voiceFilesBlock() + (v ? `\n[내 말투 샘플 · 이 사람의 어휘·어미·문장 길이·호흡을 그대로 따라 쓴다. 내용은 가져오지 않는다]\n${v.slice(0, 3000)}\n` : "") +
       (st ? `\n[저자 실제 경험 · 이번 섹션과 맞는 것만 장면으로 살려 넣는다. 챕터 번호가 붙은 건 그 챕터에만. 여기 없는 경험은 지어내지 않는다]\n${st.slice(0, 6000)}\n` : "");
   };
 
@@ -1377,6 +1402,75 @@ ${outline.slice(0, 30000)}`;
     $("goDraft").click();
   });
   $("saveDraft").addEventListener("click", () => { $("saveRow").hidden = !$("saveRow").hidden; });
+
+  // ---------- 문체 자료 첨부 (DOCX·PDF·TXT·MD·.skill) ----------
+  const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+  const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const docxXmlText = (xml) => xml.split(/<\/w:p>/).map(p => (p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []).map(t => t.replace(/<[^>]+>/g, "")).join(""))
+    .map(t => t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&")).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  async function readVoiceFile(file) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".txt") || name.endsWith(".md")) {
+      const t = await file.text();
+      return { text: t, kind: /규칙|가이드|금지|문체|체크리스트|guide|style/i.test(file.name + t.slice(0, 400)) && name.endsWith(".md") ? "가이드" : "내 글" };
+    }
+    if (name.endsWith(".docx")) {
+      await loadScript(CDN.jszip);
+      const zip = await window.JSZip.loadAsync(file);
+      return { text: docxXmlText(await zip.file("word/document.xml").async("string")), kind: "내 글" };
+    }
+    if (name.endsWith(".skill") || name.endsWith(".zip")) {
+      await loadScript(CDN.jszip);
+      const zip = await window.JSZip.loadAsync(file);
+      const mds = Object.values(zip.files).filter(f => !f.dir && /\.md$/i.test(f.name))
+        .sort((a, b) => (/SKILL\.md$/i.test(b.name) ? 1 : 0) - (/SKILL\.md$/i.test(a.name) ? 1 : 0));
+      if (!mds.length) throw new Error("empty");
+      const parts = [];
+      for (const f of mds) parts.push((await f.async("string")).replace(/^---[\s\S]*?---\s*/, "").trim());
+      return { text: parts.join("\n\n"), kind: "가이드" };
+    }
+    if (name.endsWith(".pdf")) {
+      await loadScript(PDFJS);
+      const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      const pdf = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+      const pages = [];
+      for (let i = 1; i <= Math.min(pdf.numPages, 40); i++) {
+        const c = await (await pdf.getPage(i)).getTextContent();
+        pages.push(c.items.map(it => it.str + (it.hasEOL ? "\n" : "")).join(""));
+      }
+      return { text: pages.join("\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(), kind: "내 글" };
+    }
+    throw new Error("type");
+  }
+  function renderVoiceFiles() {
+    const box = $("voiceList"); box.innerHTML = "";
+    voiceFiles.forEach((f, i) => {
+      const row = mk0("div", "voice-file", "");
+      const kind = mk0("button", "kind", f.kind); kind.type = "button"; kind.title = "눌러서 가이드/내 글 바꾸기"; kind.style.marginLeft = "0";
+      kind.addEventListener("click", () => { f.kind = f.kind === "가이드" ? "내 글" : "가이드"; renderVoiceFiles(); });
+      const x = mk0("button", "", "빼기"); x.type = "button";
+      x.addEventListener("click", () => { voiceFiles.splice(i, 1); renderVoiceFiles(); });
+      row.append(kind, mk0("b", "", f.name), mk0("span", "", f.text.length.toLocaleString() + "자"), x);
+      box.appendChild(row);
+    });
+    box.hidden = !voiceFiles.length; $("voiceClear").hidden = !voiceFiles.length;
+    $("voiceNote").textContent = voiceFiles.length ? `${voiceFiles.length}개 첨부 · '가이드'는 규칙으로 지키고, '내 글'은 말투를 따라 써요. 종류를 눌러 바꿀 수 있어요.` : "내가 쓴 원고·블로그 글이나 문체 가이드 · DOCX·PDF·TXT·MD·.skill";
+  }
+  $("voiceFiles").addEventListener("change", async (ev) => {
+    const files = [...(ev.target.files || [])]; ev.target.value = "";
+    const fails = [];
+    for (const f of files) {
+      $("voiceNote").textContent = `${f.name} 읽는 중…`;
+      try {
+        const r = await readVoiceFile(f);
+        if (!r.text.trim()) throw new Error("empty");
+        voiceFiles = voiceFiles.filter(x => x.name !== f.name).concat([{ name: f.name, text: r.text.trim(), kind: r.kind }]);
+      } catch (e) { fails.push(f.name + (e.message === "type" ? " (지원 안 하는 형식)" : e.message === "empty" ? " (글자가 없음)" : " (읽기 실패)")); }
+    }
+    renderVoiceFiles();
+    if (fails.length) $("voiceNote").textContent = "못 읽은 파일: " + fails.join(", ") + ". 한글(HWP)은 워드나 PDF로 저장해서 올려주세요.";
+  });
+  $("voiceClear").addEventListener("click", () => { voiceFiles = []; renderVoiceFiles(); });
 
   // ---------- AI 말투 다듬기: 뽑은 원고를 섹션별로 한 번 더 사람 말투로 고쳐 쓴다 ----------
   $("polishDraft").addEventListener("click", async () => {
