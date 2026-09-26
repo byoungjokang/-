@@ -173,6 +173,8 @@
   .deep .marks div { border-left: 3px solid var(--accent); padding: 4px 10px; }
   .deep .marks s { color: var(--ink-faint); }
   .deep .marks small { color: var(--accent); font-weight: 700; margin-right: 6px; }
+  .profile { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .profile summary { cursor: pointer; font-weight: 700; color: var(--accent); font-size: 14px; }
   .draft-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .draft-actions .btn { padding: 13px 8px; font-size: 15px; }
   .save-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--r); }
@@ -273,7 +275,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.09.26l</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.09.26m</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -525,6 +527,11 @@
           <span class="attach-note" id="voiceNote">내가 쓴 이 책 원고·블로그 글이나 문체 가이드 · DOCX·PDF·TXT·MD·.skill</span>
         </div>
         <div class="voice-files" id="voiceList" hidden></div>
+        <details class="profile" id="profileBox" hidden>
+          <summary>AI가 뽑은 '내 문체 규칙' 보기·고치기</summary>
+          <p class="note" style="margin:6px 0">첨부한 내 글·원고와 말투 샘플을 분석해서 만든 이 저자 전용 규칙이에요. 원고를 쓸 때 기본 규칙보다 먼저 지켜요. 틀린 곳은 직접 고쳐도 돼요.</p>
+          <textarea id="profileText" style="min-height:220px"></textarea>
+        </details>
       </div>
       <div class="field">
         <label class="lbl" for="myStory">내 경험·에피소드 <small>선택 · 강력 추천 · 책에 넣을 실제 이야기 (챕터 번호를 붙이면 그 챕터에 넣어요)</small></label>
@@ -552,6 +559,10 @@
           <button class="btn ghost" id="saveDocx" type="button">DOCX(워드)로 저장</button>
         </div>
         <p class="note" id="saveState" hidden></p>
+        <details class="profile" id="polishLogBox" hidden>
+          <summary id="polishLogSum">다듬기 기록 · 어디를 왜 고쳤는지</summary>
+          <pre class="result" id="polishLog" style="white-space:pre-wrap"></pre>
+        </details>
       </div>
       <div class="deep" id="deepBox">
         <h3>한 챕터 깊게 쓰기 · 사람 냄새 나는 원고 (추천)</h3>
@@ -1375,6 +1386,22 @@ ${src.slice(0, 50000)}`;
 
 10. 쓰고 나서 스스로 확인
 - 금지어가 하나라도 들어갔나? 서술문이 ~습니다/~해요로 끝난 곳이 있나? 두 줄 넘는 문장이 있나? 문단 첫 문장만 읽어도 요지가 나오나? 혼자 선 결정타 문장이 있나? 대사가 실제 사람 말투인가? 한 줄로 줄일 수 있는 설명이 있나? 걸리면 고친 뒤 낸다.`;
+  // AI 문장과 사람 문장 비교 예시: 규칙보다 예시를 더 잘 따라 한다 (내용이 아니라 바꾸는 방식만 본다)
+  const PAIRS = `[AI 문장 → 사람 문장 · 이렇게 바꾼다. 예시의 내용·주제는 가져오지 않고 바꾸는 방식만 본다]
+✗ 소개팅에서 첫인상은 매우 중요한 역할을 합니다.
+○ 소개팅은 카페 문 열고 3초면 거의 정해진다.
+✗ 상대방은 당신의 노력을 다소 부담스럽게 느꼈을 수 있습니다.
+○ "좋은 사람 같은데 너무 노력하는 게 보였대."
+✗ 거절 메시지를 받으면 많은 사람들이 좌절감과 불안을 느끼게 됩니다.
+○ 1이 안 없어진다. 샤워하고 나와서 확인한다. 누웠다가 또 확인한다.
+✗ 따뜻함은 호감 형성에 핵심적인 역할을 한다는 것이 다양한 연구를 통해 밝혀졌습니다.
+○ 유능함은 존경을 부른다. 따뜻함은 호감을 부른다.
+✗ 과도한 자기 점검은 인지적 과부하를 일으켜 부자연스러운 행동으로 이어질 수 있습니다.
+○ 다음 질문 뭐였지. 방금 웃은 거 어색했나. 머리가 이렇게 바쁘면 몸이 못 따라온다.
+✗ 결론적으로, 진정한 여유는 단순히 노력을 줄이는 것이 아니라 올바른 방향으로 노력하는 것입니다.
+○ 성실함은 죄가 없다. 방향이 틀렸을 뿐이다.
+바꾸는 방식: 설명을 장면·대사로, 흐리는 말을 단정으로, 긴 문장을 끊어서, 금지어를 생활어로, 요약 교훈을 대구 한 줄로.`;
+  const BANNED = /메커니즘|효과적|이러한|이와 같은|핵심적인 역할|다양한|필수적|중요합니다|결론적으로|요약하자면|진정한|여러분|회로|과부하/g;
   // 첨부한 문체 자료: 가이드(규칙)는 규칙으로, 원고·글은 말투 견본으로 쓴다
   let voiceFiles = [];
   const voiceFilesBlock = () => {
@@ -1396,8 +1423,8 @@ ${src.slice(0, 50000)}`;
     return out;
   };
   const voiceBlock = () => {
-    const v = ($("myVoice")?.value || "").trim(), st = ($("myStory")?.value || "").trim();
-    return voiceFilesBlock() + (v ? `\n[내 말투 샘플 · 이 사람의 어휘·어미·문장 길이·호흡을 그대로 따라 쓴다. 내용은 가져오지 않는다]\n${v.slice(0, 3000)}\n` : "") +
+    const v = ($("myVoice")?.value || "").trim(), st = ($("myStory")?.value || "").trim(), pf = ($("profileText")?.value || "").trim();
+    return (pf ? `\n[저자 전용 문체 규칙 · 이 저자의 글에서 뽑았다. [문체 규칙]과 부딪히면 이것을 우선한다]\n${pf.slice(0, 4000)}\n` : "") + voiceFilesBlock() + (v ? `\n[내 말투 샘플 · 이 사람의 어휘·어미·문장 길이·호흡을 그대로 따라 쓴다. 내용은 가져오지 않는다]\n${v.slice(0, 3000)}\n` : "") +
       (st ? `\n[저자 실제 경험 · 이번 섹션과 맞는 것만 장면으로 살려 넣는다. 챕터 번호가 붙은 건 그 챕터에만. 여기 없는 경험은 지어내지 않는다]\n${st.slice(0, 6000)}\n` : "");
   };
 
@@ -1417,6 +1444,39 @@ ${outline.slice(0, 30000)}`, { signal, modelTier: "quick" });
     return list;
   }
 
+  // 내 글을 넣으면 먼저 문체를 분석해 '이 저자 전용 문체 규칙'을 만든다 (같은 글이면 다시 분석하지 않는다)
+  let profileKey = "";
+  const profileSource = () => {
+    let budget = 12000, src = "";
+    const add = (name, t) => { if (budget <= 300 || !t) return; const x = t.slice(0, Math.min(budget, 5000)); budget -= x.length; src += `(${name})\n${x}\n\n`; };
+    add("말투 샘플", ($("myVoice")?.value || "").trim());
+    voiceFiles.filter(f => f.kind !== "가이드").forEach(f => add(f.name, f.text));
+    return src.trim();
+  };
+  async function ensureProfile(sample, signal, say) {
+    const src = profileSource();
+    if (!src || src.length < 200) return;
+    if (src === profileKey && $("profileText").value.trim()) return;
+    say?.("내 글을 분석해서 '내 문체 규칙'을 만드는 중…");
+    const { text } = await sample(`너는 문체 분석가다. 아래 [저자 글]을 깊이 분석해서, 이 사람이 어떤 주제를 쓰더라도 이 사람처럼 쓰게 만드는 '저자 전용 문체 규칙'을 만든다.
+분석할 것 (항목마다 1~3줄, 원문에서 짧게 인용해 근거를 붙인다):
+1. 말투와 어미 (존댓말·반말·단정형, 문장 끝 습관)
+2. 문장 길이와 리듬 (짧은 문장 비율, 긴 문장이 나오는 자리)
+3. 문단 호흡 (한 줄 문단을 쓰는 자리, 문단 길이)
+4. 자주 쓰는 표현과 말버릇 (원문 그대로 3~6개)
+5. 독자와의 거리 (호칭, 말 거는 방식, 질문 던지는 습관)
+6. 장면·대사 쓰는 법 (카톡·대사를 어떻게 보여주는지)
+7. 유머와 세게 말하는 방식
+8. 이 사람이 안 쓰는 말과 문장 (AI 같은 표현 중 이 글에 없는 것)
+규칙은 "~한다", "~하지 않는다"처럼 따라 할 수 있는 지시로 쓴다. 글의 내용·주제·인물은 적지 않는다. 15~25줄. 제목·인사·설명 없이 규칙만.
+
+[저자 글]
+${src}`, { signal, modelTier: "default", cache: false });
+    const t = (text || "").trim();
+    if (!t) return;
+    profileKey = src;
+    $("profileText").value = t; $("profileBox").hidden = false;
+  }
   let dctl = null, draftParts = [];
   $("goDraft").addEventListener("click", async () => {
     const outline = $("src").value.trim();
@@ -1439,6 +1499,7 @@ ${outline.slice(0, 30000)}`, { signal, modelTier: "quick" });
     let done = "";
     try {
       // 1) 목차에서 쓸 섹션 목록 뽑기
+      await ensureProfile(sample, dctl.signal, draftState);
       let sections = (await getSections(sample, outline, dctl.signal)).slice();
       if (!Array.isArray(sections) || !sections.length) throw { code: "empty_completion" };
       if (!all) sections = sections.slice(0, 2);
@@ -1457,6 +1518,7 @@ ${tone}
 [타깃 독자 · 필수 조건] ${reader}
 - 인물·예시·장면·말투·호칭·속마음을 모두 이 독자 기준으로 쓴다. 독자의 성별 시점에서 쓰고, 다른 성별·나이·상황의 독자를 가정하지 않는다.
 ${STYLE_RULES}
+${PAIRS}
 - 저자 경험은 [저자 실제 경험]이나 [책 정보와 목차]에 나온 것만 쓴다. 없는 경험·사례·수치·연구를 지어내지 않는다. 경험이 필요한 자리는 [저자 경험 넣기: 어떤 경험]으로 비워둔다.
 ${voiceBlock()}
 
@@ -1657,6 +1719,7 @@ JSON만: {"hooks":["첫 문장 후보 5개"],"scene":"첫 장면 (누가 어디�
     const prev = draftParts.find(p => p.title === deepSecs[idx - 1]?.title)?.text || "";
     const next = deepSecs[idx + 1];
     const ans = deepAnswers().filter(x => x.a).map(x => `- ${x.q} → ${x.a}`).join("\n");
+    await ensureProfile(sample, deepCtl.signal, deepState);
     $("deepOut").hidden = false; $("deepMarksWrap").hidden = true;
     $("deepTitle").textContent = sec.title; $("deepText").textContent = "";
     deepState(`쓰는 중 · ${sec.title} (가장 좋은 모델이라 조금 걸려요)`);
@@ -1671,6 +1734,7 @@ ${voiceBlock()}
 [문체] ${tone}
 [타깃 독자 · 필수] ${reader}. 이 독자의 시점·말투·속마음으로 쓴다.
 ${DEEP_BANS}
+${PAIRS}
 
 [설계도 · 이 순서와 내용을 따른다]
 ${deepPlanText()}
@@ -1832,9 +1896,11 @@ ${draft}`, { signal: deepCtl.signal, modelTier: "complex" });
     const btns = ["polishDraft", "regenDraft", "saveDraft", "goDraft"];
     btns.forEach(id => $(id).disabled = true);
     dctl = new AbortController(); $("stopDraft").hidden = false;
-    const src = draftParts.slice(), out = [];
+    const src = draftParts.slice(), out = [], log = [];
     let shown = "";
+    $("polishLogBox").hidden = true; $("polishLog").textContent = "";
     try {
+      await ensureProfile(sample, dctl.signal, draftState);
       for (let i = 0; i < src.length; i++) {
         const part = src[i];
         draftState(`AI 말투 다듬는 중 ${i + 1}/${src.length} · ${part.title}`);
@@ -1849,23 +1915,40 @@ ${draft}`, { signal: deepCtl.signal, modelTier: "complex" });
 - 분량은 원고와 비슷하게. 줄이거나 요약하지 않는다.
 
 ${$("reader").value.trim() ? "[타깃 독자 · 필수 조건] " + $("reader").value.trim() + "\n- 인물·예시·장면·말투를 이 독자 기준으로 맞춘다.\n" : ""}${STYLE_RULES}
+${PAIRS}
 ${voiceBlock()}
-[출력] 고친 본문만. 제목·설명·인사 금지. 마크다운 기호(#, **) 금지.
+[작업 순서 · 이 순서대로 한다]
+1. 찾기: 원고를 읽으며 로봇 같은 문장, 금지어, 긴 문장, 흐리는 말, 감정 설명, 교훈 정리, 맥락이 안 맞는 곳을 찾는다.
+2. 계획: 각각을 어떻게 바꿀지 정한다. 위 [AI 문장 → 사람 문장] 예시처럼 바꾼다. 잘 읽히는 문장은 건드리지 않는다.
+3. 고치기: 찾은 곳만 고친다.
+4. 점검: 고친 본문에 금지어가 남았는지 마지막으로 한 번 더 확인하고 남았으면 고친다.
+
+[출력 형식 · 반드시 이 두 부분으로]
+[고친 곳]
+- "원래 문장 앞부분…" → "고친 문장 앞부분…" (이유: 금지어/긴 문장/흐리는 말/감정 설명/교훈 정리/맥락/AI티 중 하나)
+(고친 곳마다 한 줄, 최대 12줄. 고칠 곳이 없으면 "- 없음")
+[본문]
+고친 본문 전체. 제목·설명·인사 금지. 마크다운 기호(#, **) 금지.
 
 ${i > 0 ? "[바로 앞 섹션 끝부분 · 흐름 참고용, 고치지 않는다]\n" + (out[i - 1] || src[i - 1]).text.slice(-1200) + "\n\n" : ""}${src[i + 1] ? "[바로 다음 섹션 제목 · 이 내용은 미리 쓰지 않는다]\n" + src[i + 1].title + "\n\n" : ""}[원고 · ${part.title}]
 ${part.text}`;
         const before = shown + head;
         const { text } = await sample(prompt, {
           signal: dctl.signal, modelTier: "default", cache: false,
-          onText: ({ text }) => { $("draftText").textContent = before + text + src.slice(i + 1).map(p => `\n\n━━━━━━━━━━━━━━━━\n${p.title}\n━━━━━━━━━━━━━━━━\n\n${p.text}`).join(""); },
+          onText: ({ text }) => { const k = text.indexOf("[본문]"); if (k < 0) return; $("draftText").textContent = before + text.slice(k + 4).replace(/^\s+/, "") + src.slice(i + 1).map(p => `\n\n━━━━━━━━━━━━━━━━\n${p.title}\n━━━━━━━━━━━━━━━━\n\n${p.text}`).join(""); },
         });
-        const t = (text || "").trim() || part.text;
+        const raw = text || "", k = raw.indexOf("[본문]");
+        const t = (k >= 0 ? raw.slice(k + 4) : raw.replace(/^\[고친 곳\][\s\S]*?\n(?=\S)/, "")).trim() || part.text;
+        const changes = k >= 0 ? raw.slice(0, k).replace("[고친 곳]", "").trim() : "";
+        const left = (t.match(BANNED) || []);
+        log.push(`■ ${part.title}\n${changes || "- (기록 없음)"}${left.length ? `\n  ※ 남은 금지어: ${[...new Set(left)].join(", ")}` : ""}`);
+        $("polishLog").textContent = log.join("\n\n"); $("polishLogBox").hidden = false;
         out.push({ title: part.title, text: t });
         shown = before + t;
       }
       draftParts = out;
       $("draftText").textContent = shown.trim() ? shown : $("draftText").textContent;
-      draftState("AI 말투 다듬기 완료. 표지·본문 디자인과 파일 저장에 다듬은 원고가 쓰여요.", "ok");
+      draftState("AI 말투 다듬기 완료. 아래 '다듬기 기록'에서 어디를 왜 고쳤는지 볼 수 있어요. 표지·본문 디자인과 파일 저장에 다듬은 원고가 쓰여요.", "ok");
       setTimeout(() => window.__prewarmDraft?.(), 1500);
     } catch (e) {
       // 중간에 멈추면 다듬은 섹션까지만 반영하고 나머지는 원래 원고로 둔다
