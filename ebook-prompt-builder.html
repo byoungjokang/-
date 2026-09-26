@@ -260,7 +260,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.09.26g</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.09.26h</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -455,8 +455,8 @@
 
     <div class="row2">
       <div class="field">
-        <label class="lbl" for="reader">타깃 독자 <small>선택</small></label>
-        <input type="text" id="reader" placeholder="예: 회의 때 말 한마디 못 하는 3년 차 직장인">
+        <label class="lbl" for="reader">타깃 독자 <small>필수 · 성별·나이·상황까지 구체적으로</small></label>
+        <input type="text" id="reader" placeholder="예: 소개팅에서 번번이 애프터가 안 되는 30대 초반 남자">
       </div>
       <div class="field">
         <label class="lbl" for="tone">톤 <small>선택</small></label>
@@ -1174,11 +1174,15 @@ ${report}`;
     if (!sample) { tocState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
     const size = $("tocSize").querySelector("input:checked").value;
     const reader = $("reader").value.trim();
+    if (!reader) { tocState("타깃 독자를 먼저 적어주세요. 성별·나이·상황까지 구체적으로 적어야 그 독자에게 맞는 목차가 나와요. (예: 소개팅에서 번번이 애프터가 안 되는 30대 초반 남자)", "err"); $("reader").focus(); return; }
     const tone = $("tone").value;
     const prompt = `너는 한국 PDF 전자책 목차 설계 전문가다. 아래 [자료]로 판매용 전자책 목차를 바로 쓸 수 있게 완성한다. 프롬프트가 아니라 목차 자체를 쓴다.
 
 [분량] ${size}
-${reader ? "[독자] " + reader + "\n" : ""}${tone ? "[톤] " + tone + "\n" : ""}
+[타깃 독자 · 필수 조건] ${reader}
+- 모든 장의 제목·순서·주장·예시는 이 독자가 실제로 겪는 상황에서 나온다. 다른 성별·나이·상황의 독자를 가정하지 않는다.
+- 장 제목은 이 독자가 쓰는 말로, 이 독자가 겪는 장면이 떠오르게 짓는다.
+${tone ? "[톤] " + tone + "\n" : ""}
 [원칙]
 - 목차는 가설이자 주장이다. 각 장에 (제목 = 결론) + 주장 한 줄이 붙는다.
 - [확정 주제·제목]이 있으면 책 제목·부제·원씽을 그대로 쓰고 바꾸지 않는다.
@@ -1192,6 +1196,7 @@ ${reader ? "[독자] " + reader + "\n" : ""}${tone ? "[톤] " + tone + "\n" : ""
 책 제목: …
 부제: …
 원씽: …
+타깃 독자: ${reader}
 분량: ${size}
 뼈대: (고른 아키타입과 이유 한 줄)
 
@@ -1327,7 +1332,9 @@ ${src.slice(0, 50000)}`;
     const sample = await samplePromise;
     if (!sample) { draftState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
     const all = $("scope-all").checked;
-    const reader = $("reader").value.trim();
+    let reader = $("reader").value.trim();
+    if (!reader) { const m = outline.match(/타깃 독자\s*[:：]\s*(.+)/); if (m) { reader = m[1].trim(); $("reader").value = reader; } }
+    if (!reader) { draftState("타깃 독자를 먼저 적어주세요. 성별·나이·상황까지 구체적으로 적어야 그 독자에게 맞는 원고가 나와요.", "err"); $("reader").focus(); return; }
     const tone = $("tone").value || "평서체 (~다 / ~이다 / ~한다) 실전 안내형";
 
     dctl = new AbortController();
@@ -1361,7 +1368,9 @@ ${outline.slice(0, 30000)}`, { signal: dctl.signal, modelTier: "quick" });
 
 [문체]
 ${tone}
-${reader ? "독자: " + reader + "\n" : ""}${STYLE_RULES}
+[타깃 독자 · 필수 조건] ${reader}
+- 인물·예시·장면·말투·호칭·속마음을 모두 이 독자 기준으로 쓴다. 독자의 성별 시점에서 쓰고, 다른 성별·나이·상황의 독자를 가정하지 않는다.
+${STYLE_RULES}
 - 저자 경험은 [저자 실제 경험]이나 [책 정보와 목차]에 나온 것만 쓴다. 없는 경험·사례·수치·연구를 지어내지 않는다. 경험이 필요한 자리는 [저자 경험 넣기: 어떤 경험]으로 비워둔다.
 ${voiceBlock()}
 
@@ -1517,7 +1526,7 @@ ${outline.slice(0, 30000)}`;
 - [저자 경험 넣기: …] 표시는 지우지 말고 그대로 둔다.
 - 분량은 원고와 비슷하게. 줄이거나 요약하지 않는다.
 
-${STYLE_RULES}
+${$("reader").value.trim() ? "[타깃 독자 · 필수 조건] " + $("reader").value.trim() + "\n- 인물·예시·장면·말투를 이 독자 기준으로 맞춘다.\n" : ""}${STYLE_RULES}
 ${voiceBlock()}
 [출력] 고친 본문만. 제목·설명·인사 금지. 마크다운 기호(#, **) 금지.
 
