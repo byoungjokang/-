@@ -260,7 +260,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.09.26h</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.09.26i</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -509,7 +509,7 @@
         <div class="attach-row">
           <label class="btn ghost file-btn" for="voiceFiles">파일 첨부 (여러 개 가능)<input type="file" id="voiceFiles" multiple accept=".docx,.pdf,.txt,.md,.skill,.zip" hidden></label>
           <button class="btn ghost" id="voiceClear" type="button" hidden>첨부 모두 빼기</button>
-          <span class="attach-note" id="voiceNote">내가 쓴 원고·블로그 글이나 문체 가이드 · DOCX·PDF·TXT·MD·.skill</span>
+          <span class="attach-note" id="voiceNote">내가 쓴 이 책 원고·블로그 글이나 문체 가이드 · DOCX·PDF·TXT·MD·.skill</span>
         </div>
         <div class="voice-files" id="voiceList" hidden></div>
       </div>
@@ -531,7 +531,7 @@
         <div class="draft-actions" id="draftActions" hidden>
           <button class="btn secondary" id="regenDraft" type="button">다시 생성</button>
           <button class="btn" id="saveDraft" type="button">파일로 저장</button>
-          <button class="btn secondary" id="polishDraft" type="button" style="grid-column:1 / -1">AI 말투 다듬기 (원고 전체를 사람 말투로 한 번 더 고쳐 쓰기)</button>
+          <button class="btn secondary" id="polishDraft" type="button" style="grid-column:1 / -1">AI 말투 다듬기 (좋은 문장은 두고 어색한 곳만 고치기)</button>
         </div>
         <div class="save-row" id="saveRow" hidden>
           <span>어떤 파일로 저장할까요?</span>
@@ -1312,11 +1312,19 @@ ${src.slice(0, 50000)}`;
   const voiceFilesBlock = () => {
     if (!voiceFiles.length) return "";
     let budget = 14000;
-    const guides = voiceFiles.filter(f => f.kind === "가이드"), samples = voiceFiles.filter(f => f.kind !== "가이드");
+    const guides = voiceFiles.filter(f => f.kind === "가이드"), samples = voiceFiles.filter(f => f.kind === "내 글"), drafts0 = voiceFiles.filter(f => f.kind === "내 원고");
     const take = (f, cap) => { const t = f.text.slice(0, Math.min(cap, budget)); budget -= t.length; return t; };
     let out = "";
     if (guides.length) out += `\n[첨부한 문체 가이드 · 아래 규칙을 그대로 지킨다. 위 [문체 규칙]과 부딪히면 이 가이드를 우선한다]\n` + guides.map(f => `(${f.name})\n${take(f, 8000)}`).join("\n\n") + "\n";
     if (samples.length && budget > 500) out += `\n[첨부한 내 글 · 이 사람의 어휘·어미·문장 길이·호흡을 그대로 따라 쓴다. 내용은 가져오지 않는다]\n` + samples.map(f => `(${f.name})\n${take(f, 4000)}`).join("\n\n") + "\n";
+    if (drafts0.length) {
+      let b2 = 24000;
+      out += `\n[저자가 직접 쓴 이 책의 원고 · 가장 우선한다]
+- 이번 섹션에 해당하는 내용이 이 원고에 있으면, 그 문장을 최대한 그대로 살려서 쓴다.
+- 잘 읽히고 독자의 감정·욕구·생각을 건드리는 문장은 고치지 않는다. 저자의 말투(존댓말·반말, 어휘, 유머)는 [문체 규칙]보다 우선한다.
+- 고치는 곳은 이것만: 맥락이 어긋나는 곳, 사실·숫자·앞뒤 설명이 서로 안 맞는 곳, 주제·타깃 독자에서 벗어난 곳, AI처럼 어색하거나 개념어로 된 문장, 앞뒤 장과 연결이 끊긴 곳.
+- 원고에 없는 섹션은 이 원고의 말투와 수준에 맞춰 새로 쓴다.\n` + drafts0.map(f => { const t = f.text.slice(0, b2); b2 -= t.length; return `(${f.name})\n${t}`; }).join("\n\n") + "\n";
+    }
     return out;
   };
   const voiceBlock = () => {
@@ -1479,15 +1487,15 @@ ${outline.slice(0, 30000)}`;
     const box = $("voiceList"); box.innerHTML = "";
     voiceFiles.forEach((f, i) => {
       const row = mk0("div", "voice-file", "");
-      const kind = mk0("button", "kind", f.kind); kind.type = "button"; kind.title = "눌러서 가이드/내 글 바꾸기"; kind.style.marginLeft = "0";
-      kind.addEventListener("click", () => { f.kind = f.kind === "가이드" ? "내 글" : "가이드"; renderVoiceFiles(); });
+      const kind = mk0("button", "kind", f.kind); kind.type = "button"; kind.title = "눌러서 가이드 / 내 글 / 내 원고 바꾸기"; kind.style.marginLeft = "0";
+      kind.addEventListener("click", () => { f.kind = f.kind === "가이드" ? "내 글" : f.kind === "내 글" ? "내 원고" : "가이드"; renderVoiceFiles(); });
       const x = mk0("button", "", "빼기"); x.type = "button";
       x.addEventListener("click", () => { voiceFiles.splice(i, 1); renderVoiceFiles(); });
       row.append(kind, mk0("b", "", f.name), mk0("span", "", f.text.length.toLocaleString() + "자"), x);
       box.appendChild(row);
     });
     box.hidden = !voiceFiles.length; $("voiceClear").hidden = !voiceFiles.length;
-    $("voiceNote").textContent = voiceFiles.length ? `${voiceFiles.length}개 첨부 · '가이드'는 규칙으로 지키고, '내 글'은 말투를 따라 써요. 종류를 눌러 바꿀 수 있어요.` : "내가 쓴 원고·블로그 글이나 문체 가이드 · DOCX·PDF·TXT·MD·.skill";
+    $("voiceNote").textContent = voiceFiles.length ? `${voiceFiles.length}개 첨부 · '가이드'는 규칙으로 지키고, '내 글'은 말투를 따라 쓰고, '내 원고'(이 책 초안)는 좋은 문장은 그대로 두고 어색한 곳만 고쳐요. 종류를 눌러 바꿀 수 있어요.` : "내가 쓴 이 책 원고·블로그 글이나 문체 가이드 · DOCX·PDF·TXT·MD·.skill";
   }
   $("voiceFiles").addEventListener("change", async (ev) => {
     const files = [...(ev.target.files || [])]; ev.target.value = "";
@@ -1520,7 +1528,9 @@ ${outline.slice(0, 30000)}`;
         const part = src[i];
         draftState(`AI 말투 다듬는 중 ${i + 1}/${src.length} · ${part.title}`);
         const head = `\n\n━━━━━━━━━━━━━━━━\n${part.title}\n━━━━━━━━━━━━━━━━\n\n`;
-        const prompt = `너는 한국 전자책 교정 편집자다. 아래 [원고]를 사람이 직접 쓴 글처럼 다시 쓴다.
+        const prompt = `너는 한국 전자책 교정 편집자다. 아래 [원고]에서 고칠 곳만 고친다. 통째로 다시 쓰지 않는다.
+- 잘 읽히고 독자의 감정·욕구·생각을 건드리는 문장은 그대로 둔다. 원고의 말투(존댓말·반말, 어휘, 유머)를 유지한다.
+- 고칠 곳: 맥락이 어긋나는 곳, 사실·숫자·앞뒤 설명이 서로 안 맞는 곳, 제목과 본문이 안 맞는 곳, 주제·타깃 독자에서 벗어난 예시, AI처럼 어색하거나 개념어로 된 문장, 앞뒤 섹션과 연결이 끊긴 곳, 근거 없는 수치(90%, 100% 등).
 - 내용·사실·순서는 그대로 둔다. 새 경험·사례·수치·연구를 지어내지 않는다.
 - 형식은 그대로 유지한다: 소제목은 ■ 로 시작하는 한 줄, 단계는 "1. ", 체크리스트는 □, 대사는 곧은 따옴표, 핵심 한 문장은 둥근 따옴표 “…” 한 줄.
 - [저자 경험 넣기: …] 표시는 지우지 말고 그대로 둔다.
