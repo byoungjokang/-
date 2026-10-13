@@ -1,0 +1,6 @@
+{
+  "name": "live-lecture-deck",
+  "private": true,
+  "scripts": { "build": "node build.js 무료라이브_PPT.pptx ./slides.js" },
+  "dependencies": { "pptxgenjs": "4.0.1" }
+}
