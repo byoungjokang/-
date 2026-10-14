@@ -916,7 +916,7 @@ function edFooter(th, p, n, run) {
 function edBand(th, pt, blocks) {
     const meta = edMeta(pt), f = (v) => edf(th, v);
     const band = mk("div", `position:absolute;left:0;top:0;right:0;height:${ED.band - ED.stripe}px;background:${th.dark};display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:${f(18)} ${ED.mx}px;box-sizing:border-box;overflow:hidden;`);
-    if (meta.part) band.appendChild(mk("div", `font-family:${th.head};font-size:${f(12)};font-weight:500;line-height:1.5;letter-spacing:0.04em;color:${th.dSub};margin-bottom:${f(8)};word-break:keep-all;overflow-wrap:anywhere;`, meta.part));
+    // PART 이름은 챕터 띠에 넣지 않는다 (CHAPTER 번호와 제목만)
     if (meta.base) band.appendChild(mk("div", `font-family:${th.head};font-size:${f(12.5)};font-weight:700;letter-spacing:0.32em;padding-left:0.32em;color:${th.accD};`, meta.base));
     const title = mk("div", `font-family:${th.display};font-size:${f(32)};line-height:1.35;font-weight:900;color:${th.dText};margin-top:${f(18)};word-break:keep-all;overflow-wrap:anywhere;`, meta.title);
     band.appendChild(title);
