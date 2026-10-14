@@ -355,6 +355,19 @@ async function pdfToMarked(file) {
 - 본문 줄간격 165~175%, 문단 간격 6~10pt, 너무 촘촘한 편집 금지. 인용문은 본문보다 130~160% 크게. 체크리스트는 ✓ 또는 □.
 - 액센트 컬러는 선·번호·강조에만 절제해서 쓴다. 비주얼은 하나만.`;
 
+  const TYPO_RULES = `[활자 표지 가이드라인 · 그림 없이 색면·괘선·사각·활자만]
+- 도형·아이콘·일러스트·사진 느낌을 쓰지 않는다. 세로쓰기는 하지 않는다. 제목은 항상 가로.
+- layout은 아래 6가지 중에서 3안이 서로 다르게 고른다. 이 책에 가장 맞는 것을 1안에 둔다.
+  t-band 밴드형: 짙은 바탕 + 흰 큰 제목. 실용서 기본형, 무난하고 강하다.
+  t-paper 종이형: 밝은 종이 바탕 + 짙은 큰 제목 + 위아래 굵은 괘선. 에세이·심리, 차분하고 세련됐다.
+  t-block 블록형: 위 60% 짙은 색면에 제목 + 강조색 띠 + 아래 흰 바탕에 큰 강조어. 단기 성과·방법론, 숫자 약속이 눈에 박힌다.
+  t-poster 포스터형: 강조색 전면 + 판 폭을 꽉 채운 거대 강조어(아래가 잘림) + 흰 제목. 광고 썸네일에서 눈에 걸려야 할 때. accentWord가 있을 때만 고른다.
+  t-highlight 하이라이트형: 밝은 바탕 + 짙은 제목 + 강조어 아래를 강조색 띠로 형광펜처럼. 자기계발·실용, 친근하고 핵심이 바로 보인다.
+  t-frame 프레임형: 짙은 바탕 + 가는 안쪽 테두리 + 모두 가운데 정렬 + 외곽선 강조어. 강의·클래스형, 단정하고 권위 있다.
+- titleLines: 표지에 크게 쓸 제목 줄. 한 줄 8자 안팎으로 끊는다. 글자는 바꾸지 않는다.
+- accentWord: 제목 맨 끝에 있는 숫자·기간 같은 말(예: 7일, 30일, 3단계)이면 그 말을 제목 아래 강조색으로 가장 크게 쓴다. titleLines에는 넣지 않는다. 제목 끝에 그런 말이 없으면 빈 문자열. 제목에 없는 말을 지어 넣지 않는다.
+- 색은 bg=짙은색, ink=옅은색, accent=강조색(#hex) 셋. [디자인 템플릿 10선]의 컬러를 참고해 책의 정서에 맞게 고르고, 강조색은 바탕과 대비 2.5:1 이상.
+- 글꼴은 표지 전용 활자(페이퍼로지)로 고정이라 titleFont·bodyFont는 비워도 된다. motif는 none.`;
   function motifSvg(m, a, W, H, ink) {
     const s = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="${W}" height="${H}" preserveAspectRatio="none" style="position:absolute;inset:0">${inner}</svg>`;
     const k = ink || a;
@@ -376,7 +389,159 @@ async function pdfToMarked(file) {
       default: return "";
     }
   }
-  function renderCover(sp, W = 600, H = 800) {
+  // ---- 활자 표지 6종 (표지 가이드라인 · ebook-cover): 색면 · 괘선 · 사각 · 활자만 쓴다. 도형·아이콘·일러스트 없음 ----
+  // 표지 글자는 제목 · 강조어(제목 끝의 숫자·기간) · 부제 · 작가뿐. 후킹 문구·PART 구성은 넣지 않는다.
+  // 판형은 본문과 같은 A5 비율. 제목·강조어 크기는 fit()이 판면 폭에 맞춰 정한다.
+  const TYPO = { "t-band": "밴드형", "t-paper": "종이형", "t-block": "블록형", "t-poster": "포스터형", "t-highlight": "하이라이트형", "t-frame": "프레임형" };
+  const isTypo = (sp) => !!TYPO[sp?.layout];
+  const COVER_W = 600, COVER_H = 851;                         // A5 비율 (본문 560×794와 같은 비율)
+  const coverH = (sp) => isTypo(sp) ? COVER_H : 800;
+  let plFonts = null, plOk = false;
+  function paperlogyReady() {
+    if (plOk) return Promise.resolve();
+    if (!plFonts) plFonts = (async () => {
+      const src = JSON.parse(document.getElementById("plFontData").textContent);
+      for (const [w, b64] of Object.entries(src)) document.fonts.add(await new FontFace("Paperlogy", `url(data:font/woff2;base64,${b64})`, { weight: w }).load());
+      plOk = true;
+    })().catch(e => { plFonts = null; throw e; });
+    return plFonts;
+  }
+  // 강조색이 바탕과 안 갈리면 대체색 (표지 강조어는 아주 큰 글자라 2.5:1이면 읽힌다)
+  const tReadable = (fg, bg, alt) => contrast(fg, bg) >= 2.5 ? fg : alt;
+  // 제목 줄과 강조어: 강조어는 제목 맨 끝에 있어야 쓴다 (원고에 없는 말은 넣지 않는다)
+  function typoText(sp) {
+    const flat = (s) => String(s || "").replace(/\s+/g, "");
+    const title = noDash(unwrapTitle(sp.title || "제목"));
+    let lines = (Array.isArray(sp.titleLines) && sp.titleLines.length ? sp.titleLines : [title]).map(l => noDash(String(l)).trim()).filter(Boolean).slice(0, 4);
+    let acc = noDash(String(sp.accentWord || "")).trim();
+    if (acc) {
+      const L = lines.slice(), last = L[L.length - 1] || "";
+      if (flat(last) === flat(acc)) L.pop(); else if (last.endsWith(acc)) L[L.length - 1] = last.slice(0, -acc.length).trim();
+      if (L.length && flat(L.join("")) + flat(acc) === flat(title)) lines = L.filter(Boolean); else acc = "";
+    }
+    if (flat(lines.join("")) + flat(acc) !== flat(title)) { lines = [title]; acc = ""; }
+    return { title: lines, accent: acc, subtitle: noDash(sp.subtitle || "").replace(/\n/g, " "), author: sp.author || "" };
+  }
+  function typoColors(sp) {
+    const a = hex(sp.bg, "#232B45"), b = hex(sp.ink, "#FDF3EC");
+    const deep = lum(a) <= lum(b) ? a : b, tint = lum(a) <= lum(b) ? b : a;
+    return { deep: lum(deep) > 0.2 ? mixHex(deep, "#000000", 0.45) : deep, accent: hex(sp.accent, "#EE6C1F"), tint: lum(tint) < 0.75 ? mixHex(tint, "#ffffff", 0.6) : tint };
+  }
+  function drawTypo(x, sp, W, H) {
+    const d = { ...typoText(sp), C: typoColors(sp) }, M = 120, TW = W - M * 2, ry = H / 1944;
+    const F = { XB: "800", B: "700", R: "400" };
+    const font = (size, face) => `${F[face]} ${size}px Paperlogy, "Noto Sans KR", sans-serif`;
+    const ls = (v) => { try { x.letterSpacing = v + "px"; } catch (e) {} };
+    const put = (t, px, py, size, face, color, l = 0) => { x.font = font(size, face); x.fillStyle = color; ls(l); x.fillText(t, px, py); };
+    const fit = (texts, face, max, width = TW) => Math.min(max, ...texts.map(t => { x.font = font(max, face); ls(-max * 0.04); return Math.floor(max * width / Math.max(1, x.measureText(t).width)); }));
+    // 부제는 어절로 나누고, 마지막 줄에 한두 글자만 남으면 폭을 줄여 다시 나눈다
+    const wrap = (t, size, face, width) => {
+      const one = (wd) => { x.font = font(size, face); ls(0); const out = [];
+        for (const w of String(t).split(" ").filter(Boolean)) { const cur = out.length ? out[out.length - 1] + " " + w : w; if (out.length && x.measureText(cur).width <= wd) out[out.length - 1] = cur; else out.push(w); }
+        return out; };
+      let best = one(width);
+      for (let k = 1; k <= 6 && best.length > 1 && best[best.length - 1].replace(/\s/g, "").length < 4; k++) { const n = one(width * (1 - k * 0.06)); if (n.length <= best.length + 1) best = n; }
+      return best;
+    };
+    const rect = (c, px, py, w, h) => { x.fillStyle = c; x.fillRect(px, py, w, h); };
+    x.textBaseline = "alphabetic"; x.textAlign = "left";
+    const C = d.C, SUB = "#C9CEDC";
+    ({
+      // 1 밴드형: 짙은 바탕에 흰 큰 제목, 강조어는 강조색
+      "t-band"() {
+        const acc = tReadable(C.accent, C.deep, C.tint); rect(C.deep, 0, 0, W, H);
+        let y = 380 * ry; const ts = fit(d.title, "XB", 170);
+        for (const ln of d.title) { put(ln, M, y, ts, "XB", "#FFFFFF", -ts * 0.045); y += ts * 1.06; }
+        if (d.accent) { const s = fit([d.accent], "XB", 300); y += s * 0.62; put(d.accent, M, y, s, "XB", acc, -s * 0.035); y += 120; } else y += 40;
+        for (const ln of wrap(d.subtitle, 50, "R", TW)) { put(ln, M, y, 50, "R", SUB, -1); y += 70; }
+        if (d.author) put(d.author, M, H - 70, 30, "B", SUB);
+      },
+      // 2 종이형: 밝은 종이 바탕, 짙은 큰 제목, 위아래 굵은 괘선
+      "t-paper"() {
+        const PAPER = "#F6F3EE", acc = tReadable(C.accent, PAPER, C.deep); rect(PAPER, 0, 0, W, H);
+        rect(C.deep, M, 150, TW, 10);
+        let y = 330 * ry; const ts = fit(d.title, "XB", 172);
+        y = Math.max(y, 160 + ts * 0.9);
+        for (const ln of d.title) { put(ln, M - 6, y, ts, "XB", C.deep, -ts * 0.05); y += ts * 1.04; }
+        if (d.accent) { const s = fit([d.accent], "XB", 290); y += s * 0.6; put(d.accent, M - 8, y, s, "XB", acc, -s * 0.04); y += 110; } else y += 40;
+        for (const ln of wrap(d.subtitle, 48, "R", TW)) { put(ln, M, y, 48, "R", "#5B5F6B", -1); y += 66; }
+        rect(C.deep, M, H - 120, TW, 10);
+        if (d.author) put(d.author, M, H - 150, 30, "B", C.deep);
+      },
+      // 3 블록형: 위 60% 짙은 색면에 제목, 경계에 강조색 띠, 아래 흰 바탕에 큰 강조어
+      "t-block"() {
+        const BY = Math.round(H * 0.592), acc = tReadable(C.accent, "#FFFFFF", C.deep);
+        rect("#FFFFFF", 0, 0, W, H); rect(C.deep, 0, 0, W, BY); rect(C.accent, 0, BY, W, 22);
+        const ts = fit(d.title, "XB", 165);
+        let y = BY - 110 - (d.title.length - 1) * ts * 1.06;
+        for (const ln of d.title) { put(ln, M, y, ts, "XB", "#FFFFFF", -ts * 0.045); y += ts * 1.06; }
+        y = BY + 22;
+        if (d.accent) { const s = fit([d.accent], "XB", 260, TW * 0.6); y += s * 0.86 + 70; put(d.accent, M - 6, y, s, "XB", acc, -s * 0.035); y += 90; } // 띠와 붙지 않게 70 띄운다
+        else y += 120;
+        for (const ln of wrap(d.subtitle, 46, "R", TW)) { put(ln, M, y, 46, "R", "#3C4150", -1); y += 64; }
+        if (d.author) put(d.author, M, H - 50, 28, "B", C.deep);
+      },
+      // 4 포스터형: 강조색 전면, 판 폭을 꽉 채우는 거대 강조어(아래만 잘림), 흰 제목
+      "t-poster"() {
+        const BG = C.accent, INK = tReadable(C.deep, BG, "#FFFFFF"), TT = tReadable("#FFFFFF", BG, C.deep);
+        rect(BG, 0, 0, W, H);
+        if (d.accent) { let s = 1000; x.font = font(s, "XB"); ls(-s * 0.05); s = Math.floor(s * (W + 40) / x.measureText(d.accent).width); put(d.accent, -20, H + s * 0.1, s, "XB", C.deep, -s * 0.05); }
+        let y = 200 * ry; const ts = fit(d.title, "XB", 150, TW * 0.9);
+        y = Math.max(y, ts * 0.9 + 60);
+        for (const ln of d.title) { put(ln, M, y, ts, "XB", TT, -ts * 0.045); y += ts * 1.06; }
+        y += 30;
+        for (const ln of wrap(d.subtitle, 44, "B", TW * 0.55)) { put(ln, M, y, 44, "B", INK, -1); y += 62; }
+        if (d.author) put(d.author, M, H - 90, 30, "B", TT);
+      },
+      // 5 하이라이트형: 밝은 바탕, 강조어 아래쪽 절반을 강조색 띠로 형광펜처럼
+      "t-highlight"() {
+        const PAPER = "#FBFAF7"; rect(PAPER, 0, 0, W, H);
+        let y = 330 * ry; const ts = fit(d.title, "XB", 160);
+        y = Math.max(y, ts * 0.9 + 170);
+        for (const ln of d.title) { put(ln, M, y, ts, "XB", C.deep, -ts * 0.045); y += ts * 1.06; }
+        if (d.accent) {
+          const s = fit([d.accent], "XB", 300, TW * 0.7); y += s * 0.66;
+          x.font = font(s, "XB"); ls(-s * 0.035); const w = x.measureText(d.accent).width;
+          rect(C.accent, M - 20, y - s * 0.34, w + 50, s * 0.4); put(d.accent, M, y, s, "XB", C.deep, -s * 0.035); y += 110;
+        } else y += 40;
+        for (const ln of wrap(d.subtitle, 46, "R", TW)) { put(ln, M, y, 46, "R", "#4A4E5A", -1); y += 64; }
+        if (d.author) { x.textAlign = "right"; put(d.author, W - M, 120, 28, "B", C.deep); x.textAlign = "left"; }
+      },
+      // 6 프레임형: 짙은 바탕에 가는 안쪽 테두리, 모두 가운데 정렬, 강조어는 외곽선 글자
+      "t-frame"() {
+        const acc = tReadable(C.accent, C.deep, C.tint); rect(C.deep, 0, 0, W, H);
+        x.strokeStyle = acc; x.lineWidth = 4; x.strokeRect(64, 64, W - 128, H - 128);
+        const center = (t, py, size, face, color, l = 0) => { x.textAlign = "center"; put(t, W / 2, py, size, face, color, l); x.textAlign = "left"; };
+        let y = 280 * ry; const ts = fit(d.title, "XB", 150, TW * 0.92);
+        y = Math.max(y, ts * 0.9 + 130);
+        for (const ln of d.title) { center(ln, y, ts, "XB", "#FFFFFF", -ts * 0.04); y += ts * 1.08; }
+        if (d.accent) {
+          const s = fit([d.accent], "XB", 380, TW * 0.8); y += s * 0.72;
+          x.font = font(s, "XB"); ls(-s * 0.03); x.textAlign = "center"; x.lineWidth = 6; x.strokeStyle = acc; x.strokeText(d.accent, W / 2, y); x.textAlign = "left"; y += 110;
+        } else y += 40;
+        for (const ln of wrap(d.subtitle, 44, "R", TW * 0.9)) { center(ln, y, 44, "R", SUB, -1); y += 62; }
+        if (d.author) center(d.author, H - 110, 28, "B", acc);
+      },
+    })[sp.layout]();
+    ls(0);
+  }
+  // 활자 표지 캔버스 (해상도 W 1296 기준)
+  function typoCanvas(sp, scale = 1) {
+    const W = Math.round(1296 * scale), H = Math.round(W * COVER_H / COVER_W);
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d"); g.scale(scale, scale); drawTypo(g, sp, 1296, Math.round(1296 * COVER_H / COVER_W));
+    return c;
+  }
+  function renderTypo(sp, W, H) {
+    const root = mk("div", `position:relative;width:${W}px;height:${H}px;overflow:hidden;background:${typoColors(sp).deep};`);
+    const c = document.createElement("canvas"); c.width = 1296; c.height = Math.round(1296 * H / W);
+    c.style.cssText = `display:block;width:${W}px;height:${H}px;`;
+    const draw = () => drawTypo(c.getContext("2d"), sp, c.width, c.height);
+    if (plOk) draw(); else { draw(); paperlogyReady().then(draw, () => {}); }
+    root.appendChild(c); return root;
+  }
+  function renderCover(sp, W = 600, H = coverH(sp)) {
+    if (isTypo(sp)) return renderTypo(sp, W, H);
     const k = W / 600;
     const bg = soften(hex(sp.bg, "#111111")), bg2 = soften(hex(sp.bg2, bg)), accent = desat(hex(sp.accent, "#e8c547"));
     let layout = sp.layout || "classic";
@@ -1061,6 +1226,127 @@ function edToc(th, parts, book, starts = []) {
       }
       return [build(items, k, false).p];
     } finally { host.remove(); }
+  }
+```
+
+## 활자 표지 6종(drawTypo)
+
+```js
+function drawTypo(x, sp, W, H) {
+    const d = { ...typoText(sp), C: typoColors(sp) }, M = 120, TW = W - M * 2, ry = H / 1944;
+    const F = { XB: "800", B: "700", R: "400" };
+    const font = (size, face) => `${F[face]} ${size}px Paperlogy, "Noto Sans KR", sans-serif`;
+    const ls = (v) => { try { x.letterSpacing = v + "px"; } catch (e) {} };
+    const put = (t, px, py, size, face, color, l = 0) => { x.font = font(size, face); x.fillStyle = color; ls(l); x.fillText(t, px, py); };
+    const fit = (texts, face, max, width = TW) => Math.min(max, ...texts.map(t => { x.font = font(max, face); ls(-max * 0.04); return Math.floor(max * width / Math.max(1, x.measureText(t).width)); }));
+    // 부제는 어절로 나누고, 마지막 줄에 한두 글자만 남으면 폭을 줄여 다시 나눈다
+    const wrap = (t, size, face, width) => {
+      const one = (wd) => { x.font = font(size, face); ls(0); const out = [];
+        for (const w of String(t).split(" ").filter(Boolean)) { const cur = out.length ? out[out.length - 1] + " " + w : w; if (out.length && x.measureText(cur).width <= wd) out[out.length - 1] = cur; else out.push(w); }
+        return out; };
+      let best = one(width);
+      for (let k = 1; k <= 6 && best.length > 1 && best[best.length - 1].replace(/\s/g, "").length < 4; k++) { const n = one(width * (1 - k * 0.06)); if (n.length <= best.length + 1) best = n; }
+      return best;
+    };
+    const rect = (c, px, py, w, h) => { x.fillStyle = c; x.fillRect(px, py, w, h); };
+    x.textBaseline = "alphabetic"; x.textAlign = "left";
+    const C = d.C, SUB = "#C9CEDC";
+    ({
+      // 1 밴드형: 짙은 바탕에 흰 큰 제목, 강조어는 강조색
+      "t-band"() {
+        const acc = tReadable(C.accent, C.deep, C.tint); rect(C.deep, 0, 0, W, H);
+        let y = 380 * ry; const ts = fit(d.title, "XB", 170);
+        for (const ln of d.title) { put(ln, M, y, ts, "XB", "#FFFFFF", -ts * 0.045); y += ts * 1.06; }
+        if (d.accent) { const s = fit([d.accent], "XB", 300); y += s * 0.62; put(d.accent, M, y, s, "XB", acc, -s * 0.035); y += 120; } else y += 40;
+        for (const ln of wrap(d.subtitle, 50, "R", TW)) { put(ln, M, y, 50, "R", SUB, -1); y += 70; }
+        if (d.author) put(d.author, M, H - 70, 30, "B", SUB);
+      },
+      // 2 종이형: 밝은 종이 바탕, 짙은 큰 제목, 위아래 굵은 괘선
+      "t-paper"() {
+        const PAPER = "#F6F3EE", acc = tReadable(C.accent, PAPER, C.deep); rect(PAPER, 0, 0, W, H);
+        rect(C.deep, M, 150, TW, 10);
+        let y = 330 * ry; const ts = fit(d.title, "XB", 172);
+        y = Math.max(y, 160 + ts * 0.9);
+        for (const ln of d.title) { put(ln, M - 6, y, ts, "XB", C.deep, -ts * 0.05); y += ts * 1.04; }
+        if (d.accent) { const s = fit([d.accent], "XB", 290); y += s * 0.6; put(d.accent, M - 8, y, s, "XB", acc, -s * 0.04); y += 110; } else y += 40;
+        for (const ln of wrap(d.subtitle, 48, "R", TW)) { put(ln, M, y, 48, "R", "#5B5F6B", -1); y += 66; }
+        rect(C.deep, M, H - 120, TW, 10);
+        if (d.author) put(d.author, M, H - 150, 30, "B", C.deep);
+      },
+      // 3 블록형: 위 60% 짙은 색면에 제목, 경계에 강조색 띠, 아래 흰 바탕에 큰 강조어
+      "t-block"() {
+        const BY = Math.round(H * 0.592), acc = tReadable(C.accent, "#FFFFFF", C.deep);
+        rect("#FFFFFF", 0, 0, W, H); rect(C.deep, 0, 0, W, BY); rect(C.accent, 0, BY, W, 22);
+        const ts = fit(d.title, "XB", 165);
+        let y = BY - 110 - (d.title.length - 1) * ts * 1.06;
+        for (const ln of d.title) { put(ln, M, y, ts, "XB", "#FFFFFF", -ts * 0.045); y += ts * 1.06; }
+        y = BY + 22;
+        if (d.accent) { const s = fit([d.accent], "XB", 260, TW * 0.6); y += s * 0.86 + 70; put(d.accent, M - 6, y, s, "XB", acc, -s * 0.035); y += 90; } // 띠와 붙지 않게 70 띄운다
+        else y += 120;
+        for (const ln of wrap(d.subtitle, 46, "R", TW)) { put(ln, M, y, 46, "R", "#3C4150", -1); y += 64; }
+        if (d.author) put(d.author, M, H - 50, 28, "B", C.deep);
+      },
+      // 4 포스터형: 강조색 전면, 판 폭을 꽉 채우는 거대 강조어(아래만 잘림), 흰 제목
+      "t-poster"() {
+        const BG = C.accent, INK = tReadable(C.deep, BG, "#FFFFFF"), TT = tReadable("#FFFFFF", BG, C.deep);
+        rect(BG, 0, 0, W, H);
+        if (d.accent) { let s = 1000; x.font = font(s, "XB"); ls(-s * 0.05); s = Math.floor(s * (W + 40) / x.measureText(d.accent).width); put(d.accent, -20, H + s * 0.1, s, "XB", C.deep, -s * 0.05); }
+        let y = 200 * ry; const ts = fit(d.title, "XB", 150, TW * 0.9);
+        y = Math.max(y, ts * 0.9 + 60);
+        for (const ln of d.title) { put(ln, M, y, ts, "XB", TT, -ts * 0.045); y += ts * 1.06; }
+        y += 30;
+        for (const ln of wrap(d.subtitle, 44, "B", TW * 0.55)) { put(ln, M, y, 44, "B", INK, -1); y += 62; }
+        if (d.author) put(d.author, M, H - 90, 30, "B", TT);
+      },
+      // 5 하이라이트형: 밝은 바탕, 강조어 아래쪽 절반을 강조색 띠로 형광펜처럼
+      "t-highlight"() {
+        const PAPER = "#FBFAF7"; rect(PAPER, 0, 0, W, H);
+        let y = 330 * ry; const ts = fit(d.title, "XB", 160);
+        y = Math.max(y, ts * 0.9 + 170);
+        for (const ln of d.title) { put(ln, M, y, ts, "XB", C.deep, -ts * 0.045); y += ts * 1.06; }
+        if (d.accent) {
+          const s = fit([d.accent], "XB", 300, TW * 0.7); y += s * 0.66;
+          x.font = font(s, "XB"); ls(-s * 0.035); const w = x.measureText(d.accent).width;
+          rect(C.accent, M - 20, y - s * 0.34, w + 50, s * 0.4); put(d.accent, M, y, s, "XB", C.deep, -s * 0.035); y += 110;
+        } else y += 40;
+        for (const ln of wrap(d.subtitle, 46, "R", TW)) { put(ln, M, y, 46, "R", "#4A4E5A", -1); y += 64; }
+        if (d.author) { x.textAlign = "right"; put(d.author, W - M, 120, 28, "B", C.deep); x.textAlign = "left"; }
+      },
+      // 6 프레임형: 짙은 바탕에 가는 안쪽 테두리, 모두 가운데 정렬, 강조어는 외곽선 글자
+      "t-frame"() {
+        const acc = tReadable(C.accent, C.deep, C.tint); rect(C.deep, 0, 0, W, H);
+        x.strokeStyle = acc; x.lineWidth = 4; x.strokeRect(64, 64, W - 128, H - 128);
+        const center = (t, py, size, face, color, l = 0) => { x.textAlign = "center"; put(t, W / 2, py, size, face, color, l); x.textAlign = "left"; };
+        let y = 280 * ry; const ts = fit(d.title, "XB", 150, TW * 0.92);
+        y = Math.max(y, ts * 0.9 + 130);
+        for (const ln of d.title) { center(ln, y, ts, "XB", "#FFFFFF", -ts * 0.04); y += ts * 1.08; }
+        if (d.accent) {
+          const s = fit([d.accent], "XB", 380, TW * 0.8); y += s * 0.72;
+          x.font = font(s, "XB"); ls(-s * 0.03); x.textAlign = "center"; x.lineWidth = 6; x.strokeStyle = acc; x.strokeText(d.accent, W / 2, y); x.textAlign = "left"; y += 110;
+        } else y += 40;
+        for (const ln of wrap(d.subtitle, 44, "R", TW * 0.9)) { center(ln, y, 44, "R", SUB, -1); y += 62; }
+        if (d.author) center(d.author, H - 110, 28, "B", acc);
+      },
+    })[sp.layout]();
+    ls(0);
+  }
+```
+
+## 활자 표지 강조어 규칙(typoText)
+
+```js
+function typoText(sp) {
+    const flat = (s) => String(s || "").replace(/\s+/g, "");
+    const title = noDash(unwrapTitle(sp.title || "제목"));
+    let lines = (Array.isArray(sp.titleLines) && sp.titleLines.length ? sp.titleLines : [title]).map(l => noDash(String(l)).trim()).filter(Boolean).slice(0, 4);
+    let acc = noDash(String(sp.accentWord || "")).trim();
+    if (acc) {
+      const L = lines.slice(), last = L[L.length - 1] || "";
+      if (flat(last) === flat(acc)) L.pop(); else if (last.endsWith(acc)) L[L.length - 1] = last.slice(0, -acc.length).trim();
+      if (L.length && flat(L.join("")) + flat(acc) === flat(title)) lines = L.filter(Boolean); else acc = "";
+    }
+    if (flat(lines.join("")) + flat(acc) !== flat(title)) { lines = [title]; acc = ""; }
+    return { title: lines, accent: acc, subtitle: noDash(sp.subtitle || "").replace(/\n/g, " "), author: sp.author || "" };
   }
 ```
 
