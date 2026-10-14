@@ -48,7 +48,8 @@ const TABS = [
 - 각 지점마다: 넣을 위치(해당 문장 앞부분 인용), 이미지 유형(장면컷/설명 인포그래픽/비교표/체크리스트), 한국어 설명 1줄, 영어 이미지 프롬프트(가로 16:9 또는 1:1 명시, 일관된 일러스트 스타일).
 - 모든 이미지에 공통으로 붙일 "스타일 고정 문구"를 영어로 맨 위에 먼저 제시해 책 전체 톤이 흔들리지 않게 한다.`
     },
-    { key: "final", label: "최종 결과물", custom: true }
+    { key: "final", label: "최종 결과물", custom: true },
+    { key: "sales", label: "상세페이지", custom: true }
   ];
 ```
 
@@ -1411,6 +1412,175 @@ function withLib(theory, lib) {
   }
 ```
 
+## 상세페이지 조립(buildSales)
+
+```js
+function buildSales(d, opt, C) {
+    const title = opt.title || "[상품 이름]", L = (t, c) => `<p style="margin:0 0 14px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:${c};">${t}</p>`;
+    const lines = (arr, ph) => (Array.isArray(arr) && arr.filter(Boolean).length ? arr.filter(Boolean) : ph).map(esc).join("<br>");
+    const h = d.hero || {}, im = d.imagine || {}, wy = d.why || {}, st = d.story || {}, so = d.solution || {}, ch = d.choice || {}, pv = d.preview || {};
+    const scenes = [0, 1, 2].map(i => (im.scenes || [])[i]);
+    const feats = [0, 1, 2].map(i => (so.features || [])[i] || {});
+    const inside = [0, 1, 2, 3].map(i => (d.inside || [])[i]);
+    const faq = [0, 1].map(i => (d.faq || [])[i] || {});
+    const reviews = opt.reviews || [], bonuses = opt.bonuses || [];
+    const out = [];
+    out.push(`<div style="width:100%;max-width:480px;margin:0 auto;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#1A1A1A;word-break:keep-all;line-height:1.7;">`);
+    // ① 오픈 퀘스천
+    out.push(`
+<!-- ① 오픈 퀘스천 : 첫 화면은 팔지 않고 질문으로 시작 -->
+<div style="background:${C.dark};color:#FFFFFF;padding:64px 20px 56px;text-align:center;">
+  <p style="display:inline-block;margin:0 0 20px;padding:6px 12px;border:1px solid ${C.gold};border-radius:999px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:${C.gold};">${slot(opt.category || h.category, "[카테고리 · 예: 육아 가이드]")}</p>
+  <p style="margin:0 0 10px;font-size:17px;color:#B8B8B0;">${slot(h.inner, "[지금 왜 못 하고 있는지 · 고객 속마음 한 줄]")}</p>
+  <h2 style="margin:0;font-size:30px;line-height:1.3;font-weight:900;letter-spacing:-0.03em;">${h.problem ? hesc(josa(h.problem, "이/가")) : "[문제]가"}<br>고민이신가요?</h2>
+  <p style="margin:24px 0 0;font-size:16px;color:#D8D8D0;">${slot(h.method, "[해결 방법]")}의 순서를<br><span style="color:${C.gold};font-weight:800;">처음부터 끝까지</span> 공개합니다.</p>
+  <p style="margin:28px 0 0;font-size:22px;color:#6E6E66;">↓</p>
+</div>`);
+    // ② 상상
+    out.push(`
+<!-- ② 상상 : 해결된 뒤의 장면 -->
+<div style="background:${C.cream};padding:60px 20px;text-align:center;">
+  ${L("IMAGINE", C.label)}
+  <h3 style="margin:0 0 20px;font-size:26px;line-height:1.3;font-weight:900;">${slot(im.period, "[기간]")} 뒤, 이런 장면을<br>상상해 보세요</h3>
+  <div style="background:#FFFFFF;border-radius:16px;padding:20px;text-align:left;font-size:16px;">
+${scenes.map((s, i) => `    <p style="margin:${i < 2 ? "0 0 8px" : "0"};">✔ ${slot(s, `[해결된 뒤 장면 ${i + 1} · 한 줄]`)}</p>`).join("\n")}
+  </div>
+</div>`);
+    // ③ 진짜 원인
+    out.push(`
+<!-- ③ 문제의 진짜 원인 : 전/후 비교 -->
+<div style="background:#FFFFFF;padding:60px 20px;text-align:center;">
+  ${L("WHY", C.label)}
+  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">문제는 ${wy.myth ? hesc(josa(wy.myth, "이/가")) : "[흔한 오해]가"} 아니라<br><span style="background:linear-gradient(transparent 60%,${C.hl} 60%);">${slot(wy.cause, "[진짜 원인]")}</span>입니다</h3>
+  <div style="display:flex;gap:10px;text-align:left;">
+    <div style="flex:1;background:#1E1E1E;color:#FFFFFF;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:#9A9A92;">BEFORE</p>
+      <p style="margin:0;font-size:15px;line-height:1.6;">${lines(wy.before, ["[지금 하는 시도]", "[그 결과]"])}</p>
+    </div>
+    <div style="flex:1;background:${C.hl};color:#1A1A1A;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:${C.hlInk};">AFTER</p>
+      <p style="margin:0;font-size:15px;line-height:1.6;font-weight:700;">${lines(wy.after, ["[바꾼 방법]", "[달라진 결과]"])}</p>
+    </div>
+  </div>
+</div>`);
+    // ④ 판매자 이야기 (사용자가 준 이야기만, 없으면 칸을 비워 둔다)
+    const sStart = String(st.start || "").trim();
+    out.push(`
+<!-- ④ 자격 : 판매자 이야기 (A지점 → B지점) -->
+<div style="background:${C.dark};color:#FFFFFF;padding:60px 20px;text-align:center;">
+  ${L("STORY", C.gold)}
+  <h3 style="margin:0 0 20px;font-size:26px;line-height:1.3;font-weight:900;">저도 ${sStart ? hesc(josa(sStart, "이었/였")) : "[처음 상황]이었"}습니다</h3>
+  <div style="background:#2A2F2F;border-radius:14px;height:180px;display:flex;align-items:center;justify-content:center;color:#8A8F8F;font-size:14px;">[이미지: 판매자 사진 또는 그때의 기록]</div>
+  <p style="margin:20px 0 0;font-size:16px;color:#D8D8D0;">${slot(st.a, "[A지점: 그때 상황 한 줄]")}<br>→ <span style="color:${C.gold};font-weight:800;">${slot(st.b, "[B지점: 지금 결과 · 실제 숫자]")}</span></p>
+</div>`);
+    // ⑤ 특징 + 혜택
+    out.push(`
+<!-- ⑤ 특징 + 혜택 -->
+<div style="background:${C.cream};padding:60px 20px;text-align:center;">
+  ${L("SOLUTION", C.label)}
+  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">${hesc(josa(title, "은/는"))}<br>이렇게 다릅니다</h3>
+  <div style="display:flex;flex-direction:column;gap:10px;text-align:left;">
+${feats.map((f, i) => `    <div style="background:#FFFFFF;border-radius:14px;padding:16px 18px;font-size:16px;"><b>${f.feature ? hesc(f.feature) : `[특징 ${i + 1}]`}</b>${f.feature ? hesc(josa(f.feature, "으로/로").slice(String(f.feature).trim().length)) : "으로"} <span style="color:${C.label};font-weight:800;">${slot(f.benefit, `[혜택 ${i + 1}]`)}</span></div>`).join("\n")}
+  </div>
+</div>`);
+    // ⑥ 궁금증 목록
+    out.push(`
+<!-- ⑥ 궁금증 목록 : 답을 숨기되 원고에 있는 내용만 -->
+<div style="background:#FFFFFF;padding:60px 20px;">
+  <p style="margin:0 0 14px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:${C.label};text-align:center;">INSIDE</p>
+  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;text-align:center;">이 안에서 알게 되는 것</h3>
+${inside.map((q, i) => `  <p style="margin:${i < 3 ? "0 0 12px" : "0"};font-size:16px;${i < 3 ? "border-bottom:1px solid #EDE8DC;padding-bottom:12px;" : ""}">✔ ${slot(q, `[궁금증 ${i + 1}]`)}</p>`).join("\n")}
+</div>`);
+    // ⑦ 후기 (사용자가 넣은 실제 후기만)
+    if (reviews.length) out.push(`
+<!-- ⑦ 사회적 증거 : 실제 후기만 -->
+<div style="background:${C.cream};padding:60px 20px;text-align:center;">
+  ${L("REVIEW", C.label)}
+  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">먼저 해 본 분들의 이야기</h3>
+${reviews.map(r => `  <div style="background:#FFFFFF;border-radius:14px;padding:18px;text-align:left;margin-bottom:10px;">
+    <p style="margin:0 0 6px;font-size:14px;color:${C.gold};">★★★★★</p>
+    <p style="margin:0 0 8px;font-size:16px;font-weight:700;">"${hesc(r.text)}"</p>
+    <p style="margin:0;font-size:13px;color:#8A8A82;">${slot(r.who, "[이름 일부 · 상황]")}</p>
+  </div>`).join("\n")}
+</div>`);
+    // ⑧ 비교
+    out.push(`
+<!-- ⑧ 비교 : 혼자 하는 비용 vs 이 상품 -->
+<div style="background:${C.dark};color:#FFFFFF;padding:60px 20px;text-align:center;">
+  ${L("CHOICE", C.gold)}
+  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">두 가지 길이 있습니다</h3>
+  <div style="display:flex;gap:10px;text-align:left;">
+    <div style="flex:1;border:1px solid #3A3F3F;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 8px;font-size:13px;color:#9A9A92;">혼자 찾아보기</p>
+      <p style="margin:0;font-size:15px;line-height:1.6;color:#B8B8B0;">${slot(ch.aloneTime, "[걸리는 시간]")}<br>${slot(ch.aloneCost, "[시행착오 비용]")}</p>
+    </div>
+    <div style="flex:1;border:2px solid ${C.gold};border-radius:14px;padding:16px;">
+      <p style="margin:0 0 8px;font-size:13px;color:${C.gold};font-weight:800;">${hesc(title)}</p>
+      <p style="margin:0;font-size:15px;line-height:1.6;font-weight:700;">${slot(ch.productTime, "[걸리는 시간]")}<br>${won(opt.price, "[판매가]")}원</p>
+    </div>
+  </div>
+</div>`);
+    // ⑨ 맛보기
+    out.push(`
+<!-- ⑨ 맛보기 : 원고에서 가장 가치 있는 부분 공개 -->
+<div style="background:#FFFFFF;padding:60px 20px;text-align:center;">
+  ${L("PREVIEW", C.label)}
+  <h3 style="margin:0 0 20px;font-size:26px;line-height:1.3;font-weight:900;">미리 하나 알려 드립니다</h3>
+  <div style="background:${C.cream};border-radius:14px;padding:20px;text-align:left;font-size:16px;">
+    <p style="margin:0 0 8px;font-weight:800;">${slot(pv.name, "[원고 속 방법 이름]")}</p>
+    <p style="margin:0;">${pv.summary ? hesc(pv.summary).replace(/\n/g, "<br>") : "[방법 요약 2~3줄 · 바로 써 볼 수 있게]"}</p>
+  </div>
+</div>`);
+    // ⑩ 구성과 가격 영수증
+    const rows = [{ k: "본상품", n: title, v: opt.mainValue }].concat(bonuses.length ? bonuses.map((b, i) => ({ k: `보너스 ${i + 1}`, n: b.name, v: b.value })) : [{ k: "보너스 1", n: "", v: "" }, { k: "보너스 2", n: "", v: "" }]);
+    out.push(`
+<!-- ⑩ 구성과 가격 영수증 -->
+<div style="background:${C.cream};padding:60px 20px;text-align:center;">
+  ${L("PACKAGE", C.label)}
+  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">받으시는 것</h3>
+  <div style="background:#FFFFFF;border-radius:16px;padding:20px;text-align:left;font-size:15px;">
+${rows.map((r, i) => `    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:${i === rows.length - 1 ? "1px solid #1A1A1A" : "1px dashed #E2DCCD"};"><span><b>${r.k}</b> ${slot(r.n, "[이름]")}</span><span style="color:#8A8A82;">${won(r.v, "[가치]")}원</span></div>`).join("\n")}
+    <div style="display:flex;justify-content:space-between;padding:12px 0 4px;color:#8A8A82;"><span>정가</span><span style="text-decoration:line-through;">${won(opt.listPrice, "[정가]")}원</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-weight:800;">지금 판매가</span><span style="font-size:30px;font-weight:900;color:${C.price};">${won(opt.price, "[판매가]")}원</span></div>
+  </div>
+  <p style="margin:16px 0 0;font-size:13px;color:#8A8A82;">정가와 판매가는 크레킷 상품 탭 원가 · 딜 판매가와 같게 적어 주세요</p>
+</div>`);
+    // ⑪ FAQ
+    out.push(`
+<!-- ⑪ 걱정 풀기 : FAQ -->
+<div style="background:#FFFFFF;padding:60px 20px;">
+  <p style="margin:0 0 14px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:${C.label};text-align:center;">FAQ</p>
+  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;text-align:center;">구매 전에 많이 묻는 질문</h3>
+  <div style="border-top:1px solid #EDE8DC;padding:16px 0;"><p style="margin:0 0 6px;font-size:16px;font-weight:800;">Q. ${slot(faq[0].q, "[가장 많이 망설이는 질문]")}</p><p style="margin:0;font-size:15px;color:#4A4A44;">A. ${slot(faq[0].a, "[답 · 긍정형으로]")}</p></div>
+  <div style="border-top:1px solid #EDE8DC;padding:16px 0;"><p style="margin:0 0 6px;font-size:16px;font-weight:800;">Q. 처음인데 따라 할 수 있을까요?</p><p style="margin:0;font-size:15px;color:#4A4A44;">A. ${slot(faq[1].a, "[첫 행동이 얼마나 작은지]")}</p></div>
+  <div style="border-top:1px solid #EDE8DC;border-bottom:1px solid #EDE8DC;padding:16px 0;"><p style="margin:0 0 6px;font-size:16px;font-weight:800;">Q. 환불은 어떻게 되나요?</p><p style="margin:0;font-size:15px;color:#4A4A44;">A. ${slot(opt.refund, "[내 딜 환불 규정 그대로]")}</p></div>
+</div>`);
+    // ⑫ 마무리
+    out.push(`
+<!-- ⑫ 마무리 : 가장 깊은 혜택 + 구매 버튼 안내 -->
+<div style="background:${C.dark};color:#FFFFFF;padding:64px 20px;text-align:center;">
+  <h3 style="margin:0 0 16px;font-size:28px;line-height:1.3;font-weight:900;">${slot(d.closing, "[가장 깊은 혜택 한 문장]")}</h3>
+  <p style="margin:0 0 24px;font-size:16px;color:#D8D8D0;">${hesc(title)} · <span style="color:${C.gold};font-weight:800;">${won(opt.price, "[판매가]")}원</span></p>
+  <p style="margin:0;display:inline-block;padding:14px 22px;border:1px solid ${C.gold};border-radius:999px;font-size:15px;color:${C.gold};font-weight:700;">아래 구매하기 버튼을 눌러 주세요 ↓</p>
+</div>
+
+</div>`);
+    return out.join("\n");
+  }
+```
+
+## 받침 조사(josa)
+
+```js
+function josa(word, pair) {
+    const w = String(word || "").trim(), ch = w.charCodeAt(w.length - 1);
+    if (!(ch >= 0xAC00 && ch <= 0xD7A3)) { const [a, b] = pair.split("/"); return w + (/[0-9]$/.test(w) ? (/[136780]$/.test(w) ? a : b) : b); }
+    const jong = (ch - 0xAC00) % 28, [a, b] = pair.split("/");
+    if (pair === "으로/로") return w + (jong && jong !== 8 ? a : b);
+    return w + (jong ? a : b);
+  }
+```
+
 ## 마무리 페이지(edClosing)
 
 ```js
@@ -1553,6 +1723,8 @@ function finalItems() {
     const parts = bookParts();
     items.push({ group: "수정용 원고", folder: "3_수정용 원고", label: "원고 DOCX (워드)", meta: parts.length ? `장 ${parts.length}개 · 제목 스타일이 들어가 있어서 고친 뒤 생성기에 다시 넣으면 그대로 디자인돼요` : "원고를 연결하면 생겨요",
       filename: `${base}_원고.docx`, ready: parts.length > 0, make: () => makeDocx(parts) });
+    items.push({ group: "상세페이지", folder: "4_상세페이지", label: "상세페이지 HTML (크레킷 딜 설명용)", meta: salesHtml ? "08 상세페이지 탭에서 만든 판매 페이지 · 딜 설명 칸에 그대로 붙여 넣어요" : "08 상세페이지 탭에서 만들면 생겨요",
+      filename: `${base}_상세페이지.html`, ready: !!salesHtml, make: async () => new Blob([`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;">${salesHtml}</body></html>`], { type: "text/html" }) });
     return { title, base, items };
   }
 ```
