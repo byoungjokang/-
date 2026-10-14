@@ -296,7 +296,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.18a</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.18b</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -3651,8 +3651,8 @@ ${part.text}`;
     g.fillStyle = grd; g.fillRect(0, 0, 256, 2048);
     const lum = sc[0] * 0.299 + sc[1] * 0.587 + sc[2] * 0.114;
     const ink = lum > 140 ? "rgba(28,24,20,0.9)" : "rgba(250,247,240,0.92)";
-    // 원통을 비스듬히 보면 앞표지 쪽 70% 지점이 가장 잘 보여서 글자를 그쪽에 둔다 (텍스처는 좌우 반전되어 붙음)
-    g.save(); g.translate(256 * 0.28, 1024); g.rotate(Math.PI / 2); g.fillStyle = ink; g.textAlign = "center"; g.textBaseline = "middle";
+    // 원통을 비스듬히 보면 앞표지 쪽이 가장 잘 보여서 글자를 그쪽(텍스처 오른쪽 72%)에 둔다. 위에서 아래로 읽힌다
+    g.save(); g.translate(256 * 0.72, 1024); g.rotate(Math.PI / 2); g.fillStyle = ink; g.textAlign = "center"; g.textBaseline = "middle";
     if (opt.title) { g.font = `700 58px ${opt.font || '"Noto Sans KR", sans-serif'}`; const t = opt.title.length > 24 ? opt.title.slice(0, 23) + "…" : opt.title; g.fillText(t, -170, 0); }
     if (opt.author) { g.font = `500 36px "Noto Sans KR", sans-serif`; g.globalAlpha = 0.8; g.fillText(opt.author, 780, 0); }
     g.restore();
@@ -3700,7 +3700,7 @@ ${part.text}`;
     const pb = new T.Mesh(new T.BoxGeometry(w - over * 1.2, h - over * 2, d - t * 2), [pageMat, board, pageMat, pageMat, pageMat, pageMat]);
     pb.position.set(0, 0, 0); book.add(pb);
     // 둥근 책등
-    const spTex = tex(spineCanvas(opt, sc)); spTex.wrapS = T.RepeatWrapping; spTex.repeat.x = -1; spTex.offset.x = 1;  // 원통 UV가 좌우 반대라 뒤집는다
+    const spTex = tex(spineCanvas(opt, sc));  // 텍스처를 좌우로 뒤집으면 글자가 거울처럼 반대로 보인다(모바일 신고). 그대로 붙인다
     const sp = new T.Mesh(new T.CylinderGeometry(d / 2, d / 2, h, 48, 1, true, Math.PI, Math.PI), matte({ map: spTex, side: T.DoubleSide }));
     sp.position.set(-w / 2 + over / 2, 0, 0); book.add(sp);
     book.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
@@ -4030,10 +4030,11 @@ ${excerpt || "(원고 없음)"}`;
       // 카드 미리보기: 처음엔 평면, 목업이 그려지면 목업으로 (누르면 평면·목업 전환)
       const view = mk("div", "position:relative;cursor:pointer;"); view.title = "눌러서 평면/목업 전환";
       const flat = scaled(renderCover(sp), 600, coverH(sp), 0.3);
-      const mockImg = mk("img", `display:block;width:180px;height:${Math.round(coverH(sp) * 0.3)}px;object-fit:cover;border-radius:4px;`); mockImg.alt = `${i + 1}안 목업`; mockImg.hidden = true;
+      const mockImg = mk("img", `display:block;width:180px;height:${Math.round(coverH(sp) * 0.3)}px;object-fit:contain;background:#efebe5;border-radius:4px;`); mockImg.alt = `${i + 1}안 목업`; mockImg.hidden = true;
       view.append(flat, mockImg);
-      view.addEventListener("click", () => { if (!mockImg.src) return; const m = mockImg.hidden; mockImg.hidden = !m; flat.hidden = m; });
+      view.addEventListener("click", () => { if (!mockImg.src) return; const m = mockImg.hidden; mockImg.hidden = !m; flat.hidden = m; hint.textContent = m ? "눌러서 평면 보기" : "눌러서 3D 목업 보기"; });
       card.appendChild(view);
+      const hint = mk("div", "font-size:12px;color:#999;margin:4px 0 0;", "눌러서 3D 목업 보기"); hint.hidden = true; card.appendChild(hint);
       card.appendChild(mk("div", "", `${i + 1}안 · ${sp.name || ""}${sp.colorName ? " · " + sp.colorName : ""}`)).className = "ref-name";
       card.appendChild(mk("div", "", [sp.template && "템플릿 " + sp.template, sp.concept].filter(Boolean).join(" · "))).className = "ref-concept";
       const acts = mk("div", ""); acts.className = "ref-actions";
@@ -4091,7 +4092,7 @@ ${excerpt || "(원고 없음)"}`;
       }
       // 목업 미리보기는 순서대로 그린다
       mockQueue = mockQueue.then(async () => {
-        try { const c = await mockCanvas(sp); mockImg.src = c.toDataURL("image/jpeg", 0.85); mockImg.hidden = false; flat.hidden = true; } catch (e) {}
+        try { const c = await mockCanvas(sp); mockImg.src = c.toDataURL("image/jpeg", 0.85); hint.hidden = false; } catch (e) {}   // 디자인 비교는 평면으로, 목업은 눌렀을 때만
       });
       return card;
   }
