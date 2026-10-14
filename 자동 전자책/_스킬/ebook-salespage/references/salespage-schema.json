@@ -1,0 +1,243 @@
+{
+ "_note": "06_salespage.json 형식. 섹션 키가 없거나 null 이면 그 섹션은 빠진다(structure.md 의 재료 없음 규칙). 문자열 안의 \\n 은 <br>, {accent}…{/accent} 는 액센트 색, {b}…{/b} 는 strong 으로 렌더된다. 【 】 는 자리표시자. reviews.items[].sample:true 는 임시 후기 표시(실제 후기 없으면 6개, 발행 전 교체). meta.palette 는 어두운 12종 또는 밝은 6종(ivory-red, powder-blue, blush-rose, sage-green, paper-bronze, white-red).",
+ "meta": {
+  "book": "책 이름 (예: 리치코드)",
+  "format": "현실창조 PDF",
+  "pages": 88,
+  "parts": 9,
+  "brand": "푸터 브랜드명 (예: RICH CODE)",
+  "buyUrl": "https://lifeschool.crekit.io/l/deals/xxxx",
+  "palette": "midnight-gold",
+  "stickyBar": false,
+  "ladder": true,
+  "ctaLabel": "리치코드 구매하기"
+ },
+ "topbar": {
+  "text": "오늘 얼리버드 마감까지"
+ },
+ "hero": {
+  "h1": "7년 전,\n저는 방 밖으로\n나가지 않았습니다.",
+  "story": "스물다섯, 우울증이었습니다. 돈도, 사람도, 내일도 다 포기하고 싶었습니다.\n그 방에서 {b}7년 동안 수백 권{/b}을 읽고 찾은 답은 하나였습니다.\n{accent}노력이 아니라, 무의식이 문제였습니다.{/accent}",
+  "btn": "리치코드 PDF 확인하기",
+  "link": "이야기 먼저 읽기",
+  "cover": "【표지 이미지 URL】",
+  "coverCaption": "88페이지 PDF, 평생 소장"
+ },
+ "story": {
+  "h2": "우울증 히키코모리가\n{accent}인생 뒤엎은 썰{/accent}",
+  "photo": "【비포 애프터 이미지 URL】",
+  "photoCaption": "저자의 비포 애프터",
+  "timeline": [
+   {
+    "label": "25살",
+    "text": "…"
+   },
+   {
+    "label": "끌어당김을 만나다",
+    "text": "…"
+   },
+   {
+    "label": "7년, 수백 권",
+    "text": "…"
+   },
+   {
+    "label": "적용",
+    "text": "…",
+    "turn": true
+   },
+   {
+    "label": "지금",
+    "text": "…",
+    "hit": true,
+    "wins": [
+     "누적 매출 30억 사업가",
+     "…"
+    ]
+   }
+  ],
+  "codeLine": "그 7년의 노하우와 정수를\n{accent}88페이지에 담았습니다.{/accent}",
+  "inquiry": null
+ },
+ "selfcheck": {
+  "h2": "혹시,\n당신 이야기인가요?",
+  "lead": "해당되는 항목을 눌러보세요.",
+  "items": [
+   "…",
+   "…",
+   "…"
+  ],
+  "result": "하나라도 해당된다면,\n{b}7년 전의 저와 같은 자리에 계신 겁니다.{/b}"
+ },
+ "reason": {
+  "h2": "돈, 관계, 인생이 안 풀린다면?\n{accent}무의식이 '부족함'에{/accent}\n집착하고 있기 때문입니다",
+  "ratio": {
+   "small": {
+    "value": "10%",
+    "label": "의식"
+   },
+   "big": {
+    "value": "90%",
+    "label": "무의식"
+   },
+   "caption": "사람의 생각과 행동은 의식 10%, 무의식 90%가 결정합니다."
+  },
+  "image": "【원리 이미지 URL】",
+  "body": [
+   "…",
+   "…",
+   "…"
+  ],
+  "oldVoice": [
+   "'나는 결핍한 사람이다'",
+   "'나는 부족하다'"
+  ],
+  "verdict": "이 패턴을 바꾸지 않는 한\n아무리 노력해도\n{accent}제자리일 수밖에 없습니다.{/accent}"
+ },
+ "dig": null,
+ "reality": {
+  "h2": "끌어당김 콘텐츠는\n이미 많습니다",
+  "advice": [
+   "'부자가 되었다고 확언해라'",
+   "'돈이 들어온다 상상해라'",
+   "'감사해라'"
+  ],
+  "body": "…",
+  "ignore": "결과로 안 이어지는\n{accent}끌어당김 콘텐츠{/accent}는 무시하세요",
+  "forYou": "리치코드는\n{accent}그다음{/accent}을 알려주는 책입니다."
+ },
+ "diff": {
+  "h2": "리치코드는\n{accent}3가지{/accent}가 다릅니다",
+  "items": [
+   {
+    "title": "확언이 아니라\n가난을 만드는 각인 삭제법",
+    "text": "…"
+   },
+   {
+    "title": "실전 훈련법",
+    "text": "…"
+   },
+   {
+    "title": "무의식을 움직이는 질문법",
+    "text": "…"
+   }
+  ],
+  "faster": "{muted}저는 이 방법을 찾기까지 7년이 걸렸습니다.{/muted}\n하지만 여러분은 {accent}훨씬 빠르게{/accent} 시작할 수 있습니다."
+ },
+ "toc": {
+  "h2": "리치코드 목차",
+  "meta": [
+   "총 88페이지",
+   "9부 구성"
+  ],
+  "parts": [
+   {
+    "label": "PART 1-2",
+    "title": "왜 안 되는가\n그리고 진짜 원리",
+    "items": [
+     "…",
+     "…",
+     "…",
+     "…"
+    ]
+   }
+  ]
+ },
+ "results": {
+  "h2": "'너만 된 거 아니냐?' 하는 분들에게",
+  "lead": "저뿐만 아니라, 제가 가르치는 수강생들의 {accent}{b}실제 성과{/b}{/accent}입니다.",
+  "images": [
+   "【성과 캡처 URL 1】"
+  ],
+  "notes": [
+   "※ 이미지를 누르면 크게 볼 수 있습니다",
+   "※ {b}후기가 조작일 시 100% 환불해드립니다{/b}"
+  ]
+ },
+ "reviews": {
+  "h2": "먼저 읽은 분들의\n이야기",
+  "items": [
+   {
+    "quote": "(실제 후기가 없을 때 임시로 쓴 후기, 6개)",
+    "who": "30대 직장인, 서울",
+    "sample": true
+   },
+   {
+    "quote": "…",
+    "who": "…",
+    "sample": true
+   },
+   {
+    "quote": "…",
+    "who": "…",
+    "sample": true
+   },
+   {
+    "quote": "…",
+    "who": "…",
+    "sample": true
+   },
+   {
+    "quote": "…",
+    "who": "…",
+    "sample": true
+   },
+   {
+    "quote": "…",
+    "who": "…",
+    "sample": true
+   }
+  ],
+  "midCta": "39,000원에 리치코드 받기",
+  "captures": null,
+  "guarantee": null
+ },
+ "honest": {
+  "hype": [
+   "'인생이 180도 바뀝니다'",
+   "'이거 하나면 다 해결됩니다'"
+  ],
+  "h2": "이런 말로\n현혹하지 않겠습니다.",
+  "body": "하지만 {b}잘 되는 사람과 어떻게 해도 안 되는 사람의 차이는 너무나 분명합니다.{/b} 7년 전의 저는 그 차이를 몰랐을 뿐입니다."
+ },
+ "faq": {
+  "h2": "자주 묻는\n질문",
+  "items": [
+   {
+    "q": "…",
+    "a": "…"
+   }
+  ]
+ },
+ "price": {
+  "choice": "현실을 창조하는 사람이 되실 건가요?\n{muted}현실에 끌려다니는 사람이 되실 건가요?{/muted}",
+  "body": "둘 다, 노력이 아니라 {b}방법의 차이{/b}입니다.\n\n성급히 구매하지 않으셔도 됩니다. 다만, 가치를 알아보신 분들부터 먼저 움직이고 있다는 것만 말씀드립니다.",
+  "tag": "얼리버드 80% OFF",
+  "was": "정가 198,000원",
+  "now": "39,000",
+  "ladder": [
+   {
+    "step": "1차",
+    "price": "19,000원",
+    "state": "종료"
+   },
+   {
+    "step": "2차",
+    "price": "29,000원",
+    "state": "종료"
+   },
+   {
+    "step": "3차",
+    "price": "39,000원",
+    "state": "현재"
+   },
+   {
+    "step": "4차",
+    "price": "정가 전환",
+    "state": "예정"
+   }
+  ],
+  "timerText": "오늘 밤 11시 59분 종료 후 {b}정가로 전환{/b}됩니다",
+  "btn": "리치코드 구매하기",
+  "fine": "결제 즉시 다운로드, 평생 소장"
+ }
+}
