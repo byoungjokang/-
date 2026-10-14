@@ -276,7 +276,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14f</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14g</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -2388,6 +2388,13 @@ ${part.text}`;
   // ---- 표지 만들기 전 확인: 제목·부제·작가 ----
   const bookMeta = { title: "", subtitle: "", author: "", noAuthor: false, confirmed: false };
   // 원고 앞부분(첫 장 제목 전)에서 제목·부제·작가를 찾는다
+  // 제목을 감싼 괄호·따옴표(<…>, 《…》, 「…」, 『…』, "…")는 뗀다
+  function unwrapTitle(t, first = true, last = true) {
+    let x = String(t || "").trim();
+    if (first) x = x.replace(/^[<《〈「『\["“'‘(]+\s*/, "");
+    if (last) x = x.replace(/\s*[>》〉」』\]"”'’)]+$/, "");
+    return x.trim();
+  }
   function detectBookMeta() {
     const g = guessTitleRaw(), t = currentBookText();
     const out = { title: g.title, subtitle: g.subtitle, author: "" };
@@ -2405,6 +2412,7 @@ ${part.text}`;
       if (!out.subtitle) out.subtitle = subs.find(l => l !== out.title) || "";
     }
     if (!out.subtitle) { const sm = t.slice(0, 3000).match(/^\s*부제\s*[:：]\s*(.+)$/m); if (sm) out.subtitle = sm[1].trim(); }
+    out.title = unwrapTitle(out.title); out.subtitle = unwrapTitle(out.subtitle);
     return out;
   }
   function showMetaBox(scroll) {
@@ -2420,7 +2428,7 @@ ${part.text}`;
   }
   $("mNoAuthor").addEventListener("change", () => { $("mAuthor").disabled = $("mNoAuthor").checked; if ($("mNoAuthor").checked) $("mAuthor").value = ""; });
   $("mGo").addEventListener("click", () => {
-    const title = $("mTitle").value.trim();
+    const title = unwrapTitle($("mTitle").value);
     if (!title) { $("metaNote").textContent = "제목을 적어주세요."; $("mTitle").focus(); return; }
     const noAuthor = $("mNoAuthor").checked, author = noAuthor ? "" : $("mAuthor").value.trim();
     if (!noAuthor && !author) { $("metaNote").textContent = "작가 이름을 적거나 '없음'을 눌러주세요."; $("mAuthor").focus(); return; }
@@ -2523,7 +2531,7 @@ ${part.text}`;
     }
     const box = mk("div", `position:absolute;display:flex;flex-direction:column;${pos}`);
     // 1) 상단 키커 2) 얇은 액센트 라인
-    if (sp.kicker) box.appendChild(mk("div", `font-size:${14 * k}px;letter-spacing:0.16em;font-weight:700;color:${layout === "split" ? ink : readable(accent, bg) === accent ? accent : sub};margin-bottom:${12 * k}px;`, sp.kicker));
+    // 표지 글자는 제목·부제·작가만: 키커·배지는 그리지 않는다
     box.appendChild(mk("div", `width:${46 * k}px;height:${3 * k}px;background:${accent};margin-bottom:${20 * k}px;`));
     // 3) 메인 제목
     // 블랙한산스·도현·주아·송명은 한 굵기뿐인 제목용 글꼴, 나머지는 가장 굵게
@@ -2533,13 +2541,15 @@ ${part.text}`;
     box.appendChild(t);
     // 4) 부제
     if (sp.subtitle) box.appendChild(mk("div", `margin-top:${18 * k}px;font-size:${18 * k}px;line-height:1.55;color:${sub};max-width:${430 * k}px;`, noDash(sp.subtitle)));
-    if (sp.badge && !/bignumber|photo-top|photo-window/.test(layout)) box.appendChild(mk("div", `align-self:${centered ? "center" : "flex-start"};margin-top:${16 * k}px;padding:${5 * k}px ${13 * k}px;border:${1.5 * k}px solid ${accent};color:${readable(accent, bg)};font-weight:700;font-size:${14 * k}px;border-radius:999px;`, sp.badge));
     root.appendChild(box);
     // 6) 하단 룰 7) 저자명
     const footOn = layout === "split" ? accent : (photo && layout === "photo-full" && sp.titlePos !== "top") ? scrim : bg2;
     const footInk = readable(sub, footOn);
-    root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${70 * k}px;height:${1 * k}px;background:${footInk};opacity:0.5;`));
-    root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${36 * k}px;font-size:${14 * k}px;letter-spacing:0.1em;color:${footInk};text-align:${centered ? "center" : "left"};`, sp.author || sp.kicker || ""));
+    // 표지 아래는 작가 이름만 (없으면 선도 안 그린다)
+    if (sp.author) {
+      root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${70 * k}px;height:${1 * k}px;background:${footInk};opacity:0.5;`));
+      root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${36 * k}px;font-size:${14 * k}px;letter-spacing:0.1em;color:${footInk};text-align:${centered ? "center" : "left"};`, sp.author));
+    }
     root.appendChild(grainLayer(photo ? 0.04 : 0.06));
     return root;
   }
@@ -3212,7 +3222,8 @@ ${bookMeta.confirmed ? (bookMeta.author ? `저자명은 "${bookMeta.author}". �
 - 먼저 원고의 독자·정서·약속을 읽고, 아래 [디자인 템플릿 10선]에서 이 책에 맞는 템플릿 3개를 서로 다르게 고른다. 3안은 각각 그 템플릿의 컬러·제목글꼴·비주얼 방향을 따르되, 이 책의 주제에 맞게 조금 다듬어도 된다. 템플릿의 금지 요소는 지킨다.
 - 표지는 판매 썸네일로 작게 봐도 제목이 읽혀야 한다. 제목 줄은 한 줄에 8자 안팎으로 끊는다. 글자색(ink)과 배경(bg)은 대비가 커야 한다.
 - 글꼴은 이 목록에서만: ${FONT_KEYS} (명세서의 Pretendard는 노토산스로 대신한다)
-- layout은 classic(명세서 기본 구조, 가장 우선), center, top-left, bottom-left, split, frame, bignumber 중 하나. bignumber는 badge에 숫자가 있을 때만.
+- 표지에 들어가는 글자는 제목·부제·작가 셋뿐이다. 키커(제목 위 라벨)·배지·슬로건·카피 문구를 지어 넣지 않는다(kicker·badge는 빈 문자열).
+- layout은 classic(명세서 기본 구조, 가장 우선), center, top-left, bottom-left, split, frame 중 하나.
 - motif는 템플릿의 추천 motif를 우선: hourglass, orbit, stones, arch, leaf, path, flower, redline, spotlight, circle, lines, grid, stripe, dots, none.
 
 ${SPEC_RULES}
@@ -3222,7 +3233,7 @@ ${TEMPLATE_TEXT}
 ${artRule}${avoid}
 - 줄표(긴 대시 기호)는 어디에도 쓰지 않는다.
 [출력] JSON 배열 ${one != null ? "1개" : "3개"}만:
-[{"template":"고른 템플릿 번호와 이름","name":"안 이름(짧게)","concept":"이 표지가 독자에게 주는 느낌 한 줄","title":"책 제목","titleLines":["제목 1행","제목 2행"],"subtitle":"부제","kicker":"제목 위 작은 라벨(없으면 빈 문자열)","badge":"숫자가 들어간 짧은 약속(예: 2주 완성, 없으면 빈 문자열)","author":"저자명(원고에 없으면 빈 문자열)","bg":"#hex","bg2":"#hex","ink":"#hex","sub":"#hex","accent":"#hex","titleFont":"목록 중 하나","bodyFont":"목록 중 하나","layout":"…","motif":"…","titlePos":"top 또는 bottom(photo-full일 때)","scrim":"#hex(photo-full일 때)"}]
+[{"template":"고른 템플릿 번호와 이름","name":"안 이름(짧게)","concept":"이 표지가 독자에게 주는 느낌 한 줄","title":"책 제목","titleLines":["제목 1행","제목 2행"],"subtitle":"부제","kicker":"","badge":"","author":"저자명(정해준 것만, 없으면 빈 문자열)","bg":"#hex","bg2":"#hex","ink":"#hex","sub":"#hex","accent":"#hex","titleFont":"목록 중 하나","bodyFont":"목록 중 하나","layout":"…","motif":"…","titlePos":"top 또는 bottom(photo-full일 때)","scrim":"#hex(photo-full일 때)"}]
 
 [원고]
 ${text.slice(0, 14000)}`;
@@ -3233,6 +3244,7 @@ ${text.slice(0, 14000)}`;
       const arr = await sample.json(prompt, { signal: cvCtl.signal, modelTier: "default", cache: false, images });
       const specs = (Array.isArray(arr) ? arr : arr?.covers || (arr && typeof arr === "object" ? [arr] : [])).slice(0, one != null ? 1 : 3);
       if (!specs.length) throw { code: "empty_completion" };
+      specs.forEach(sp => { sp.kicker = ""; sp.badge = ""; if (sp.layout === "bignumber") sp.layout = "classic"; sp.title = unwrapTitle(sp.title); if (Array.isArray(sp.titleLines)) sp.titleLines = sp.titleLines.map((l, j, a) => unwrapTitle(l, j === 0, j === a.length - 1)); if (!bookMeta.confirmed) sp.author = ""; });
       if (bookMeta.confirmed) specs.forEach(sp => {
         const flat = (x) => String(x || "").replace(/\s+/g, "");
         sp.title = bookMeta.title; sp.subtitle = bookMeta.subtitle; sp.author = bookMeta.author;
