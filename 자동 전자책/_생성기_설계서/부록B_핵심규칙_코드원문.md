@@ -15,7 +15,7 @@ const TABS = [
       task: `원고/메모(와 [주제 리서치 보고서]가 있으면 그것)를 읽고 전자책 목차와 초안을 설계한다.
 - [주제 리서치 보고서]가 있으면 그 안의 【사람들이 실제로 막히는 지점】【목차 재료】【걸러야 할 통념】을 근거로 챕터를 짜고, 각 챕터 옆에 (근거: …)를 짧게 단다.
 - [확정 주제·제목]이 있으면 그 제목과 원씽을 그대로 쓰고 바꾸지 않는다. 없을 때만 원씽 한 문장을 새로 만든다: "(누가)(어떤 상황에서)(뭐가 안 돼서)(어떤 결과를 얻는)(무슨 방법)".
-- PART 3~4개 + 챕터 7~10개. 흐름은 "문제 인식 → 원인 해체 → 해결 방법 → 실전 적용". 각 챕터 제목은 궁금증이 생기게, 한 줄 요약을 붙인다.
+- 챕터 7~10개. PART(부)로 묶지 않는다. 장 제목은 "번호 + 제목" 하나로 끝내고, (Day 1~3)·(1~2주차) 같은 괄호 보충이나 "Day 1." 같은 머리말을 붙이지 않는다. 흐름은 "문제 인식 → 원인 해체 → 해결 방법 → 실전 적용". 각 챕터 제목은 궁금증이 생기게, 한 줄 요약을 붙인다.
 - 각 챕터마다 초안 3~4줄: 도입 장면 1줄, 핵심 주장 1줄, 쓸 근거·사례 1~2줄.
 - 그다음 "이 목차로 챕터를 쓰게 하는 프롬프트"를 한 덩어리로 작성한다. 사용자가 그대로 복사해 ChatGPT/Claude에 붙여넣을 수 있게, 역할·독자·문체·챕터 구조(도입 사례 → 핵심 주장 → 근거 → 방법 → 실천 과제)·분량을 모두 담는다.`
     },
@@ -561,9 +561,9 @@ async function pdfToMarked(file) {
     }
     // 머리글용 짧은 라벨: "PART 1 · CHAPTER 01" (파트 이름은 빼고 번호만)
     const pn = sp.part ? (sp.part.match(/^(PART\s*\d+|제?\s*\d+\s*부)/i) || [sp.part])[0].replace(/\s+/g, " ").toUpperCase() : "";
-    const short = [pn, label].filter(Boolean).join(" · "), base = label, part = sp.part ? noDash(sp.part) : "";
-    if (sp.part) label = part + (label ? " · " + label : "");
-    return { label, title: noDash(t), short, base, part };
+    // PART(부) 이름은 어디에도 쓰지 않는다: 띠·차례·머리글 모두 CHAPTER 번호와 제목만
+    void pn; const short = label, base = label, part = "";
+    return { label, title: noDash(stripExtra(t)), short, base, part };
   }
   // 원고 블록 → 편집 컴포넌트 (본문/소제목/정리 박스/메모/대화/카드/실습 페이지)
   const SUM_HEAD = /^(거리\s*연습|실천|연습|오늘의\s*(연습|과제)|실천\s*과제|미션|워크시트|핵심\s*정리|정리하기|한눈에\s*정리|요약|체크\s*포인트|쓰실\s*때)/;
@@ -813,9 +813,9 @@ function edMeta(pt) {
     }
     // 머리글용 짧은 라벨: "PART 1 · CHAPTER 01" (파트 이름은 빼고 번호만)
     const pn = sp.part ? (sp.part.match(/^(PART\s*\d+|제?\s*\d+\s*부)/i) || [sp.part])[0].replace(/\s+/g, " ").toUpperCase() : "";
-    const short = [pn, label].filter(Boolean).join(" · "), base = label, part = sp.part ? noDash(sp.part) : "";
-    if (sp.part) label = part + (label ? " · " + label : "");
-    return { label, title: noDash(t), short, base, part };
+    // PART(부) 이름은 어디에도 쓰지 않는다: 띠·차례·머리글 모두 CHAPTER 번호와 제목만
+    void pn; const short = label, base = label, part = "";
+    return { label, title: noDash(stripExtra(t)), short, base, part };
   }
 ```
 
@@ -1220,7 +1220,7 @@ async function makeDocx(parts = draftParts) {
     if (subtitle) body += wPara(subtitle, { size: 24, color: "6B5B00", align: "center" });
     if (author) body += wPara(author, { size: 22, color: "555555", align: "center", before: 600 });
     parts.forEach(part => {
-      body += lvl(wPara(part.title, { size: 32, bold: true, color: "6B5B00", pageBreak: true, after: part.sub ? 120 : 400 }), 0);
+      body += lvl(wPara(stripExtra(splitPart(part.title).title), { size: 32, bold: true, color: "6B5B00", pageBreak: true, after: part.sub ? 120 : 400 }), 0);
       if (part.sub) body += lvl(wPara(part.sub, { size: 24, color: "555555", after: 400 }), 1);
       richBlocks(part.text).forEach(b => {
         const t = String(b.text).replace(/\*\*/g, "");

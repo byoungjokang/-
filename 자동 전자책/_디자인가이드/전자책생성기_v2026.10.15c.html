@@ -276,7 +276,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.15b</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.15c</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -720,7 +720,7 @@
       task: `원고/메모(와 [주제 리서치 보고서]가 있으면 그것)를 읽고 전자책 목차와 초안을 설계한다.
 - [주제 리서치 보고서]가 있으면 그 안의 【사람들이 실제로 막히는 지점】【목차 재료】【걸러야 할 통념】을 근거로 챕터를 짜고, 각 챕터 옆에 (근거: …)를 짧게 단다.
 - [확정 주제·제목]이 있으면 그 제목과 원씽을 그대로 쓰고 바꾸지 않는다. 없을 때만 원씽 한 문장을 새로 만든다: "(누가)(어떤 상황에서)(뭐가 안 돼서)(어떤 결과를 얻는)(무슨 방법)".
-- PART 3~4개 + 챕터 7~10개. 흐름은 "문제 인식 → 원인 해체 → 해결 방법 → 실전 적용". 각 챕터 제목은 궁금증이 생기게, 한 줄 요약을 붙인다.
+- 챕터 7~10개. PART(부)로 묶지 않는다. 장 제목은 "번호 + 제목" 하나로 끝내고, (Day 1~3)·(1~2주차) 같은 괄호 보충이나 "Day 1." 같은 머리말을 붙이지 않는다. 흐름은 "문제 인식 → 원인 해체 → 해결 방법 → 실전 적용". 각 챕터 제목은 궁금증이 생기게, 한 줄 요약을 붙인다.
 - 각 챕터마다 초안 3~4줄: 도입 장면 1줄, 핵심 주장 1줄, 쓸 근거·사례 1~2줄.
 - 그다음 "이 목차로 챕터를 쓰게 하는 프롬프트"를 한 덩어리로 작성한다. 사용자가 그대로 복사해 ChatGPT/Claude에 붙여넣을 수 있게, 역할·독자·문체·챕터 구조(도입 사례 → 핵심 주장 → 근거 → 방법 → 실천 과제)·분량을 모두 담는다.`
     },
@@ -1273,6 +1273,7 @@ ${tone ? "[톤] " + tone + "\n" : ""}
 - 제목 문법을 섞는다: 상황형·명령형·금지형·질문형·통념부정형·아포리즘형·2인칭형·대상지정형·단계형·네이밍형·숫자기간형·확률폭로형·대비형·이유폭로형·조건반전형·유형분류형 등. 한 권에 최소 8종, 같은 문법 3회 이상 금지. 네이밍('작은따옴표 기법명')은 2~4개. "아무도 알려주지 않는"·"진짜 이유"·"절대"는 한 권에 한 번.
 - 육아·건강·상실처럼 독자가 이미 죄책감을 안고 있는 주제는 도발·훈계조를 쓰지 않는다.
 - 저자 경험이 필요한 장은 [원료 필요]를 붙인다. 없는 경험을 지어내지 않는다.
+- PART(부)로 묶지 않는다. 장 제목은 "번호 + 제목" 하나로 끝낸다. 제목 앞뒤에 (Day 1~3)·(1~2주차) 같은 괄호 보충이나 "Day 1." 같은 머리말을 붙이지 않는다.
 
 [출력 · 마크다운 기호(#, **, 표) 없이 일반 텍스트, 이 순서 그대로]
 책 제목: …
@@ -1287,7 +1288,6 @@ ${tone ? "[톤] " + tone + "\n" : ""}
   결론: …
   초안: 도입 장면 1줄 / 핵심 주장 1줄 / 쓸 근거·사례 1줄
 
-PART 1. 파트 제목
 01 [자극·문법] 제목
   주장: …
   결론: …
@@ -1450,8 +1450,8 @@ ${src.slice(0, 50000)}`;
     if (secCache.key === outline && secCache.list) return secCache.list;
     const list = await sample.json(`아래 전자책 목차에서 원고로 쓸 섹션을 순서대로 뽑아라.
 맨 앞에 프롤로그, 그다음 각 챕터, 맨 끝에 에필로그. 목차에 프롤로그·에필로그가 없어도 넣는다.
-챕터 title은 "01 챕터 제목"처럼 두 자리 번호로 시작하고, 새 PART가 시작되는 챕터만 앞에 "PART 1. 파트 제목 · "을 붙인다.
-JSON 배열만: [{"title":"프롤로그: 제목","summary":"이 섹션에서 할 말 한 줄"},{"title":"PART 1. 파트 제목 · 01 챕터 제목","summary":"…"}]
+챕터 title은 "01 챕터 제목"처럼 두 자리 번호 + 제목만 쓴다. 목차에 PART(부) 이름이나 (Day 1~3) 같은 괄호 보충, "Day 1." 같은 머리말이 있어도 title에 넣지 않는다.
+JSON 배열만: [{"title":"프롤로그: 제목","summary":"이 섹션에서 할 말 한 줄"},{"title":"01 챕터 제목","summary":"…"}]
 
 [목차]
 ${outline.slice(0, 30000)}`, { signal, modelTier: "quick" });
@@ -2165,7 +2165,7 @@ ${part.text}`;
     if (subtitle) body += wPara(subtitle, { size: 24, color: "6B5B00", align: "center" });
     if (author) body += wPara(author, { size: 22, color: "555555", align: "center", before: 600 });
     parts.forEach(part => {
-      body += lvl(wPara(part.title, { size: 32, bold: true, color: "6B5B00", pageBreak: true, after: part.sub ? 120 : 400 }), 0);
+      body += lvl(wPara(stripExtra(splitPart(part.title).title), { size: 32, bold: true, color: "6B5B00", pageBreak: true, after: part.sub ? 120 : 400 }), 0);
       if (part.sub) body += lvl(wPara(part.sub, { size: 24, color: "555555", after: 400 }), 1);
       richBlocks(part.text).forEach(b => {
         const t = String(b.text).replace(/\*\*/g, "");
@@ -2800,9 +2800,9 @@ ${part.text}`;
     }
     // 머리글용 짧은 라벨: "PART 1 · CHAPTER 01" (파트 이름은 빼고 번호만)
     const pn = sp.part ? (sp.part.match(/^(PART\s*\d+|제?\s*\d+\s*부)/i) || [sp.part])[0].replace(/\s+/g, " ").toUpperCase() : "";
-    const short = [pn, label].filter(Boolean).join(" · "), base = label, part = sp.part ? noDash(sp.part) : "";
-    if (sp.part) label = part + (label ? " · " + label : "");
-    return { label, title: noDash(t), short, base, part };
+    // PART(부) 이름은 어디에도 쓰지 않는다: 띠·차례·머리글 모두 CHAPTER 번호와 제목만
+    void pn; const short = label, base = label, part = "";
+    return { label, title: noDash(stripExtra(t)), short, base, part };
   }
   // 원고 블록 → 편집 컴포넌트 (본문/소제목/정리 박스/메모/대화/카드/실습 페이지)
   const SUM_HEAD = /^(거리\s*연습|실천|연습|오늘의\s*(연습|과제)|실천\s*과제|미션|워크시트|핵심\s*정리|정리하기|한눈에\s*정리|요약|체크\s*포인트|쓰실\s*때)/;
@@ -3097,11 +3097,11 @@ ${part.text}`;
     const p = pageShell(th, n);
     const num = String(idx).padStart(2, "0");
     const sp = splitPart(title);
-    const clean = noDash(chTitle(sp.title));
+    const clean = noDash(stripExtra(chTitle(sp.title)));
     const onAccent = readable(th.ink, th.accent);
     // 장 제목 div에 부제(있으면)를 붙인다
     const ttl = (style, color) => { const d = mk("div", style, clean); if (sub) d.appendChild(mk("div", `margin-top:14px;font-family:${th.body};font-size:15px;line-height:1.6;font-weight:400;letter-spacing:0;color:${color || th.muted};`, noDash(sub))); return d; };
-    if (sp.part) p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:64px;font-family:${th.sub};font-size:12px;font-weight:700;letter-spacing:0.14em;color:${th.chapter === "fullbleed" || th.chapter === "band" ? onAccent : th.muted};`, noDash(sp.part)));
+    // PART 이름은 넣지 않는다
     if (th.chapter === "badge") {
       if (idx) { const b = mk("div", `position:absolute;left:64px;top:230px;width:60px;height:60px;border-radius:50%;border:2px solid ${th.accent};display:flex;align-items:center;justify-content:center;font-family:${th.head};font-size:19px;font-weight:700;color:${th.accent === th.paper ? th.ink : th.accent};`, num); p.appendChild(b); }
       p.appendChild(ttl(`position:absolute;left:64px;right:64px;top:${idx ? 316 : 260}px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;`));
@@ -3167,6 +3167,8 @@ ${part.text}`;
   const cleanHead = (l) => String(l).trim().replace(/^#{1,6}\s+/, "").replace(/^■\s*/, "").replace(/\*\*/g, "").replace(/\s*[.·…]{3,}\s*\d*\s*$/, "").trim();
   const normHead = (l) => cleanHead(l).replace(/[\s\p{P}\p{S}]/gu, "").toLowerCase();
   // 장 제목 앞의 번호("1장.", "CHAPTER 3", "01")는 장 표지에 번호로 따로 나오니까 뗀다
+  // 제목에 붙은 군더더기를 뗀다: "(Day 1~2)"·"(1~2주차)" 같은 괄호 보충, 맨 앞 "Day 1." 머리말
+  const stripExtra = (t) => String(t || "").replace(/\s*[(（]\s*(?:day|데이|\d+\s*(?:일차|주차|일|주))[^)）]*[)）]\s*/gi, " ").replace(/^\s*day\s*\d+\s*[.:·\-]?\s*/i, "").replace(/\s{2,}/g, " ").trim() || String(t || "").trim();
   const chTitle = (t) => { const s = String(t).replace(/^\s*(CHAPTER\s*\d+[.:]?\s*|제\s*\d+\s*장[.:]?\s*|\d{1,2}\s*장[.:]?\s*|\d{1,2}[.\s]+)/i, "").trim(); return s || String(t).trim(); };
   function numberParts(parts) {
     let n = 0;
