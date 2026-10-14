@@ -539,12 +539,13 @@ async function pdfToMarked(file) {
     return {
       sp, paper, dark, accent, deep, accD, ink,
       card: mixHex(paper, "#ffffff", 0.85), strong: mixHex(ink, "#000000", 0.4),
-      body2: M(0.21), muted: M(0.37), meta: M(0.59), foot: M(0.64), hair: M(0.9), bar: M(0.85), chip: M(0.93),
-      dText: readable("#ffffff", dark), dSub: D(0.68), dMeta: D(0.41), dLine: D(0.086), dFaint: D(0.26), dTocSub: D(0.59),
+      body2: M(0.21), muted: M(0.37), meta: M(0.5), foot: M(0.5), hair: M(0.9), bar: M(0.85), chip: M(0.93),
+      dText: readable("#ffffff", dark), dSub: D(0.68), dMeta: D(0.41), dLine: D(0.086), dFaint: D(0.45), dTocSub: D(0.59),
       display: fam(headKey, "노토산스"), head: DISPLAY_FONT.test(headKey) ? fam("노토산스") : fam(headKey, "노토산스"), body: fam(sp.bodyFont, "노토세리프"),
       ornament: String(sp.ornament || "◆ ◇ ◆").slice(0, 12), S: size / 16, size,
     };
   }
+  const rgbaOf = (h, a) => `rgba(${parseInt(h.slice(1, 3), 16)},${parseInt(h.slice(3, 5), 16)},${parseInt(h.slice(5, 7), 16)},${a})`;
   const edf = (th, v) => Math.round(v * th.S * 10) / 10 + "px";
   // 섹션 라벨: 번호 있는 장은 CHAPTER 01, 나머지는 성격에 맞는 영문 라벨
   function edMeta(pt) {
@@ -558,8 +559,11 @@ async function pdfToMarked(file) {
         : /^(들어가며|머리말|서문|시작하며)/.test(t) ? "INTRO" : /^(작가|저자|감사)/.test(t) ? "NOTE" : "";
       t = t.replace(/^(프롤로그|에필로그|체크리스트)\s*[·:—–\-]\s*/, "");
     }
-    if (sp.part) label = noDash(sp.part) + (label ? " · " + label : "");
-    return { label, title: noDash(t) };
+    // 머리글용 짧은 라벨: "PART 1 · CHAPTER 01" (파트 이름은 빼고 번호만)
+    const pn = sp.part ? (sp.part.match(/^(PART\s*\d+|제?\s*\d+\s*부)/i) || [sp.part])[0].replace(/\s+/g, " ").toUpperCase() : "";
+    const short = [pn, label].filter(Boolean).join(" · "), base = label, part = sp.part ? noDash(sp.part) : "";
+    if (sp.part) label = part + (label ? " · " + label : "");
+    return { label, title: noDash(t), short, base, part };
   }
   // 원고 블록 → 편집 컴포넌트 (본문/소제목/정리 박스/메모/대화/카드/실습 페이지)
   const SUM_HEAD = /^(거리\s*연습|실천|연습|오늘의\s*(연습|과제)|실천\s*과제|미션|워크시트|핵심\s*정리|정리하기|한눈에\s*정리|요약|체크\s*포인트|쓰실\s*때)/;
@@ -676,7 +680,7 @@ function bookParts() {
     if (parts[0]?.title === "시작하며" && parts.length > 1 && parts[0].text.replace(/^\s*(책 제목|부제|원씽|분량|뼈대)\s*[:：].*$/gm, "").trim().length < 300) parts.shift();
     // 3) 'PART 1' 같은 묶음 제목만 있는 줄은 다음 장 제목 앞에 붙인다
     for (let i = parts.length - 2; i >= 0; i--) {
-      if (PART_LINE.test(parts[i].title) && parts[i].text.trim().length < 200 && !PART_LINE.test(parts[i + 1].title)) {
+      if (PART_LINE.test(parts[i].title) && !splitPart(parts[i].title).part && !parts[i].sub && parts[i].text.trim().length < 200 && !PART_LINE.test(parts[i + 1].title)) {
         parts[i + 1].title = `${parts[i].title} · ${parts[i + 1].title}`;
         parts.splice(i, 1);
       }
@@ -719,10 +723,13 @@ function paginate(items, cap0, firstCap) {
           let m = n; while (m > heads && (rest.length - m) < 2) m--;
           if (m - heads >= 2 && rest.length - m >= 2) { put(rest.slice(0, m)); rest = rest.slice(m); newPg(); continue; }
         }
-        if (empty) { // 빈 페이지에도 안 들어가는 긴 묶음은 들어가는 만큼
-          const m = Math.max(1, n - ((rest.length - n) === 1 ? 1 : 0));
-          put(rest.slice(0, m)); rest = rest.slice(m); if (rest.length) newPg(); continue;
+        if (empty) { // 빈 쪽에도 안 들어가는 긴 묶음: 통째로 두면 실제로 그릴 때 안전장치가 문단을 나눠 다음 쪽으로 넘긴다
+          if (lis > 5) { const m = Math.max(heads + 2, n); put(rest.slice(0, m)); rest = rest.slice(m); if (rest.length) newPg(); continue; }
+          put(rest); rest = []; break;
         }
+        // 묶음 끝이 나눌 수 있는 문단이고 이 쪽에 소제목 + 세 줄 정도 들어갈 자리가 있으면, 이 쪽에 두고 넘치는 부분은 실제로 그릴 때 다음 쪽으로 이어 쓴다
+        const tail = rest[rest.length - 1];
+        if (items[tail].split && used + H(rest.slice(0, -1)) + 96 <= cap) { put(rest); rest = []; break; }
         newPg();
       }
     }
@@ -782,8 +789,8 @@ function edTheme(sp, pal) {
     return {
       sp, paper, dark, accent, deep, accD, ink,
       card: mixHex(paper, "#ffffff", 0.85), strong: mixHex(ink, "#000000", 0.4),
-      body2: M(0.21), muted: M(0.37), meta: M(0.59), foot: M(0.64), hair: M(0.9), bar: M(0.85), chip: M(0.93),
-      dText: readable("#ffffff", dark), dSub: D(0.68), dMeta: D(0.41), dLine: D(0.086), dFaint: D(0.26), dTocSub: D(0.59),
+      body2: M(0.21), muted: M(0.37), meta: M(0.5), foot: M(0.5), hair: M(0.9), bar: M(0.85), chip: M(0.93),
+      dText: readable("#ffffff", dark), dSub: D(0.68), dMeta: D(0.41), dLine: D(0.086), dFaint: D(0.45), dTocSub: D(0.59),
       display: fam(headKey, "노토산스"), head: DISPLAY_FONT.test(headKey) ? fam("노토산스") : fam(headKey, "노토산스"), body: fam(sp.bodyFont, "노토세리프"),
       ornament: String(sp.ornament || "◆ ◇ ◆").slice(0, 12), S: size / 16, size,
     };
@@ -804,8 +811,11 @@ function edMeta(pt) {
         : /^(들어가며|머리말|서문|시작하며)/.test(t) ? "INTRO" : /^(작가|저자|감사)/.test(t) ? "NOTE" : "";
       t = t.replace(/^(프롤로그|에필로그|체크리스트)\s*[·:—–\-]\s*/, "");
     }
-    if (sp.part) label = noDash(sp.part) + (label ? " · " + label : "");
-    return { label, title: noDash(t) };
+    // 머리글용 짧은 라벨: "PART 1 · CHAPTER 01" (파트 이름은 빼고 번호만)
+    const pn = sp.part ? (sp.part.match(/^(PART\s*\d+|제?\s*\d+\s*부)/i) || [sp.part])[0].replace(/\s+/g, " ").toUpperCase() : "";
+    const short = [pn, label].filter(Boolean).join(" · "), base = label, part = sp.part ? noDash(sp.part) : "";
+    if (sp.part) label = part + (label ? " · " + label : "");
+    return { label, title: noDash(t), short, base, part };
   }
 ```
 
@@ -844,45 +854,46 @@ function edBlockEl(th, b) {
       if (b.num) w.appendChild(mk("div", `font-family:${th.head};font-size:${f(13)};font-weight:700;color:${th.accent};letter-spacing:0.04em;margin:0 0 ${f(9)};`, b.num));
       const row = mk("div", "display:flex;align-items:flex-start;");
       row.appendChild(mk("div", `flex:none;width:${f(5)};height:${f(30)};background:${th.accent};`));
-      row.appendChild(mk("div", `margin-left:${f(14)};font-family:${th.head};font-size:${f(20)};line-height:${f(30)};font-weight:700;color:${th.strong};word-break:keep-all;`, b.text));
+      row.appendChild(mk("div", `margin-left:${f(14)};font-family:${th.head};font-size:${f(20)};line-height:${f(30)};font-weight:700;color:${th.strong};word-break:keep-all;overflow-wrap:anywhere;`, b.text));
       w.appendChild(row); return w;
     }
     if (b.type === "sum") {
       const w = mk("div", `padding-top:${Math.round(150 * ED.K)}px;margin:0 0 ${f(46)};text-align:center;`);
       if (b.label) w.appendChild(mk("div", `font-family:${th.head};font-size:${f(12.5)};font-weight:700;letter-spacing:0.3em;color:${th.accent};margin:0 0 ${f(14)};`, noDash(b.label)));
-      w.appendChild(mk("div", `font-family:${th.head};font-size:${f(27)};line-height:1.45;font-weight:700;color:${th.strong};word-break:keep-all;`, noDash(b.text)));
+      w.appendChild(mk("div", `font-family:${th.head};font-size:${f(27)};line-height:1.45;font-weight:700;color:${th.strong};word-break:keep-all;overflow-wrap:anywhere;`, noDash(b.text)));
       if (b.sub) w.appendChild(mk("div", `font-family:${th.head};font-size:${f(13.5)};color:${th.meta};margin-top:${f(16)};`, b.sub));
       return w;
     }
     if (b.type === "card") {
       const m = b.head ? [null, b.head, b.text] : b.text.match(/^(.+?[.!?。])\s+(.+)$/);
       const w = mk("div", `background:${th.card};border-left:${f(5)} solid ${th.accent};padding:${f(24)} ${f(26)} ${f(24)} ${f(26)};margin:0 0 ${f(26)};`);
-      w.appendChild(mk("div", `font-family:${th.head};font-size:${f(17)};line-height:1.55;font-weight:700;color:${th.deep};word-break:keep-all;`, m ? m[1] : b.text));
-      if (m) w.appendChild(mk("div", `font-size:${f(15.5)};line-height:2;color:${th.body2};margin-top:${f(8)};word-break:keep-all;`, m[2]));
+      w.appendChild(mk("div", `font-family:${th.head};font-size:${f(17)};line-height:1.55;font-weight:700;color:${th.deep};word-break:keep-all;overflow-wrap:anywhere;`, m ? m[1] : b.text));
+      if (m) w.appendChild(mk("div", `font-size:${f(15.5)};line-height:2;color:${th.body2};margin-top:${f(8)};word-break:keep-all;overflow-wrap:anywhere;`, m[2]));
       return w;
     }
     if (b.type === "q") {
       const w = mk("div", `margin:${f(8)} 0 ${f(30)};padding:${f(24)} ${f(10)};border-top:${f(2)} solid ${th.accent};border-bottom:${f(2)} solid ${th.accent};text-align:center;`);
       if (b.label) w.appendChild(mk("div", `font-family:${th.head};font-size:${f(12.5)};color:${th.meta};margin:0 0 ${f(10)};letter-spacing:0.08em;`, b.label));
-      w.appendChild(mk("div", `font-family:${th.head};font-size:${f(19)};line-height:1.65;font-weight:700;color:${th.strong};word-break:keep-all;`, b.text));
+      w.appendChild(mk("div", `font-family:${th.head};font-size:${f(19)};line-height:1.65;font-weight:700;color:${th.strong};word-break:keep-all;overflow-wrap:anywhere;`, b.text));
       return w;
     }
-    if (b.type === "note") return mk("div", `margin:${f(-4)} 0 ${f(22)};padding:${f(2)} 0 ${f(2)} ${f(15)};border-left:${f(2)} solid ${th.bar};font-size:${f(14.5)};line-height:1.85;color:${th.muted};word-break:keep-all;`, b.text.replace(/\*\*/g, ""));
+    if (b.type === "note") return mk("div", `margin:${f(-4)} 0 ${f(22)};padding:${f(2)} 0 ${f(2)} ${f(15)};border-left:${f(2)} solid ${th.bar};font-size:${f(14.5)};line-height:1.85;color:${th.muted};word-break:keep-all;overflow-wrap:anywhere;`, b.text.replace(/\*\*/g, ""));
     if (b.type === "talk") {
       const w = mk("div", `margin:0 0 ${f(20)};`);
       const chipBg = b.me ? th.accent : b.bad ? th.chip : th.ink, chipInk = b.me ? readable("#ffffff", th.accent) : b.bad ? th.body2 : th.paper;
       w.appendChild(mk("span", `display:inline-block;font-family:${th.head};font-size:${f(11.5)};font-weight:700;line-height:${f(25)};height:${f(25)};padding:0 ${f(11)};border-radius:999px;background:${chipBg};color:${chipInk};`, b.who));
-      const line = mk("div", `margin-top:${f(10)};padding-left:${f(14)};border-left:${f(3)} solid ${b.me ? th.accent : b.bad ? th.bar : th.ink};word-break:keep-all;` +
+      const line = mk("div", `margin-top:${f(10)};padding-left:${f(14)};border-left:${f(3)} solid ${b.me ? th.accent : b.bad ? th.bar : th.ink};word-break:keep-all;overflow-wrap:anywhere;` +
         (b.me || b.bad ? `font-size:${f(16.5)};line-height:1.9;color:${b.bad ? th.muted : th.ink};` : `font-family:${th.head};font-size:${f(17.5)};line-height:1.6;font-weight:700;color:${th.strong};`));
       w.appendChild(edInline(th, line, b.text)); return w;
     }
     if (b.type === "li") {
       const w = mk("div", `display:flex;margin:0 0 ${f(10)};`);
-      w.appendChild(mk("span", `flex:none;min-width:${f(24)};font-family:${th.head};font-size:${f(15)};line-height:${f(30)};font-weight:700;color:${th.accent};`, b.mark || "✓"));
-      w.appendChild(edInline(th, mk("span", `font-size:${f(16)};line-height:${f(30)};color:${th.ink};word-break:keep-all;`), b.text));
+      w.appendChild(mk("span", `flex:none;width:${f(26)};margin-right:${f(6)};text-align:right;font-family:${th.head};font-size:${f(15)};line-height:${f(30)};font-weight:700;color:${th.accent};`, b.mark || "✓"));
+      w.appendChild(edInline(th, mk("span", `font-size:${f(16)};line-height:${f(30)};color:${th.ink};word-break:keep-all;overflow-wrap:anywhere;`), b.text));
       return w;
     }
-    return edInline(th, mk("p", `font-size:${f(16)};line-height:${f(31)};margin:0 0 ${f(18)};color:${th.ink};word-break:keep-all;`), b.text);
+    const para = edInline(th, mk("p", `font-size:${f(16)};line-height:${f(31)};margin:0 0 ${f(18)};color:${th.ink};word-break:keep-all;overflow-wrap:anywhere;`), b.text);
+    para.dataset.src = b.text; return para;
   }
 ```
 
@@ -892,9 +903,8 @@ function edBlockEl(th, b) {
 function edFooter(th, p, n, run) {
     p.appendChild(mk("div", `position:absolute;left:${ED.mx}px;right:${ED.mx}px;top:${ED.footY}px;height:1px;background:${th.hair};`));
     const f = mk("div", `position:absolute;left:${ED.mx}px;right:${ED.mx}px;top:${ED.footText}px;display:flex;justify-content:space-between;align-items:center;gap:16px;font-family:${th.head};`);
-    // 머리글이 길면 글자 중간에서 잘리지 않게 말줄임표로 줄인다
-    const maxLen = Math.floor(44 / th.S), runText = run.length > maxLen ? run.slice(0, maxLen - 1).trimEnd() + "…" : run;
-    f.appendChild(mk("span", `font-size:${edf(th, 10.5)};color:${th.foot};white-space:nowrap;`, runText));
+    // 머리글은 줄이거나 자르지 않는다. 길면 두 줄로 내려간다
+    f.appendChild(mk("span", `min-width:0;font-size:${edf(th, 10.5)};line-height:1.4;color:${th.foot};word-break:keep-all;overflow-wrap:anywhere;`, run));
     f.appendChild(mk("span", `flex:none;font-size:${edf(th, 12)};font-weight:700;color:${th.accent};letter-spacing:0.04em;`, String(n).padStart(3, "0")));
     p.appendChild(f);
   }
@@ -905,13 +915,23 @@ function edFooter(th, p, n, run) {
 ```js
 function edBand(th, pt, blocks) {
     const meta = edMeta(pt), f = (v) => edf(th, v);
-    const band = mk("div", `position:absolute;left:0;top:0;right:0;height:${ED.band}px;background:${th.dark};display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 ${ED.mx}px;box-sizing:border-box;`);
-    if (meta.label) band.appendChild(mk("div", `font-family:${th.head};font-size:${f(12.5)};font-weight:700;letter-spacing:0.32em;color:${th.accD};`, meta.label));
-    band.appendChild(mk("div", `font-family:${th.display};font-size:${f(32)};line-height:1.35;font-weight:900;color:${th.dText};margin-top:${f(18)};word-break:keep-all;`, meta.title));
-    if (pt.sub) band.appendChild(mk("div", `font-family:${th.head};font-size:${f(15)};line-height:1.6;color:${th.dSub};margin-top:${f(14)};word-break:keep-all;`, noDash(pt.sub)));
-    band.appendChild(mk("div", `font-size:${f(13)};letter-spacing:0.5em;color:${th.accD};margin-top:${f(22)};padding-left:0.5em;`, th.ornament));
+    const band = mk("div", `position:absolute;left:0;top:0;right:0;height:${ED.band - ED.stripe}px;background:${th.dark};display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:${f(18)} ${ED.mx}px;box-sizing:border-box;overflow:hidden;`);
+    if (meta.part) band.appendChild(mk("div", `font-family:${th.head};font-size:${f(12)};font-weight:500;line-height:1.5;letter-spacing:0.04em;color:${th.dSub};margin-bottom:${f(8)};word-break:keep-all;overflow-wrap:anywhere;`, meta.part));
+    if (meta.base) band.appendChild(mk("div", `font-family:${th.head};font-size:${f(12.5)};font-weight:700;letter-spacing:0.32em;padding-left:0.32em;color:${th.accD};`, meta.base));
+    const title = mk("div", `font-family:${th.display};font-size:${f(32)};line-height:1.35;font-weight:900;color:${th.dText};margin-top:${f(18)};word-break:keep-all;overflow-wrap:anywhere;`, meta.title);
+    band.appendChild(title);
+    let sub = null;
+    if (pt.sub) { sub = mk("div", `font-family:${th.head};font-size:${f(15)};line-height:1.6;color:${th.dSub};margin-top:${f(14)};word-break:keep-all;overflow-wrap:anywhere;`, noDash(pt.sub)); band.appendChild(sub); }
+    const orn = mk("div", `font-size:${f(13)};letter-spacing:0.5em;color:${th.accD};margin-top:${f(22)};padding-left:0.5em;`, th.ornament);
+    band.appendChild(orn);
     const wrap = mk("div", "");
     wrap.append(band, mk("div", `position:absolute;left:0;right:0;top:${ED.band - ED.stripe}px;height:${ED.stripe}px;background:${th.accent};`));
+    // 실제로 그려 본 뒤 밴드보다 길면 제목 글자를 줄이고, 그래도 길면 장식을 뺀다
+    wrap._fit = () => {
+      const steps = [32, 28, 25, 22, 20]; let i = 0;
+      while (band.scrollHeight > band.clientHeight + 1 && i < steps.length - 1) { i++; title.style.fontSize = f(steps[i]); if (sub) sub.style.fontSize = f(Math.max(12.5, 15 - i * 0.6)); }
+      if (band.scrollHeight > band.clientHeight + 1) orn.remove();
+    };
     return wrap;
   }
 ```
@@ -921,19 +941,75 @@ function edBand(th, pt, blocks) {
 ```js
 function edChapter(th, pt, ctx) {
     const meta = edMeta(pt);
-    const run = [ctx.book, [meta.label, meta.title].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
+    // 머리글은 레퍼런스처럼 짧게: "책 제목 · CHAPTER 01" (장 제목은 넣지 않는다. 길면 잘려 보이니까)
+    const run = [ctx.book, meta.short || meta.title].filter(Boolean).join(" · ");
     const blocks = edBlocks(pt.text);
     blocks.forEach(b => { if (b.type === "sum") b.sub = [meta.label, meta.title].filter(Boolean).join(" · "); });
-    const els = blocks.map(b => edBlockEl(th, b));
+    const els = blocks.map(b => { const e = edBlockEl(th, b); e.dataset.kind = b.kind; return e; });
     const hs = measureBlocks(ctx.probe, els);
-    const pgs = blocks.length ? paginate(hs.map((h, i) => ({ h, kind: blocks[i].kind })), ED.cap, ED.firstCap) : [[]];
-    return pgs.map((idx, i) => {
-      const p = edPage(th); let top = ED.top, cap = ED.cap;
-      if (i === 0) { p.appendChild(edBand(th, pt, blocks)); top = ED.bodyTop; cap = ED.firstCap; }
+    const pgs = blocks.length ? paginate(hs.map((h, i) => ({ h, kind: blocks[i].kind, split: els[i].tagName === "P" })), ED.cap, ED.firstCap) : [[]];
+    // 1) 계산대로 쪽을 만든다
+    const mkPage = (first) => {
+      const p = edPage(th), top = first ? ED.bodyTop : ED.top, cap = first ? ED.firstCap : ED.cap;
+      if (first) p.appendChild(edBand(th, pt, blocks));
       const box = mk("div", `position:absolute;left:${ED.mx}px;right:${ED.mx}px;top:${top}px;height:${cap}px;overflow:hidden;display:flex;flex-direction:column;`);
-      idx.forEach((k, j) => { const e = els[k]; e.style.flex = "none"; if (j === 0) e.querySelector?.("[data-div]")?.remove(); box.appendChild(e); });
-      p.appendChild(box); edFooter(th, p, ++ctx.pageNo, run);
-      return p;
+      p.appendChild(box); return { p, box };
+    };
+    const out = pgs.map((idx, i) => {
+      const pg = mkPage(i === 0);
+      idx.forEach(k => { const e = els[k]; e.style.flex = "none"; pg.box.appendChild(e); });
+      return pg;
+    });
+    // 2) 안전장치: 실제로 그려 보고, 넘친 블록은 다음 쪽으로 보낸다. 긴 문단은 쪽 끝에서 단어 단위로 나눠 이어 쓴다
+    const host = ctx.probe?.parentNode?.parentNode;
+    const over = (box) => box.scrollHeight > box.clientHeight + 1;
+    const splitPara = (box, el) => {
+      // el(문단)이 이 쪽에 들어가는 만큼만 남기고 나머지를 새 문단으로 돌려준다. 두 줄도 안 들어가면 null
+      const words = String(el.dataset.src || el.textContent).split(/(\s+)/);
+      const fill = (n) => { el.textContent = ""; edInline(th, el, words.slice(0, n).join("").replace(/\*\*(?![^*]*\*\*)/g, "")); };
+      let lo = 0, hi = words.length;
+      while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); fill(mid); if (over(box)) hi = mid - 1; else lo = mid; }
+      const lineH = parseFloat(getComputedStyle(el).lineHeight) || 30;
+      fill(lo);
+      if (lo === 0 || el.getBoundingClientRect().height < lineH * 1.8) { fill(words.length); return null; }
+      const rest = el.cloneNode(false); rest.textContent = "";
+      const restSrc = words.slice(lo).join("").replace(/^\s+/, "");
+      edInline(th, rest, restSrc); rest.dataset.src = restSrc;
+      el.style.marginBottom = "0"; el.dataset.src = words.slice(0, lo).join("");
+      return rest;
+    };
+    if (host) {
+      for (let i = 0; i < out.length; i++) {
+        const pg = out[i]; host.appendChild(pg.p);
+        if (i === 0) pg.p.firstChild?._fit?.();
+        const carry = [];
+        while (over(pg.box) && pg.box.children.length) {
+          const last = pg.box.lastElementChild;
+          if (last.tagName === "P" && last.dataset.src) {
+            pg.box.removeChild(last); pg.box.appendChild(last);
+            const rest = splitPara(pg.box, last);
+            if (rest) { carry.unshift(rest); break; }
+          }
+          if (pg.box.children.length === 1) break; // 한 블록이 한 쪽보다 크면 어쩔 수 없이 둔다
+          carry.unshift(pg.box.removeChild(last));
+        }
+        // 쪽 끝이 소제목·실습 제목이면 다음 쪽으로 같이 넘긴다
+        while (pg.box.children.length > 1 && /^(h|brk)$/.test(pg.box.lastElementChild.dataset.kind || "") && (carry.length || out[i + 1])) carry.unshift(pg.box.removeChild(pg.box.lastElementChild));
+        host.removeChild(pg.p);
+        if (carry.length) {
+          let nx = out[i + 1];
+          if (!nx) { nx = mkPage(false); out.push(nx); }
+          nx.box.prepend(...carry);
+        }
+      }
+      // 빈 쪽은 지운다
+      for (let i = out.length - 1; i > 0; i--) if (!out[i].box.children.length) out.splice(i, 1);
+    }
+    // 3) 쪽 맨 위 구분선은 지우고, 쪽번호·머리글을 붙인다
+    return out.map(pg => {
+      pg.box.firstElementChild?.querySelector?.("[data-div]")?.remove();
+      edFooter(th, pg.p, ++ctx.pageNo, run);
+      return pg.p;
     });
   }
 ```
@@ -941,47 +1017,49 @@ function edChapter(th, pt, ctx) {
 ## 다크 차례(edToc)
 
 ```js
-function edToc(th, parts, book) {
+function edToc(th, parts, book, starts = []) {
     const K = ED.K, f = (v) => edf(th, v), top = Math.round(200 * K), avail = ED.footY - 24 - top;
     const host = mk("div", "position:fixed;left:-20000px;top:0;"); document.body.appendChild(host);
     const shell = (cont) => {
       const p = edPage(th, true);
-      p.appendChild(mk("div", `position:absolute;left:50%;top:${-Math.round(160 * K)}px;width:${Math.round(760 * K)}px;height:${Math.round(460 * K)}px;transform:translateX(-50%);background:radial-gradient(ellipse at center, ${th.accent}38 0%, ${th.accent}00 68%);`));
-      p.appendChild(mk("div", `position:absolute;left:0;right:0;top:${Math.round(66 * K)}px;text-align:center;font-family:${th.head};font-size:${f(32)};font-weight:700;letter-spacing:0.6em;padding-left:0.6em;color:${th.dText};`, cont ? "차례 (이어서)" : "차례"));
+      p.appendChild(mk("div", `position:absolute;left:50%;top:${-Math.round(160 * K)}px;width:${Math.round(760 * K)}px;height:${Math.round(460 * K)}px;transform:translateX(-50%);background:radial-gradient(ellipse at center, ${rgbaOf(th.accent, 0.22)} 0%, ${rgbaOf(th.accent, 0)} 68%);`));
+      p.appendChild(mk("div", `position:absolute;left:0;right:0;top:${Math.round(66 * K)}px;text-align:center;font-family:${th.head};font-size:${f(32)};font-weight:700;letter-spacing:0.6em;padding-left:0.6em;color:${th.dText};`, "차례"));
       p.appendChild(mk("div", `position:absolute;left:50%;top:${Math.round(139 * K)}px;width:${Math.round(150 * K)}px;height:3px;margin-left:${-Math.round(75 * K)}px;background:${th.accent};`));
-      p.appendChild(mk("div", `position:absolute;left:0;right:0;top:${ED.footText}px;text-align:center;font-family:${th.head};font-size:${f(11.5)};letter-spacing:0.4em;color:${th.dFaint};`, book));
+      if (cont) p.appendChild(mk("div", `position:absolute;left:0;right:0;top:${Math.round(152 * K)}px;text-align:center;font-family:${th.head};font-size:${f(12)};color:${th.dTocSub};`, "이어서"));
+      p.appendChild(mk("div", `position:absolute;left:0;right:0;top:${ED.footText}px;text-align:center;font-family:${th.head};font-size:${f(11.5)};letter-spacing:0.4em;padding-left:0.4em;color:${th.dFaint};`, book));
       const box = mk("div", `position:absolute;left:${Math.round(128 * K)}px;right:${Math.round(128 * K)}px;top:${top}px;`);
       p.appendChild(box); return { p, box };
     };
-    const row = (pt, k) => {
-      const m = edMeta(pt), pad = Math.round(14 * k);
-      const r = mk("div", `display:flex;align-items:flex-start;padding:${pad}px 0;border-bottom:1px solid ${th.dLine};`);
-      r.appendChild(mk("div", `flex:none;width:${Math.round(60 * K)}px;font-family:${th.head};font-size:${f(16 * k)};line-height:1.45;font-weight:700;color:${th.accD};`, pt.num ? String(pt.num).padStart(2, "0") : ""));
+    // 줄 목록: PART가 바뀌는 곳에 PART 이름 줄을 끼운다
+    const items = []; let lastPart = "";
+    parts.forEach((pt, i) => { const m = edMeta(pt); if (m.part && m.part !== lastPart) items.push({ part: m.part }); lastPart = m.part || lastPart; items.push({ pt, m, page: starts[i] }); });
+    const rowEl = (it, k) => {
+      if (it.part) return mk("div", `padding:${Math.round(16 * k)}px 0 ${Math.round(4 * k)}px;font-family:${th.head};font-size:${f(12 * k)};font-weight:700;letter-spacing:0.12em;color:${th.accD};word-break:keep-all;overflow-wrap:anywhere;`, it.part);
+      const { pt, m } = it, pad = Math.round(14 * k);
+      const r = mk("div", `display:flex;align-items:flex-start;gap:${f(10)};padding:${pad}px 0;border-bottom:1px solid ${th.dLine};`);
+      r.appendChild(mk("div", `flex:none;width:${Math.round(52 * K)}px;font-family:${th.head};font-size:${f(16 * k)};line-height:1.45;font-weight:700;color:${th.accD};`, pt.num ? String(pt.num).padStart(2, "0") : ""));
       const col = mk("div", "min-width:0;flex:1;");
       col.appendChild(mk("div", `font-family:${th.head};font-size:${f(17 * k)};font-weight:700;line-height:1.45;color:${pt.num ? th.dText : th.dSub};word-break:keep-all;overflow-wrap:anywhere;`, m.title));
-      const sub = pt.sub || (!pt.num && m.label ? m.label : "");
+      const sub = pt.sub || (!pt.num && m.base ? m.base : "");
       if (sub) col.appendChild(mk("div", `font-family:${th.head};font-size:${f(13.5 * k)};line-height:1.45;color:${th.dTocSub};margin-top:${f(4)};word-break:keep-all;overflow-wrap:anywhere;`, noDash(sub)));
-      r.appendChild(col); return r;
+      r.appendChild(col);
+      if (it.page) r.appendChild(mk("div", `flex:none;font-family:${th.head};font-size:${f(13 * k)};line-height:1.7;font-variant-numeric:tabular-nums;color:${th.dTocSub};`, String(it.page).padStart(3, "0")));
+      return r;
     };
+    const build = (list, k, cont) => { const sh = shell(cont); list.forEach(it => sh.box.appendChild(rowEl(it, k))); return sh; };
+    const fits = (sh) => { host.appendChild(sh.p); const h = sh.box.getBoundingClientRect().height; host.removeChild(sh.p); return h <= avail; };
     try {
       // 1) 한 쪽에 다 들어가는 글자 크기를 찾는다
-      for (const k of [1, 0.92, 0.85, 0.78]) {
-        const { p, box } = shell(false); host.appendChild(p);
-        parts.forEach(pt => box.appendChild(row(pt, k)));
-        const h = box.getBoundingClientRect().height; host.removeChild(p);
-        if (h <= avail) return [p];
+      for (const k of [1, 0.92, 0.85, 0.78]) { const sh = build(items, k, false); if (fits(sh)) return [sh.p]; }
+      // 2) 넘치면 가장 작은 크기로 쪽 수를 정하고, 쪽마다 줄 수를 고르게 나눈다 (PART 이름 줄이 쪽 끝에 혼자 남지 않게)
+      const k = 0.78;
+      for (let n = 2; n <= 6; n++) {
+        const per = Math.ceil(items.length / n), chunks = [];
+        for (let i = 0; i < items.length;) { let j = Math.min(items.length, i + per); while (j < items.length && j > i + 1 && items[j - 1].part) j--; chunks.push(items.slice(i, j)); i = j; }
+        const shs = chunks.map((c, i) => build(c, k, i > 0));
+        if (shs.every(fits)) return shs.map(x => x.p);
       }
-      // 2) 그래도 넘치면 여러 쪽으로 나눈다 (가장 작은 크기로)
-      const pages = []; let cur = null;
-      parts.forEach(pt => {
-        if (!cur) { cur = shell(pages.length > 0); host.appendChild(cur.p); pages.push(cur.p); }
-        const r = row(pt, 0.85); cur.box.appendChild(r);
-        if (cur.box.getBoundingClientRect().height > avail && cur.box.children.length > 1) {
-          cur.box.removeChild(r); cur = shell(true); host.appendChild(cur.p); pages.push(cur.p); cur.box.appendChild(r);
-        }
-      });
-      pages.forEach(p => p.remove());
-      return pages;
+      return [build(items, k, false).p];
     } finally { host.remove(); }
   }
 ```
