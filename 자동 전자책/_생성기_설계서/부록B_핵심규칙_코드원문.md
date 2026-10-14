@@ -1412,152 +1412,196 @@ function withLib(theory, lib) {
   }
 ```
 
-## 상세페이지 조립(buildSales)
+## 08 빌더(spBuild = build_salespage.py)
 
 ```js
-function buildSales(d, opt, C) {
-    const title = opt.title || d.title || "이 책", L = (t, c, center = true) => `<p style="margin:0 0 14px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:${c};${center ? "" : "text-align:center;"}">${t}</p>`;
-    const two = (arr) => (Array.isArray(arr) ? arr : [arr]).filter(has).map(x => hesc(String(x).trim())).join("<br>");
-    const h = d.hero || {}, im = d.imagine || {}, wy = d.why || {}, st = d.story || {}, so = d.solution || {}, ch = d.choice || {}, pv = d.preview || {}, pr = d.price || {};
-    const price = won(opt.price) || won(pr.sale), list = won(opt.listPrice) || won(pr.list), mainValue = won(opt.mainValue) || list;
-    const scenes = (im.scenes || []).filter(has).slice(0, 3), feats = (so.features || []).filter(f => f && has(f.feature)).slice(0, 3);
-    const inside = (d.inside || []).filter(has).slice(0, 4), faq = (d.faq || []).filter(f => f && has(f.q) && has(f.a)).slice(0, 2);
-    const reviews = opt.reviews || [], bonuses = (opt.bonuses?.length ? opt.bonuses : (d.bonuses || [])).filter(b => b && has(b.name)).slice(0, 3);
-    const out = [];
-    out.push(`<div style="width:100%;max-width:480px;margin:0 auto;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#1A1A1A;word-break:keep-all;line-height:1.7;">`);
-    out.push(`
-<!-- ① 오픈 퀘스천 : 첫 화면은 팔지 않고 질문으로 시작 -->
-<div style="background:${C.dark};color:#FFFFFF;padding:64px 20px 56px;text-align:center;">
-${has(opt.category || h.category) ? `  <p style="display:inline-block;margin:0 0 20px;padding:6px 12px;border:1px solid ${C.gold};border-radius:999px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:${C.gold};">${slot(opt.category || h.category)}</p>\n` : ""}${has(h.inner) ? `  <p style="margin:0 0 10px;font-size:17px;color:#B8B8B0;">${slot(h.inner)}</p>\n` : ""}  <h2 style="margin:0;font-size:30px;line-height:1.3;font-weight:900;letter-spacing:-0.03em;">${hesc(josa(h.problem || title, "이/가"))}<br>고민이신가요?</h2>
-${has(h.method) ? `  <p style="margin:24px 0 0;font-size:16px;color:#D8D8D0;">${slot(h.method)}의 순서를<br><span style="color:${C.gold};font-weight:800;">처음부터 끝까지</span> 공개합니다.</p>\n` : ""}  <p style="margin:28px 0 0;font-size:22px;color:#6E6E66;">↓</p>
-</div>`);
-    if (scenes.length) out.push(`
-<!-- ② 상상 : 해결된 뒤의 장면 -->
-<div style="background:${C.cream};padding:60px 20px;text-align:center;">
-  ${L("IMAGINE", C.label)}
-  <h3 style="margin:0 0 20px;font-size:26px;line-height:1.3;font-weight:900;">${has(im.period) ? slot(im.period) + " 뒤, " : ""}이런 장면을<br>상상해 보세요</h3>
-  <div style="background:#FFFFFF;border-radius:16px;padding:20px;text-align:left;font-size:16px;">
-${scenes.map((s, i) => `    <p style="margin:${i < scenes.length - 1 ? "0 0 8px" : "0"};">✔ ${slot(s)}</p>`).join("\n")}
-  </div>
-</div>`);
-    if (has(wy.cause)) out.push(`
-<!-- ③ 문제의 진짜 원인 : 전/후 비교 -->
-<div style="background:#FFFFFF;padding:60px 20px;text-align:center;">
-  ${L("WHY", C.label)}
-  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">${has(wy.myth) ? `문제는 ${hesc(josa(wy.myth, "이/가"))} 아니라<br>` : "진짜 문제는<br>"}<span style="background:linear-gradient(transparent 60%,${C.hl} 60%);">${slot(wy.cause)}</span>입니다</h3>
-${two(wy.before) && two(wy.after) ? `  <div style="display:flex;gap:10px;text-align:left;">
-    <div style="flex:1;background:#1E1E1E;color:#FFFFFF;border-radius:14px;padding:16px;">
-      <p style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:#9A9A92;">BEFORE</p>
-      <p style="margin:0;font-size:15px;line-height:1.6;">${two(wy.before)}</p>
-    </div>
-    <div style="flex:1;background:${C.hl};color:#1A1A1A;border-radius:14px;padding:16px;">
-      <p style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.16em;color:${C.hlInk};">AFTER</p>
-      <p style="margin:0;font-size:15px;line-height:1.6;font-weight:700;">${two(wy.after)}</p>
-    </div>
-  </div>\n` : ""}</div>`);
-    if (has(st.a) && has(st.b)) out.push(`
-<!-- ④ 자격 : 판매자 이야기 (A지점 → B지점) -->
-<div style="background:${C.dark};color:#FFFFFF;padding:60px 20px;text-align:center;">
-  ${L("STORY", C.gold)}
-  <h3 style="margin:0 0 20px;font-size:26px;line-height:1.3;font-weight:900;">${has(st.start) ? `저도 ${hesc(josa(st.start, "이었/였"))}습니다` : "제가 먼저 겪었습니다"}</h3>
-  <p style="margin:0;font-size:16px;color:#D8D8D0;">${slot(st.a)}<br>→ <span style="color:${C.gold};font-weight:800;">${slot(st.b)}</span></p>
-</div>`);
-    if (feats.length) out.push(`
-<!-- ⑤ 특징 + 혜택 -->
-<div style="background:${C.cream};padding:60px 20px;text-align:center;">
-  ${L("SOLUTION", C.label)}
-  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">${hesc(josa(title, "은/는"))}<br>이렇게 다릅니다</h3>
-  <div style="display:flex;flex-direction:column;gap:10px;text-align:left;">
-${feats.map(f => { const fw = String(f.feature).trim(); return `    <div style="background:#FFFFFF;border-radius:14px;padding:16px 18px;font-size:16px;"><b>${hesc(fw)}</b>${hesc(josa(fw, "으로/로").slice(fw.length))} <span style="color:${C.label};font-weight:800;">${slot(f.benefit)}</span></div>`; }).join("\n")}
-  </div>
-</div>`);
-    if (inside.length) out.push(`
-<!-- ⑥ 궁금증 목록 : 답을 숨기되 원고에 있는 내용만 -->
-<div style="background:#FFFFFF;padding:60px 20px;">
-  ${L("INSIDE", C.label, false)}
-  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;text-align:center;">이 안에서 알게 되는 것</h3>
-${inside.map((q, i) => `  <p style="margin:${i < inside.length - 1 ? "0 0 12px" : "0"};font-size:16px;${i < inside.length - 1 ? "border-bottom:1px solid #EDE8DC;padding-bottom:12px;" : ""}">✔ ${slot(q)}</p>`).join("\n")}
-</div>`);
-    if (reviews.length) out.push(`
-<!-- ⑦ 사회적 증거 : 실제 후기만 -->
-<div style="background:${C.cream};padding:60px 20px;text-align:center;">
-  ${L("REVIEW", C.label)}
-  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">먼저 해 본 분들의 이야기</h3>
-${reviews.map(r => `  <div style="background:#FFFFFF;border-radius:14px;padding:18px;text-align:left;margin-bottom:10px;">
-    <p style="margin:0 0 6px;font-size:14px;color:${C.gold};">★★★★★</p>
-    <p style="margin:0 0 8px;font-size:16px;font-weight:700;">"${hesc(r.text)}"</p>
-${has(r.who) ? `    <p style="margin:0;font-size:13px;color:#8A8A82;">${slot(r.who)}</p>\n` : ""}  </div>`).join("\n")}
-</div>`);
-    if (has(ch.aloneTime) || has(ch.productTime)) out.push(`
-<!-- ⑧ 비교 : 혼자 하는 비용 vs 이 상품 -->
-<div style="background:${C.dark};color:#FFFFFF;padding:60px 20px;text-align:center;">
-  ${L("CHOICE", C.gold)}
-  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">두 가지 길이 있습니다</h3>
-  <div style="display:flex;gap:10px;text-align:left;">
-    <div style="flex:1;border:1px solid #3A3F3F;border-radius:14px;padding:16px;">
-      <p style="margin:0 0 8px;font-size:13px;color:#9A9A92;">혼자 찾아보기</p>
-      <p style="margin:0;font-size:15px;line-height:1.6;color:#B8B8B0;">${two([ch.aloneTime, ch.aloneCost])}</p>
-    </div>
-    <div style="flex:1;border:2px solid ${C.gold};border-radius:14px;padding:16px;">
-      <p style="margin:0 0 8px;font-size:13px;color:${C.gold};font-weight:800;">${hesc(title)}</p>
-      <p style="margin:0;font-size:15px;line-height:1.6;font-weight:700;">${two([ch.productTime, price && price + "원"])}</p>
-    </div>
-  </div>
-</div>`);
-    if (has(pv.name) && has(pv.summary)) out.push(`
-<!-- ⑨ 맛보기 : 원고에서 가장 가치 있는 부분 공개 -->
-<div style="background:#FFFFFF;padding:60px 20px;text-align:center;">
-  ${L("PREVIEW", C.label)}
-  <h3 style="margin:0 0 20px;font-size:26px;line-height:1.3;font-weight:900;">미리 하나 알려 드립니다</h3>
-  <div style="background:${C.cream};border-radius:14px;padding:20px;text-align:left;font-size:16px;">
-    <p style="margin:0 0 8px;font-weight:800;">${slot(pv.name)}</p>
-    <p style="margin:0;">${hesc(String(pv.summary).trim()).replace(/\n/g, "<br>")}</p>
-  </div>
-</div>`);
-    if (price) {
-      const rows = [{ k: "본상품", n: title, v: mainValue }].concat(bonuses.map((b, i) => ({ k: `보너스 ${i + 1}`, n: b.name, v: won(b.value) })));
-      out.push(`
-<!-- ⑩ 구성과 가격 영수증 -->
-<div style="background:${C.cream};padding:60px 20px;text-align:center;">
-  ${L("PACKAGE", C.label)}
-  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;">받으시는 것</h3>
-  <div style="background:#FFFFFF;border-radius:16px;padding:20px;text-align:left;font-size:15px;">
-${rows.map((r, i) => `    <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:${i === rows.length - 1 ? "1px solid #1A1A1A" : "1px dashed #E2DCCD"};"><span><b>${r.k}</b> ${hesc(r.n)}</span>${r.v ? `<span style="color:#8A8A82;white-space:nowrap;">${r.v}원</span>` : `<span style="color:#8A8A82;white-space:nowrap;">포함</span>`}</div>`).join("\n")}
-${list && list !== price ? `    <div style="display:flex;justify-content:space-between;padding:12px 0 4px;color:#8A8A82;"><span>정가</span><span style="text-decoration:line-through;">${list}원</span></div>\n` : ""}    <div style="display:flex;justify-content:space-between;align-items:baseline;${list && list !== price ? "" : "padding-top:12px;"}"><span style="font-weight:800;">지금 판매가</span><span style="font-size:30px;font-weight:900;color:${C.price};">${price}원</span></div>
-  </div>
-  <p style="margin:16px 0 0;font-size:13px;color:#8A8A82;">정가와 판매가는 크레킷 상품 탭 원가 · 딜 판매가와 같게 적어 주세요</p>
-</div>`);
+function spBuild(d, pal, pId) {
+    const M = d.meta || {}, buy = M.buyUrl || "【결제 링크】", book = M.book || "", order = [];
+    const add = (key, inner, extra = "", sid = "") => order.push([key, inner, extra, sid]);
+    const h = d.hero || {}, cover = h.cover;
+    const coverHtml = cover ? `<figure class='cover'><img src='${spEsc(cover)}' alt='${spEsc(book)} 표지'><figcaption>${spEsc(h.coverCaption || "")}</figcaption></figure>` : "";
+    const hero = `<section class='hero'><div class='wrap hero-grid${cover ? "" : " nocover"}'><div>
+<p class='brand'><b>${spEsc(book)}</b> ${spEsc(M.format || "")}</p>
+<h1>${spEsc(h.h1 || "")}</h1>
+<p class='hero-story'>${spEsc(h.story || "")}</p>
+<div class='hero-actions'><a class='btn' href='${spEsc(buy)}'>${spEsc(h.btn || M.ctaLabel || "")}</a>${h.link && d.story ? "<a class='text-link' href='#story'>" + spEsc(h.link) + "</a>" : ""}</div>
+</div>${coverHtml}</div></section>`;
+    const s = d.story;
+    if (s) {
+      let tl;
+      if (s.inquiry) tl = "<ul class='inquiry rv'>" + s.inquiry.map(i => `<li><b>${spEsc(i.label)}</b><p>${spEsc(i.text)}</p></li>`).join("") + "</ul>";
+      else tl = "<ol class='timeline'>" + (s.timeline || []).map(t => {
+        const cls = ["rv", t.turn ? "turn" : "", t.hit ? "hit" : ""].filter(Boolean).join(" ");
+        const wins = t.wins ? "<ul class='wins'>" + t.wins.map(w => `<li>${spEsc(w)}</li>`).join("") + "</ul>" : "";
+        return `<li class='${cls}'><b>${spEsc(t.label)}</b><p>${spEsc(t.text)}</p>${wins}</li>`;
+      }).join("") + "</ol>";
+      const photo = s.photo ? `<figure><img src='${spEsc(s.photo)}' alt=''><figcaption>${spEsc(s.photoCaption || "")}</figcaption></figure>` : "";
+      const code = s.codeLine ? `<div class='wrap'><p class='code-line rv'>${spEsc(s.codeLine)}</p></div>` : "";
+      add("story", `<div class='wrap story-grid'><div class='story-head rv'><h2 class='h2'>${spEsc(s.h2)}</h2>${photo}</div>${tl}</div>${code}`, "", "story");
     }
-    out.push(`
-<!-- ⑪ 걱정 풀기 : FAQ -->
-<div style="background:#FFFFFF;padding:60px 20px;">
-  ${L("FAQ", C.label, false)}
-  <h3 style="margin:0 0 24px;font-size:26px;line-height:1.3;font-weight:900;text-align:center;">구매 전에 많이 묻는 질문</h3>
-${faq.map(f => `  <div style="border-top:1px solid #EDE8DC;padding:16px 0;"><p style="margin:0 0 6px;font-size:16px;font-weight:800;">Q. ${slot(f.q)}</p><p style="margin:0;font-size:15px;color:#4A4A44;">A. ${slot(f.a)}</p></div>`).join("\n")}
-  <div style="border-top:1px solid #EDE8DC;border-bottom:1px solid #EDE8DC;padding:16px 0;"><p style="margin:0 0 6px;font-size:16px;font-weight:800;">Q. 환불은 어떻게 되나요?</p><p style="margin:0;font-size:15px;color:#4A4A44;">A. ${slot(opt.refund, "환불은 크레킷 딜 페이지에 적힌 환불 규정을 따릅니다.")}</p></div>
-</div>`);
-    out.push(`
-<!-- ⑫ 마무리 : 가장 깊은 혜택 + 구매 버튼 안내 -->
-<div style="background:${C.dark};color:#FFFFFF;padding:64px 20px;text-align:center;">
-  <h3 style="margin:0 0 16px;font-size:28px;line-height:1.3;font-weight:900;">${slot(d.closing, title)}</h3>
-  <p style="margin:0 0 24px;font-size:16px;color:#D8D8D0;">${hesc(title)}${price ? ` · <span style="color:${C.gold};font-weight:800;">${price}원</span>` : ""}</p>
-  <p style="margin:0;display:inline-block;padding:14px 22px;border:1px solid ${C.gold};border-radius:999px;font-size:15px;color:${C.gold};font-weight:700;">아래 구매하기 버튼을 눌러 주세요 ↓</p>
-</div>
-
-</div>`);
-    return out.join("\n");
+    const c = d.selfcheck;
+    if (c) {
+      const items = (c.items || []).map(i => `<button class='check' type='button' aria-pressed='false'><span class='box'></span>${spEsc(i)}</button>`).join("");
+      add("selfcheck", `<div class='wrap selfcheck'><div class='rv'><h2 class='h2'>${spEsc(c.h2)}</h2><p class='lead'>${spEsc(c.lead || "")}</p></div><div><div class='checks rv' id='checks'>${items}</div><p class='check-result rv'>${spEsc(c.result || "")}</p></div></div>`);
+    }
+    const r = d.reason;
+    if (r) {
+      let ratio = "";
+      if (r.ratio) { const q = r.ratio; ratio = `<div class='ratio rv'><div class='ratio-bar'><div class='c'><b>${spEsc(q.small.value)}</b><span>${spEsc(q.small.label)}</span></div><div class='u'><b>${spEsc(q.big.value)}</b><span>${spEsc(q.big.label)}</span></div></div><p class='ratio-cap'>${spEsc(q.caption || "")}</p></div>`; }
+      const img = r.image ? `<figure class='rv'><img src='${spEsc(r.image)}' alt=''></figure>` : "";
+      const body = (r.body || []).map(b => `<p class='body'>${spEsc(b)}</p>`).join("");
+      const old = r.oldVoice ? "<ul class='old-voice'>" + r.oldVoice.map(o => `<li>${spEsc(o)}</li>`).join("") + "</ul>" : "";
+      const verdict = r.verdict ? `<p class='verdict'>${spEsc(r.verdict)}</p>` : "";
+      add("reason", `<div class='wrap'><div class='reason-head rv'><h2 class='h2'>${spEsc(r.h2)}</h2></div>${ratio}<div class='reason-grid${img ? "" : " noimg"}'>${img}<div class='weights rv'>${body}${old}${verdict}</div></div></div>`);
+    }
+    const g = d.dig;
+    if (g) {
+      const notes = "<ul class='dig-notes rv'>" + (g.notes || []).map(n => `<li><b>${spEsc(n.label)}</b>${spEsc(n.text)}</li>`).join("") + "</ul>";
+      const img = g.image ? `<figure class='rv'><img src='${spEsc(g.image)}' alt=''></figure>` : "";
+      add("dig", `<div class='wrap'><h2 class='h2 rv'>${spEsc(g.h2)}</h2>${g.lead ? "<p class=lead>" + spEsc(g.lead) + "</p>" : ""}<div class='dig-grid'>${img}${notes}</div></div>`);
+    }
+    const y = d.reality;
+    if (y) {
+      const adv = "<ul class='advice'>" + (y.advice || []).map(a => `<li>${spEsc(a)}</li>`).join("") + "</ul>";
+      add("reality", `<div class='wrap reality'><div class='rv'><h2 class='h2'>${spEsc(y.h2)}</h2>${adv}</div><div class='rv'><p class='body'>${spEsc(y.body || "")}</p><div class='ignore'><p>${spEsc(y.ignore || "")}</p></div><p class='for-you'>${spEsc(y.forYou || "")}</p></div></div>`);
+    }
+    const f = d.diff;
+    if (f) {
+      const cards = (f.items || []).slice(0, 3).map(i => `<article class='rv'><h3>${spEsc(i.title)}</h3><p>${spEsc(i.text)}</p></article>`).join("");
+      add("diff", `<div class='wrap'><h2 class='h2 rv'>${spEsc(f.h2)}</h2><div class='diff'>${cards}</div>${f.faster ? '<p class="faster rv">' + spEsc(f.faster) + "</p>" : ""}</div>`);
+    }
+    const t = d.toc;
+    if (t) {
+      const meta = (t.meta || []).map(m => `<span>${spEsc(m)}</span>`).join("");
+      const pts = (t.parts || []).map(p => `<div class='toc-part rv'><div><b>${spEsc(p.label)}</b><h3>${spEsc(p.title)}</h3></div><ul>${(p.items || []).map(i => "<li>" + spEsc(i) + "</li>").join("")}</ul></div>`).join("");
+      add("toc", `<div class='wrap'><div class='toc-head rv'><h2 class='h2'>${spEsc(t.h2)}</h2><div class='toc-meta'>${meta}</div></div><div class='toc'>${pts}</div></div>`, "", "contents");
+    }
+    const e = d.results;
+    if (e && e.images && e.images.length) {
+      const imgs = e.images.map(u => `<a class='rv' href='${spEsc(u)}' target='_blank' rel='noopener'><img src='${spEsc(u)}' alt='' loading='lazy'></a>`).join("");
+      const notes = e.notes ? "<p class='notes'>" + e.notes.map(spEsc).join("<br>") + "</p>" : "";
+      add("results", `<div class='wrap'><h2 class='h2 results-head rv'>${spEsc(e.h2)}</h2><p class='lead rv'>${spEsc(e.lead || "")}</p><div class='results'>${imgs}</div>${notes}</div>`);
+    }
+    const v = d.reviews;
+    if (v && ((v.items && v.items.length) || (v.captures && v.captures.length))) {
+      const cards = (v.items || []).map(i => `<figure class='review rv'${i.sample ? " data-sample=1" : ""}><div><div class='stars'>★★★★★</div><blockquote>${spEsc(i.quote)}</blockquote></div><figcaption>${spEsc(i.who || "")}</figcaption></figure>`).join("");
+      let proof = "";
+      if (v.captures && v.captures.length) {
+        const imgs = v.captures.map(u => `<img src='${spEsc(u)}' alt='후기 캡처' loading='lazy'>`).join("");
+        proof = `<div class='proof rv'><h3>${spEsc(v.capturesTitle || "먼저 들은 분들이 직접 올린 글입니다")}</h3><p>${spEsc(v.capturesNote || "원문 그대로, 소속만 가렸습니다. 누르면 크게 보입니다.")}</p><div class='marquee' id='marquee'><div class='track'>${imgs}</div></div></div>`;
+        if (v.guarantee) proof += `<div class='money rv'><p>${spEsc(v.guarantee)}</p>${v.guaranteeNote ? "<small>" + spEsc(v.guaranteeNote) + "</small>" : ""}</div>`;
+      }
+      const mid = v.midCta ? `<div class='mid-cta rv'><a class='btn' href='${spEsc(buy)}'>${spEsc(v.midCta)}</a></div>` : "";
+      add("reviews", `<div class='wrap'><h2 class='h2 rv'>${spEsc(v.h2)}</h2><div class='reviews'>${cards}</div>${proof}${mid}</div>`);
+    }
+    const o = d.honest;
+    if (o) {
+      const hype = o.hype ? "<ul class='hype rv'>" + o.hype.map(x => `<li>${spEsc(x)}</li>`).join("") + "</ul>" : "";
+      add("honest", `<div class='narrow'>${hype}<h2 class='h2 rv'>${spEsc(o.h2)}</h2><p class='body rv'>${spEsc(o.body || "")}</p></div>`, "honest");
+    }
+    const q = d.faq;
+    if (q) add("faq", `<div class='wrap faq'><h2 class='h2 rv'>${spEsc(q.h2)}</h2><div class='faq-list rv'>${(q.items || []).map(i => `<details><summary>${spEsc(i.q)}</summary><p>${spEsc(i.a)}</p></details>`).join("")}</div></div>`);
+    const p = d.price;
+    if (p) {
+      let ladder = "";
+      if (M.ladder && p.ladder) ladder = "<ul class='ladder'>" + p.ladder.map(L => { const st = L.state || "", cls = st === "현재" ? "cur" : st === "예정" ? "next" : ""; const pr = st === "종료" ? `<s>${spEsc(L.price)}</s>` : spEsc(L.price); return `<li class='${cls}'><b>${spEsc(L.step)}</b><span>${pr}</span><em>${spEsc(st)}</em></li>`; }).join("") + "</ul>";
+      const timer = M.ladder && p.timerText ? `<div class='timer'><small>${spEsc(p.timerText)}</small><span class='cd' data-cd='long'></span></div>` : "";
+      const card = `<div class='price-card rv'><span class='tag'>${spEsc(p.tag || "")}</span>
+${p.was ? "<p class=was><s>" + spEsc(p.was) + "</s></p>" : ""}
+<p class='now'>${spEsc(p.now || "")}<span>원</span></p>${ladder}${timer}
+<a class='btn block' href='${spEsc(buy)}'>${spEsc(p.btn || M.ctaLabel || "")}</a>
+${p.fine ? "<p class=fine>" + spEsc(p.fine) + "</p>" : ""}</div>`;
+      add("price", `<div class='wrap price-grid'><div class='rv'><p class='choice'>${spEsc(p.choice || "")}</p>${spPara(p.body || "")}</div>${card}</div>`, "price", "price");
+    }
+    const secs = order.map(([key, inner, extra, sid], i) => spSection(i % 2 === 0 ? "deep" : "", inner, extra, sid));
+    const topbar = M.ladder && d.topbar ? `<div class='topbar'>${spEsc(d.topbar.text || "")}<span class='cd' data-cd='short'></span></div>` : "";
+    const footer = `<footer class='footer'>© ${spEsc(M.brand || book)}. ALL RIGHTS RESERVED</footer>`;
+    let sticky = "";
+    if (M.stickyBar) {
+      const was = p && p.was ? `<s>${spEsc(String(p.was).replace("정가 ", ""))}</s>` : "";
+      sticky = `<div class='sticky'><div class='sticky-inner'><div class='sticky-price'>${was}<b>${spEsc((p || {}).now || "")}원</b>${M.ladder ? "<small>오늘 마감까지 <span class=cd data-cd=short></span></small>" : ""}</div><a class='btn' href='${spEsc(buy)}'><span class='lbl-long'>${spEsc(book)} </span>구매하기</a></div></div>`;
+    }
+    const root = `:root{--bg:${pal.bg};--bg-2:${pal.bg2};--bg-3:${pal.bg3};--deep:${pal.deep};--line:${pal.line};--line-2:${pal.line2};--text:${pal.text};--text-2:${pal.text2};--text-3:${pal.text3};--accent:${pal.accent};--accent-hi:${pal.accentHi};--accent-soft:${pal.accentSoft};--accent-ink:${pal.accentInk};--glow:${pal.glow};--topbar:${pal.topbar};--ease:cubic-bezier(.16,1,.3,1);--sans:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;--serif:'Hahmlet','Pretendard',serif;--wrap:1080px}`;
+    return `<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>${spEsc(book)}</title>
+<style>${root}
+${SP.css}</style></head><body class='${pal.dots ? "dots" : ""}${pal.light ? " light" : ""}'>
+<!-- ebook-salespage · 팔레트 ${pId} · 구조: 리치코드 12섹션 -->
+<main class='page${M.stickyBar ? "" : " nosticky"}'>${topbar}${hero}${secs.join("")}${footer}</main>${sticky}
+<script>${SP.js}<\/script></body></html>`;
   }
 ```
 
-## 받침 조사(josa)
+## 08 검사(spCheck = --check)
 
 ```js
-function josa(word, pair) {
-    const w = String(word || "").trim(), ch = w.charCodeAt(w.length - 1), [a, b] = pair.split("/");
-    if (!(ch >= 0xAC00 && ch <= 0xD7A3)) return w + (/[136780]$/.test(w) ? a : b);
-    const jong = (ch - 0xAC00) % 28;
-    if (pair === "으로/로") return w + (jong && jong !== 8 ? a : b);
-    return w + (jong ? a : b);
+function spCheck(d, out) {
+    const probs = [], ph = out.match(/【[^】]*】/g) || [];
+    if (ph.length) probs.push(`자리표시자 ${ph.length}개: ` + [...new Set(ph)].sort().join(", "));
+    const body = out.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>|<!--[\s\S]*?-->/g, "");
+    [["—", "em-dash"], ["–", "en-dash"], ["→", "화살표"], [" · ", "가운뎃점 나열"]].forEach(([ch, name]) => { const n = body.split(ch).length - 1; if (n) probs.push(`${name} ${n}개`); });
+    const caps = (body.match(/>\s*[A-Z][A-Z ]{3,}\s*</g) || []).filter(c => !c.includes("ALL RIGHTS") && !c.includes("PART"));
+    if (caps.length) probs.push(`영문 대문자 라벨: ${caps.slice(0, 5).join(", ")}`);
+    if (/[\u{1F300}-\u{1FAFF}]/u.test(body)) probs.push("이모지 있음");
+    const missing = ["hero", "selfcheck", "reason", "reality", "diff", "toc", "honest", "faq", "price"].filter(k => !d[k]);
+    if (missing.length) probs.push(`필수 섹션 누락: ${missing.join(", ")}`);
+    const btns = [...out.matchAll(/class='btn[^']*' href='[^']*'>(.*?)<\/a>/g)].map(m => m[1].replace(/<.*?>/g, "").trim()).filter(b => b.length > 16);
+    if (btns.length) probs.push(`버튼 16자 초과: ${btns.join(", ")}`);
+    const lines = String(d.hero?.h1 || "").split("\n");
+    if (lines.length > 3 || lines.some(l => l.length > 10)) probs.push(`h1 줄/글자 초과: ${lines.join(" / ")}`);
+    const samples = (d.reviews?.items || []).filter(i => i.sample).length;
+    return { probs, samples };
+  }
+```
+
+## 08 팔레트(spPickPalette)
+
+```js
+async function spPickPalette(info) {
+    const P = SP.palettes, ids = Object.keys(P).filter(k => k !== "_note");
+    const user = $("spPalette").value;
+    if (user && P[user]) return [user, "직접 고른 색"];
+    const tpls = [info.bodyTemplate, info.coverTemplate].filter(Boolean);
+    for (const t of tpls) { const eb = (String(t).match(/EB\d\d/) || [])[0]; if (eb && SP.ebMap[eb]) return [SP.ebMap[eb], `전자책 프리셋 ${eb}의 짝 (design.md 2-2)`]; }
+    for (const t of tpls) { const n = (String(t).match(/^\s*(\d\d)\b/) || [])[1]; if (n && SP.tplMap[n]) return [SP.tplMap[n], `${t} 템플릿의 짝 (design.md 2-3)`]; }
+    const pal = await coverPalette().catch(() => null), dark = pal ? lum(pal.bg || "#ffffff") < 0.35 : true;
+    const text = [info.title, info.topic, info.reader].join(" ");
+    const pool = ids.filter(k => !!P[k].light === !dark);
+    const hit = pool.map(k => [k, (P[k].topics || []).filter(w => text.includes(w.replace(/\(.*\)/, ""))).length]).sort((a, b) => b[1] - a[1])[0];
+    if (hit && hit[1] > 0) return [hit[0], `주제가 '${P[hit[0]].topics.join(", ")}' 쪽이라서 (design.md 2-1)`];
+    if (pal?.accent) {
+      const A = hsl(pal.accent), dh = (x, y) => { const d = Math.abs(x - y) % 360; return Math.min(d, 360 - d); };
+      const near = pool.map(k => [k, dh(hsl(P[k].accent).h, A.h)]).sort((a, b) => a[1] - b[1])[0];
+      return [near[0], `표지 강조색과 가장 가까운 ${dark ? "어두운" : "밝은"} 팔레트`];
+    }
+    return [dark ? "midnight-gold" : "ivory-red", "기본 팔레트"];
+  }
+```
+
+## 08 사실 칸(spFixFacts)
+
+```js
+function spFixFacts(d, I, coverUrl) {
+    d.meta = { ...(d.meta || {}) };
+    const book = I.title || d.meta.book || "";
+    Object.assign(d.meta, { book, palette: spPal, stickyBar: false, ladder: false, buyUrl: I.buyUrl || "#price" });
+    if (!d.meta.brand) d.meta.brand = I.author || book;
+    if (I.pages) d.meta.pages = I.pages;
+    d.hero = d.hero || {};
+    if (coverUrl) { d.hero.cover = coverUrl; if (!d.hero.coverCaption && I.pages) d.hero.coverCaption = `${I.pages}페이지 PDF, 평생 소장`; } else delete d.hero.cover;
+    if (d.story) { delete d.story.photo; }
+    if (d.reason) delete d.reason.image;
+    d.results = null; if (d.dig) delete d.dig.image;
+    d.topbar = null;
+    if (I.reviews.length) { d.reviews = { ...(d.reviews || {}), items: I.reviews.map(r => ({ quote: r.quote, who: r.who })) }; }
+    if (d.reviews) { d.reviews.captures = null; d.reviews.guarantee = null; }
+    if (d.price) {
+      delete d.price.ladder; delete d.price.timerText;
+      if (I.price) d.price.now = Number(I.price).toLocaleString("ko-KR");
+      if (I.was) d.price.was = `정가 ${Number(I.was).toLocaleString("ko-KR")}원`;
+    }
+    // 금지 문자 기계 정리 (copy-rules 6장): 줄표·화살표·가운뎃점 나열
+    const clean = (x) => typeof x === "string" ? x.replace(/\s*[—–]\s*/g, ", ").replace(/\s*→\s*/g, " ").replace(/ · /g, ", ") : Array.isArray(x) ? x.map(clean) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, k === "cover" || k === "buyUrl" ? v : clean(v)])) : x;
+    return clean(d);
   }
 ```
 
@@ -1703,8 +1747,10 @@ function finalItems() {
     const parts = bookParts();
     items.push({ group: "수정용 원고", folder: "3_수정용 원고", label: "원고 DOCX (워드)", meta: parts.length ? `장 ${parts.length}개 · 제목 스타일이 들어가 있어서 고친 뒤 생성기에 다시 넣으면 그대로 디자인돼요` : "원고를 연결하면 생겨요",
       filename: `${base}_원고.docx`, ready: parts.length > 0, make: () => makeDocx(parts) });
-    items.push({ group: "상세페이지", folder: "4_상세페이지", label: "상세페이지 HTML (크레킷 딜 설명용)", meta: salesHtml ? "자동으로 만든 판매 페이지 · 크레킷 딜 설명 칸에 그대로 붙여 넣어요" : slBusy ? "지금 자동으로 만드는 중이에요 (08 상세페이지 탭)" : "08 상세페이지 탭에 들어가면 자동으로 만들어져요",
-      filename: `${base}_상세페이지.html`, ready: !!salesHtml, make: async () => new Blob([`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;">${salesHtml}</body></html>`], { type: "text/html" }) });
+    { const ok = !!spHtml && !!stageStatus["08"]?.approved, f = spHtml ? spFiles() : null, slug = f ? f.slug : spSlug(title);
+      const meta = ok ? "08 상세페이지에서 승인한 판매 페이지" : spHtml ? "08 상세페이지에서 '승인'을 누르면 들어가요" : spBusy ? "지금 자동으로 만드는 중이에요 (08 상세페이지)" : "08 상세페이지 탭에 들어가면 자동으로 만들어져요";
+      [["08_salespage.html", "상세페이지 HTML (크레킷 HTML 블록에 붙여넣기)"], ["08_salespage.json", "상세페이지 내용 JSON"], ["08_salespage_preview.jpg", "상세페이지 미리보기 JPG (모바일 400px 전체)"]].forEach(([fn, label]) =>
+        items.push({ group: "08 상세페이지", folder: `books/${slug}`, label, meta, filename: fn, ready: ok, make: () => f.list.find(x => x.name === fn).make() })); }
     return { title, base, items };
   }
 ```
