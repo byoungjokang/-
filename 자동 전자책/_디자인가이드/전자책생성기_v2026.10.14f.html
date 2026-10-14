@@ -276,7 +276,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14e</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14f</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -2760,8 +2760,6 @@ ${part.text}`;
     band.appendChild(mk("div", `font-family:${th.display};font-size:${f(32)};line-height:1.35;font-weight:900;color:${th.dText};margin-top:${f(18)};word-break:keep-all;`, meta.title));
     if (pt.sub) band.appendChild(mk("div", `font-family:${th.head};font-size:${f(15)};line-height:1.6;color:${th.dSub};margin-top:${f(14)};word-break:keep-all;`, noDash(pt.sub)));
     band.appendChild(mk("div", `font-size:${f(13)};letter-spacing:0.5em;color:${th.accD};margin-top:${f(22)};padding-left:0.5em;`, th.ornament));
-    const hs = blocks.filter(b => b.type === "h").length;
-    if (hs > 1) band.appendChild(mk("div", `font-family:${th.head};font-size:${f(12.5)};color:${th.dMeta};margin-top:${f(14)};letter-spacing:0.08em;`, `꼭지 ${hs}개`));
     const wrap = mk("div", "");
     wrap.append(band, mk("div", `position:absolute;left:0;right:0;top:${ED.band - ED.stripe}px;height:${ED.stripe}px;background:${th.accent};`));
     return wrap;
@@ -2826,7 +2824,7 @@ ${part.text}`;
 - 두 가지 면: 밝은 본문 면(paper, 순백이 아닌 아주 옅은 회색·미색) + 어두운 면(dark: 장 시작 밴드·차례·마무리 페이지). 강조색(accent)은 한 가지만, 선·번호·라벨·막대에만 쓴다.
 - 글꼴 두 벌: 제목·라벨·번호·카드 제목은 고딕(headFont) 굵게, 오래 읽는 본문은 명조(bodyFont). 본문을 고딕으로 하려면 표지가 아주 현대적일 때만.
 - 위계(본문 16 기준 비율): 장 제목 32 · 실습 페이지 제목 27 · 소제목 20 · 핵심 문장 19 · 대사 17.5 · 카드 제목 17 · 본문 16(줄간격 1.94) · 메모 14.5 · 번호 13 · 라벨 12.5(자간 넓게) · 쪽번호 12 · 머리글 10.5.
-- 장 시작: 페이지 위 39%를 dark 밴드로 채우고 아래에 accent 띠. 밴드 안 가운데 정렬로 라벨(CHAPTER 01) → 장 제목 → 부제 → 장식(${"◆ ◇ ◆"}) → 꼭지 수. 본문은 같은 페이지 아래에서 바로 시작한다.
+- 장 시작: 페이지 위 39%를 dark 밴드로 채우고 아래에 accent 띠. 밴드 안 가운데 정렬로 라벨(CHAPTER 01) → 장 제목 → 부제 → 장식(${"◆ ◇ ◆"}). 본문은 같은 페이지 아래에서 바로 시작한다.
 - 소제목: 왼쪽 accent 막대(굵기 5) + 굵은 고딕. 앞 내용과는 가는 회색 구분선으로 나눈다.
 - 핵심 문장: 위아래 accent 가로선 사이 가운데 정렬 굵은 고딕. 메모: 왼쪽 옅은 회색 막대 + 작은 회색 글씨.
 - 실습·정리 페이지: 새 페이지에서 가운데 큰 제목 + 흰 카드(왼쪽 accent 막대, 카드 제목은 진한 accent).
