@@ -276,7 +276,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14b</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14c</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -2560,7 +2560,7 @@ ${part.text}`;
   // 색은 표지 팔레트가 있으면 거기서만 (AI가 준 색은 표지를 못 읽었을 때만 쓴다)
   function edTheme(sp, pal) {
     sp = sp || {};
-    const pc = pal ? palToColors(pal, sp.variant || "") : null;
+    const pc = sp.colors ? { ...sp.colors, ink: sp.colors.ink || mixHex(sp.colors.dark, "#1d1d1f", 0.7) } : pal ? palToColors(pal, sp.variant || "") : null;
     const paper = hex(pc?.paper || sp.paper, "#f1f1f2"), dark = hex(pc?.dark || sp.dark, "#0a0a0c");
     let ink = hex(pc?.ink || sp.ink, "#1d1d1f"); if (contrast(ink, paper) < 7) ink = lum(paper) > 0.4 ? "#1d1d1f" : "#f1f1f2";
     let accent = hex(pc?.accent || sp.accent, "#e83e6b");
@@ -3336,12 +3336,73 @@ ${excerpt || "(원고 없음)"}`;
       bodyState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "설계 결과가 깨졌어요. 한 번만 다시 눌러주세요." : e?.code === "image_rejected" ? "표지 이미지를 읽지 못했어요. PNG나 JPG로 다시 넣어주세요." : (ERR[e?.code] || "본문 설계에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
     } finally { $("goBody").disabled = $("regenBody").disabled = false; }
   }
+  // ---- 색 바꾸기: 표지 강조색을 기준으로 색 이론(보색·분할보색·유사색·삼각·톤온톤·무채)에 맞춰 3개씩 ----
+  const fromHsl = (h, s, l) => {
+    h = ((h % 360) + 360) % 360; s = Math.max(0, Math.min(1, s)); l = Math.max(0, Math.min(1, l));
+    const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+    const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+    return toHex([(r + m) * 255, (g + m) * 255, (b + m) * 255]);
+  };
+  function colorSchemes(base) {
+    const a = hsl(base.accent), gray = a.s < 0.12;
+    const H = gray ? 215 : a.h, S = gray ? 0.55 : Math.max(0.45, Math.min(0.85, a.s)), L = gray ? 0.45 : Math.max(0.38, Math.min(0.55, a.l));
+    const acc = (h, s = S, l = L) => fromHsl(h, s, l), band = (h, s = 0.32, l = 0.11) => fromHsl(h, s, l), paper = (h, s = 0.18, l = 0.965) => fromHsl(h, s, l);
+    return [
+      { name: "보색 밴드", note: "강조는 표지 그대로, 밴드를 반대색으로", c: { accent: base.accent, dark: band(H + 180), paper: paper(H + 180, 0.12) } },
+      { name: "보색 강조", note: "밴드는 표지 그대로, 강조를 반대색으로", c: { accent: acc(H + 180), dark: base.dark, paper: paper(H, 0.1) } },
+      { name: "분할 보색", note: "반대색 양옆 두 색으로 강조·밴드", c: { accent: acc(H + 150), dark: band(H + 210, 0.38), paper: paper(H + 30, 0.12) } },
+      { name: "톤온톤", note: "표지 강조색 한 계열로 진하게·옅게", c: { accent: acc(H, S, Math.max(0.36, L - 0.06)), dark: band(H, 0.5, 0.12), paper: paper(H, 0.3, 0.962) } },
+      { name: "유사색", note: "표지 강조색 옆 색으로 부드럽게", c: { accent: acc(H + 28), dark: band(H - 20, 0.36), paper: paper(H + 40, 0.22) } },
+      { name: "삼각 배색", note: "120도씩 떨어진 색으로 또렷하게", c: { accent: acc(H), dark: band(H + 120, 0.4), paper: paper(H + 240, 0.12) } },
+      { name: "무채 + 포인트", note: "먹색·회색 바탕에 표지 강조색 하나만", c: { accent: base.accent, dark: "#141416", paper: "#f3f3f3" } },
+      { name: "웜 뉴트럴", note: "미색 종이에 갈색 기운 밴드", c: { accent: base.accent, dark: fromHsl(28, 0.22, 0.11), paper: fromHsl(40, 0.35, 0.955) } },
+      { name: "쿨 뉴트럴", note: "청회색 종이에 남색 기운 밴드", c: { accent: base.accent, dark: fromHsl(222, 0.3, 0.12), paper: fromHsl(215, 0.2, 0.965) } },
+    ];
+  }
+  function swatchKey(t, label) {
+    const sw = mk("div", "display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 2px;align-items:center;font-size:12px;color:#aaa;");
+    [["종이", t.paper], ["밴드", t.dark], ["강조", t.accent], ["글자", t.ink]].forEach(([k, c]) => {
+      const it = mk("span", "display:inline-flex;align-items:center;gap:5px;");
+      it.append(mk("span", `width:18px;height:18px;border-radius:4px;background:${c};border:1px solid #555;display:inline-block;`), mk("span", "", k));
+      sw.appendChild(it);
+    });
+    if (label) sw.appendChild(mk("span", "margin-left:2px;color:#777;", "· " + label));
+    return sw;
+  }
   function renderBodyRefs() {
     const box = $("bodyRefs"); box.innerHTML = "";
     bodySpecs.forEach((sp, i) => {
       const card = mk("article", ""); card.className = "ref";
-      card.appendChild(renderBodyPreview(sp));
-      { const t = edTheme(sp, palCache.pal), sw = mk("div", "display:flex;gap:6px;margin:8px 0 2px;align-items:center;font-size:12px;color:#999;"); [t.paper, t.dark, t.accent, t.ink].forEach(c => sw.appendChild(mk("span", `width:18px;height:18px;border-radius:4px;background:${c};border:1px solid #444;display:inline-block;`))); sw.appendChild(mk("span", "margin-left:4px;", palCache.pal ? "표지에서 뽑은 색" : "AI 추천 색")); card.appendChild(sw); }
+      const prev = mk("div", ""); prev.appendChild(renderBodyPreview(sp)); card.appendChild(prev);
+      const keyBox = mk("div", ""); card.appendChild(keyBox);
+      const drawKey = () => { keyBox.innerHTML = ""; keyBox.appendChild(swatchKey(edTheme(sp, palCache.pal), sp.colorName || (palCache.pal ? "표지에서 뽑은 색" : "AI 추천 색"))); };
+      drawKey();
+      // 색 바꾸기: 누를 때마다 다른 색 조합 3개 (표지 강조색 기준 보색·분할보색·유사색 …)
+      const recolor = mk("button", "margin-top:8px;", "색 바꾸기 (조합 3개)"); recolor.className = "btn ghost"; recolor.type = "button";
+      const opts = mk("div", "display:none;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0;"); let round = 0;
+      const apply = (colors, name) => {
+        if (colors) { sp.colors = colors; sp.colorName = name; } else { delete sp.colors; delete sp.colorName; }
+        prev.innerHTML = ""; prev.appendChild(renderBodyPreview(sp)); drawKey();
+      };
+      const showOpts = () => {
+        const base = edTheme({ ...sp, colors: undefined }, palCache.pal), all = colorSchemes(base);
+        const pick = [0, 1, 2].map(k => all[(round * 3 + k + i * 3) % all.length]); round++;
+        opts.innerHTML = ""; opts.style.display = "grid";
+        pick.forEach(sc => {
+          const t = edTheme({ ...sp, colors: sc.c }, palCache.pal);
+          const o = mk("button", "text-align:left;padding:8px;border:1px solid #444;border-radius:8px;background:#151515;color:#ddd;cursor:pointer;font:inherit;"); o.type = "button";
+          const strip = mk("div", "display:flex;height:28px;border-radius:4px;overflow:hidden;margin-bottom:6px;");
+          [[t.dark, 2], [t.accent, 1], [t.paper, 2]].forEach(([c, f]) => strip.appendChild(mk("span", `flex:${f};background:${c};`)));
+          o.append(strip, mk("div", "font-size:13px;font-weight:700;", sc.name), mk("div", "font-size:11px;color:#999;margin-top:2px;line-height:1.4;", sc.note));
+          o.addEventListener("click", () => apply(sc.c, sc.name));
+          opts.appendChild(o);
+        });
+        const back = mk("button", "grid-column:1/-1;padding:6px;border:1px dashed #555;border-radius:8px;background:none;color:#aaa;cursor:pointer;font:inherit;font-size:12px;", "처음 색(표지에서 뽑은 색)으로 되돌리기"); back.type = "button";
+        back.addEventListener("click", () => apply(null)); opts.appendChild(back);
+        recolor.textContent = "색 다시 생성 (다른 조합 3개)";
+      };
+      recolor.addEventListener("click", showOpts);
+      card.append(recolor, opts);
       card.appendChild(mk("div", "", `${i + 1}안 · ${sp.name || ""}`)).className = "ref-name";
       card.appendChild(mk("div", "", [sp.concept, sp.analysis && "표지 분석: " + sp.analysis].filter(Boolean).join(" · "))).className = "ref-concept";
       const b = mk("button", "", "이대로 책 전체 디자인 하기"); b.className = "btn"; b.type = "button";
