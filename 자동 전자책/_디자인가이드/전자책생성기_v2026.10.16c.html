@@ -2,7 +2,7 @@
 <title>전자책 생성기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Do+Hyeon&family=Jua&family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;800&family=Song+Myung&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Do+Hyeon&family=Jua&family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;800&family=Song+Myung&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Nanum+Gothic:wght@400;700;800&family=Gowun+Dodum&family=Gothic+A1:wght@400;700;900&family=Hahmlet:wght@400;700;900&family=Bagel+Fat+One&family=Nanum+Pen+Script&display=swap">
 <style>
   /* 검정 바탕 + 노란 글씨, 한 가지 테마로 고정 */
   :root, :root[data-theme="light"], :root[data-theme="dark"] {
@@ -75,6 +75,7 @@
   textarea { min-height: 150px; resize: vertical; line-height: 1.7; }
   textarea::placeholder, input::placeholder { color: var(--ink-faint); }
   textarea:hover, input[type="text"]:hover, select:hover { border-color: var(--ink-faint); }
+  .font-prev { font-size: 19px; line-height: 1.5; color: var(--ink); padding: 2px 4px; min-height: 30px; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
 
@@ -276,7 +277,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.16b</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.16c</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -392,6 +393,11 @@
           </div>
         </div>
       </div>
+      <div class="field">
+        <label class="lbl" for="coverFont">표지 제목 글꼴 <small>'알아서'면 AI가 책 분위기에 맞게 골라요 · 바꾸면 지금 3안에 바로 적용</small></label>
+        <select id="coverFont"></select>
+        <div class="font-prev" id="coverFontPrev"></div>
+      </div>
       <button class="btn" id="goCover" type="button">원고 분석해서 표지 디자인 3개 뽑기</button>
       <div id="metaBox" hidden style="border:1px solid var(--line, #333);border-radius:14px;padding:16px;margin:4px 0 12px;">
         <p class="attach-note" id="metaNote" style="margin:0 0 10px;">원고에서 이렇게 정리했어요. 틀린 곳은 고쳐주세요.</p>
@@ -442,6 +448,19 @@
         </div>
       </div>
       <p class="attach-note" id="bodyBookNote"></p>
+      <div class="row2">
+        <div class="field">
+          <label class="lbl" for="bodyHeadFont">제목 글꼴 <small>장 제목·소제목·차례</small></label>
+          <select id="bodyHeadFont"></select>
+          <div class="font-prev" id="bodyHeadPrev"></div>
+        </div>
+        <div class="field">
+          <label class="lbl" for="bodyTextFont">본문 글꼴 <small>오래 읽는 글</small></label>
+          <select id="bodyTextFont"></select>
+          <div class="font-prev" id="bodyTextPrev"></div>
+        </div>
+      </div>
+      <p class="attach-note" style="margin:-4px 0 4px;">'알아서'면 AI가 표지와 원고에 맞게 골라요. 바꾸면 지금 3안에 바로 적용돼요.</p>
       <button class="btn" id="goBody" type="button">표지 분석해서 본문 디자인 3개 뽑기</button>
       <p class="note" id="bodyState" hidden></p>
       <div class="refs body" id="bodyRefs" hidden></div>
@@ -2343,7 +2362,10 @@ ${part.text}`;
   const FONTS = {
     "블랙한산스": '"Black Han Sans"', "도현": '"Do Hyeon"', "주아": '"Jua"', "노토산스": '"Noto Sans KR"',
     "노토세리프": '"Noto Serif KR"', "고운바탕": '"Gowun Batang"', "나눔명조": '"Nanum Myeongjo"', "송명": '"Song Myung"', "IBM플렉스": '"IBM Plex Sans KR"',
+    "페이퍼로지": '"Paperlogy"', "나눔고딕": '"Nanum Gothic"', "고운돋움": '"Gowun Dodum"', "고딕A1": '"Gothic A1"', "함렛": '"Hahmlet"', "베이글팻원": '"Bagel Fat One"', "나눔펜": '"Nanum Pen Script"',
   };
+  // 글꼴 고르는 칸의 묶음 (장식·손글씨는 한 굵기뿐이라 큰 제목에만)
+  const FONT_GROUPS = [["고딕", ["노토산스", "페이퍼로지", "IBM플렉스", "나눔고딕", "고운돋움", "고딕A1"]], ["명조", ["노토세리프", "고운바탕", "나눔명조", "함렛", "송명"]], ["장식·손글씨", ["블랙한산스", "도현", "주아", "베이글팻원", "나눔펜"]]];
   const FONT_KEYS = Object.keys(FONTS).join(", ");
   const fam = (k, fb) => (FONTS[k] || FONTS[fb] || FONTS["노토산스"]) + ', "Noto Sans KR", sans-serif';
   const hex = (x, fb) => /^#[0-9a-f]{6}$/i.test(String(x || "").trim()) ? String(x).trim() : fb;
@@ -2608,7 +2630,7 @@ ${part.text}`;
 - titleLines: 표지에 크게 쓸 제목 줄. 한 줄 8자 안팎으로 끊는다. 글자는 바꾸지 않는다.
 - accentWord: 제목 맨 끝에 있는 숫자·기간 같은 말(예: 7일, 30일, 3단계)이면 그 말을 제목 아래 강조색으로 가장 크게 쓴다. titleLines에는 넣지 않는다. 제목 끝에 그런 말이 없으면 빈 문자열. 제목에 없는 말을 지어 넣지 않는다.
 - 색은 bg=짙은색, ink=옅은색, accent=강조색(#hex) 셋. [디자인 템플릿 10선]의 컬러를 참고해 책의 정서에 맞게 고르고, 강조색은 바탕과 대비 2.5:1 이상.
-- 글꼴은 표지 전용 활자(페이퍼로지)로 고정이라 titleFont·bodyFont는 비워도 된다. motif는 none.`;
+- motif는 none.`;
   function motifSvg(m, a, W, H, ink) {
     const s = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="${W}" height="${H}" preserveAspectRatio="none" style="position:absolute;inset:0">${inner}</svg>`;
     const k = ink || a;
@@ -2671,7 +2693,10 @@ ${part.text}`;
   function drawTypo(x, sp, W, H) {
     const d = { ...typoText(sp), C: typoColors(sp) }, M = 120, TW = W - M * 2, ry = H / 1944;
     const F = { XB: "800", B: "700", R: "400" };
-    const font = (size, face) => `${F[face]} ${size}px Paperlogy, "Noto Sans KR", sans-serif`;
+    // 제목 글꼴을 고르면 제목·강조어는 그 글꼴로. 장식 글꼴이 아니면 부제·작가도 같은 글꼴로 맞춘다
+    const tf = FONTS[sp.titleFont] && sp.titleFont !== "페이퍼로지" ? sp.titleFont : "", deco = tf && DISPLAY_FONT.test(tf);
+    const font = (size, face) => (!tf || (deco && face !== "XB")) ? `${F[face]} ${size}px Paperlogy, "Noto Sans KR", sans-serif`
+      : `${deco ? "400" : face === "XB" ? "900" : face === "B" ? "700" : "400"} ${size}px ${fam(tf)}`;
     const ls = (v) => { try { x.letterSpacing = v + "px"; } catch (e) {} };
     const put = (t, px, py, size, face, color, l = 0) => { x.font = font(size, face); x.fillStyle = color; ls(l); x.fillText(t, px, py); };
     const fit = (texts, face, max, width = TW) => Math.min(max, ...texts.map(t => { x.font = font(max, face); ls(-max * 0.04); return Math.floor(max * width / Math.max(1, x.measureText(t).width)); }));
@@ -2773,12 +2798,20 @@ ${part.text}`;
     const g = c.getContext("2d"); g.scale(scale, scale); drawTypo(g, sp, 1296, Math.round(1296 * COVER_H / COVER_W));
     return c;
   }
+  async function coverFontsReady(sp) {
+    await paperlogyReady().catch(() => {});
+    const tf = sp?.titleFont;
+    if (tf && FONTS[tf] && tf !== "페이퍼로지") {
+      const t = [sp.title, ...(sp.titleLines || []), sp.accentWord, sp.subtitle, sp.author].filter(Boolean).join(" ") || "가";
+      await Promise.all(["400", "700", "900"].map(w => document.fonts.load(`${w} 64px ${FONTS[tf]}`, t).catch(() => {})));
+    }
+  }
   function renderTypo(sp, W, H) {
     const root = mk("div", `position:relative;width:${W}px;height:${H}px;overflow:hidden;background:${typoColors(sp).deep};`);
     const c = document.createElement("canvas"); c.width = 1296; c.height = Math.round(1296 * H / W);
     c.style.cssText = `display:block;width:${W}px;height:${H}px;`;
     const draw = () => drawTypo(c.getContext("2d"), sp, c.width, c.height);
-    if (plOk) draw(); else { draw(); paperlogyReady().then(draw, () => {}); }
+    draw(); coverFontsReady(sp).then(draw, () => {});
     root.appendChild(c); return root;
   }
   function renderCover(sp, W = 600, H = coverH(sp)) {
@@ -2838,7 +2871,7 @@ ${part.text}`;
     box.appendChild(mk("div", `width:${46 * k}px;height:${3 * k}px;background:${accent};margin-bottom:${20 * k}px;`));
     // 3) 메인 제목
     // 블랙한산스·도현·주아·송명은 한 굵기뿐인 제목용 글꼴, 나머지는 가장 굵게
-    const display = /블랙한산스|도현|주아|송명/.test(sp.titleFont || "블랙한산스");
+    const display = DISPLAY_FONT.test(sp.titleFont || "블랙한산스");
     const t = mk("div", `font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${tsize}px;line-height:1.12;color:${ink};font-weight:${display ? 400 : 900};letter-spacing:-0.025em;`);
     lines.forEach((l, i) => { if (i) t.appendChild(document.createElement("br")); t.appendChild(document.createTextNode(l)); });
     box.appendChild(t);
@@ -2872,7 +2905,7 @@ ${part.text}`;
     const x = p(a), y = p(b);
     return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
   }
-  const DISPLAY_FONT = /블랙한산스|도현|주아|송명/;
+  const DISPLAY_FONT = /블랙한산스|도현|주아|송명|베이글팻원|나눔펜/;
   // ---- 표지에서 색 뽑기: 내지 색은 언제나 확정한 표지에서 나온다 ----
   // ---- 색 라이브러리 186종: 캔바 색 조합 150개(Canva 'color palettes', ggthemes canva_palettes 원본 hex) + 2026 트렌드 컬러 조합 36개(팬톤 2026 Cloud Dancer·NYFW·LFW 시즌 컬러) ----
   // 원본 3~4색에서 장 시작 밴드(가장 어두운 색, 더 어둡게) · 본문 종이(가장 밝은 색을 아주 옅게) · 강조(채도 높은 색, 종이와 대비 2.4:1 이상)를 뽑아 둔 값
@@ -3615,7 +3648,7 @@ ${part.text}`;
     if (!m[key]) m[key] = fn().catch(e => { delete m[key]; throw e; });
     return m[key];
   }
-  const coverCanvas = (sp) => cached(sp, "canvas", async () => { if (!isTypo(sp)) return snap(renderCover(sp), 2); await paperlogyReady().catch(() => {}); return typoCanvas(sp); });
+  const coverCanvas = (sp) => cached(sp, "canvas", async () => { if (!isTypo(sp)) return snap(renderCover(sp), 2); await coverFontsReady(sp); return typoCanvas(sp); });
   const coverPng = (sp) => cached(sp, "png", async () => canvasBlob(await coverCanvas(sp)));
   const mockCanvas = (sp) => cached(sp, "mock", () => coverMockup(sp));
   const mockPng = (sp) => cached(sp, "mockPng", async () => canvasBlob(await mockCanvas(sp)));
@@ -3645,6 +3678,7 @@ ${bookMeta.confirmed ? (bookMeta.author ? `저자명은 "${bookMeta.author}". �
 - 먼저 원고의 독자·정서·약속을 읽고, 아래 [디자인 템플릿 10선]에서 이 책에 맞는 템플릿 3개를 서로 다르게 고른다. 3안은 각각 그 템플릿의 컬러·제목글꼴·비주얼 방향을 따르되, 이 책의 주제에 맞게 조금 다듬어도 된다. 템플릿의 금지 요소는 지킨다.
 - 표지는 판매 썸네일로 작게 봐도 제목이 읽혀야 한다. 제목 줄은 한 줄에 8자 안팎으로 끊는다. 글자색(ink)과 배경(bg)은 대비가 커야 한다.
 - 글꼴은 이 목록에서만: ${FONT_KEYS} (명세서의 Pretendard는 노토산스로 대신한다)
+${$("coverFont").value ? `- 표지 제목 글꼴은 사용자가 '${$("coverFont").value}'로 정했다. 3안 모두 titleFont는 "${$("coverFont").value}".` : "- titleFont는 책 분위기에 맞게 고른다. 활자 표지는 페이퍼로지가 기본이고, 3안 중 하나 이상은 다른 글꼴(명조·장식 포함)로 분위기를 바꿔 본다."}
 - 표지에 들어가는 글자는 제목·부제·작가 셋뿐이다. 키커(제목 위 라벨)·배지·슬로건·카피 문구를 지어 넣지 않는다(kicker·badge는 빈 문자열).
 ${artBlob ? `- layout은 classic(명세서 기본 구조, 가장 우선), center, top-left, bottom-left, split, frame 중 하나.
 - motif는 템플릿의 추천 motif를 우선: hourglass, orbit, stones, arch, leaf, path, flower, redline, spotlight, circle, lines, grid, stripe, dots, none.
@@ -3667,6 +3701,7 @@ ${text.slice(0, 14000)}`;
       const arr = await sample.json(prompt, { signal: cvCtl.signal, modelTier: "default", cache: false, images });
       const specs = (Array.isArray(arr) ? arr : arr?.covers || (arr && typeof arr === "object" ? [arr] : [])).slice(0, one != null ? 1 : 3);
       if (!specs.length) throw { code: "empty_completion" };
+      specs.forEach(sp => { const fc = $("coverFont").value; sp.aiTitleFont = FONTS[sp.titleFont] ? sp.titleFont : (isTypo(sp) ? "페이퍼로지" : "블랙한산스"); sp.titleFont = fc || sp.aiTitleFont; });
       specs.forEach(sp => { sp.kicker = ""; sp.badge = ""; if (sp.layout === "t-poster" && !typoText(sp).accent) sp.layout = "t-band"; if (sp.layout === "bignumber") sp.layout = "classic"; sp.title = unwrapTitle(sp.title); if (Array.isArray(sp.titleLines)) sp.titleLines = sp.titleLines.map((l, j, a) => unwrapTitle(l, j === 0, j === a.length - 1)); if (!bookMeta.confirmed) sp.author = ""; });
       if (bookMeta.confirmed) specs.forEach(sp => {
         const flat = (x) => String(x || "").replace(/\s+/g, "");
@@ -3683,6 +3718,35 @@ ${text.slice(0, 14000)}`;
       $("goCover").disabled = $("regenCover").disabled = false; document.querySelectorAll("#coverRefs button").forEach(x => x.disabled = false);
     }
   }
+  // ---- 글꼴 고르기: 표지 제목 · 본문 제목 · 본문 글. 빈 값('알아서')이면 AI가 고른다 ----
+  function fillFontSelect(id, prevId, ok, sample) {
+    const sel = $(id); sel.innerHTML = ""; sel.appendChild(new Option("알아서 (AI가 책에 맞게 고르기)", ""));
+    FONT_GROUPS.forEach(([g, list]) => {
+      const og = document.createElement("optgroup"); og.label = g;
+      list.filter(ok).forEach(k => { const o = new Option(k, k); o.style.fontFamily = FONTS[k]; og.appendChild(o); });
+      if (og.children.length) sel.appendChild(og);
+    });
+    const prev = () => { const k = sel.value, el = $(prevId);
+      el.style.fontFamily = k ? fam(k) : ""; el.style.fontWeight = k && !DISPLAY_FONT.test(k) ? "700" : "400"; el.style.opacity = k ? "1" : "0.55";
+      el.textContent = k ? sample : "AI가 책 분위기에 맞게 골라요"; };
+    sel.addEventListener("change", prev); prev(); return prev;
+  }
+  const fontPrevs = [fillFontSelect("coverFont", "coverFontPrev", () => true, "자존감 회복 7일 · 끊기와 참기 사이"),
+    fillFontSelect("bodyHeadFont", "bodyHeadPrev", () => true, "CHAPTER 01 · 소제목은 이렇게"),
+    fillFontSelect("bodyTextFont", "bodyTextPrev", k => !DISPLAY_FONT.test(k), "본문은 이렇게 읽혀요. 오래 읽어도 편한지 보세요.")];
+  paperlogyReady().catch(() => {});
+  $("coverFont").addEventListener("change", async () => {
+    const k = $("coverFont").value;
+    coverSpecs.forEach(sp => { if (!("aiTitleFont" in sp)) sp.aiTitleFont = sp.titleFont || ""; sp.titleFont = k || sp.aiTitleFont || (isTypo(sp) ? "페이퍼로지" : ""); madeCache.delete(sp); });
+    if (coverSpecs.length) { renderCoverRefs(); coverState(k ? `표지 제목 글꼴을 '${k}'로 바꿨어요.` : "표지 글꼴을 AI가 고른 대로 되돌렸어요.", "ok"); }
+    if (chosenCover) { try { coverBlob = await coverPng(chosenCover); setCoverThumb(coverBlob, "확정한 표지의 글꼴을 바꿨어요."); } catch (e) {} }
+  });
+  const applyBodyFonts = () => {
+    const h = $("bodyHeadFont").value, b = $("bodyTextFont").value;
+    bodySpecs.forEach(sp => { if (!("aiHeadFont" in sp)) { sp.aiHeadFont = sp.headFont || ""; sp.aiBodyFont = sp.bodyFont || ""; } sp.headFont = h || sp.aiHeadFont; sp.bodyFont = b || sp.aiBodyFont; });
+    if (bodySpecs.length) { renderBodyRefs(); bodyState("글꼴을 바꿨어요. 3안 모두에 적용했어요.", "ok"); }
+  };
+  $("bodyHeadFont").addEventListener("change", applyBodyFonts); $("bodyTextFont").addEventListener("change", applyBodyFonts);
   let mockQueue = Promise.resolve();
   $("goCover").addEventListener("click", () => { if (!currentBookText()) { coverState("원고를 첨부하거나 붙여넣어주세요. 제목·목차만 있어도 돼요.", "err"); return; } showMetaBox(true); });
   $("regenCover").addEventListener("click", () => bookMeta.confirmed ? runCover() : showMetaBox(true));
@@ -3764,7 +3828,8 @@ ${chosenCover ? `\n[확정 표지 설계값]\n${JSON.stringify(chosenCover)}\n` 
 - 레이아웃·위계·여백은 아래 [내지 디자인 가이드라인]을 엔진이 그대로 지킨다. 너는 이 책에 맞는 색과 글꼴만 정한다.
 - 색은 엔진이 [표지에서 뽑은 색]으로 직접 만든다(본문 종이 = 표지 바탕을 아주 옅게, 장 시작 밴드 = 표지의 어두운색, 강조 = 표지 강조색). 너는 3안의 방향(variant)만 정한다: faithful(표지 그대로) / calm(채도를 낮춰 차분하게) / bold(강조를 진하게, 밴드도 강조색 계열). 3안은 반드시 faithful, calm, bold를 하나씩.
 - 표지를 못 읽었을 때만 paper·dark·ink·accent hex가 쓰인다. 그때도 표지 이미지에 있는 색에서 고른다.
-- 글꼴은 이 목록에서만: ${FONT_KEYS}. headFont는 노토산스 또는 IBM플렉스(장 제목만 표지 제목 글꼴을 쓰고 싶으면 블랙한산스·도현도 됨). bodyFont는 노토세리프·고운바탕·나눔명조 중 하나(아주 현대적인 표지만 노토산스).
+- 글꼴은 이 목록에서만: ${FONT_KEYS}. headFont(장 제목·소제목·차례)는 고딕(노토산스·페이퍼로지·IBM플렉스·나눔고딕·고운돋움·고딕A1)이나 명조(노토세리프·함렛). 장 제목만 표지 느낌을 살리고 싶으면 블랙한산스·도현·베이글팻원도 된다(작은 글자는 엔진이 노토산스로 바꾼다). bodyFont는 노토세리프·고운바탕·나눔명조·함렛 중 하나(아주 현대적인 표지만 노토산스·페이퍼로지·나눔고딕·고운돋움). 3안의 글꼴 조합은 서로 다르게.
+${$("bodyHeadFont").value ? `- 제목 글꼴은 사용자가 '${$("bodyHeadFont").value}'로 정했다. 3안 모두 headFont는 "${$("bodyHeadFont").value}".\n` : ""}${$("bodyTextFont").value ? `- 본문 글꼴은 사용자가 '${$("bodyTextFont").value}'로 정했다. 3안 모두 bodyFont는 "${$("bodyTextFont").value}".` : ""}
 - bodySize: 14~15 (A5 기준). ornament: 장 시작 장식 기호 3개(예: "◆ ◇ ◆", "● ○ ●", "— ✦ —").
 
 ${BODY_GUIDE}
@@ -3787,6 +3852,9 @@ ${excerpt || "(원고 없음)"}`;
       const arr = await sample.json(prompt, { signal: bdCtl.signal, modelTier: "default", cache: false, images });
       const specs = (Array.isArray(arr) ? arr : arr?.designs || (arr && typeof arr === "object" ? [arr] : [])).slice(0, one != null ? 1 : 3);
       if (!specs.length) throw { code: "empty_completion" };
+      specs.forEach(sp => { const fh = $("bodyHeadFont").value, fb = $("bodyTextFont").value;
+        sp.aiHeadFont = FONTS[sp.headFont] ? sp.headFont : "노토산스"; sp.aiBodyFont = FONTS[sp.bodyFont] && !DISPLAY_FONT.test(sp.bodyFont) ? sp.bodyFont : "노토세리프";
+        sp.headFont = fh || sp.aiHeadFont; sp.bodyFont = fb || sp.aiBodyFont; });
       const VAR = ["faithful", "calm", "bold"];
       const putLib = (sp, e) => { if (!e) return; sp.colors = { paper: e.p, dark: e.d, accent: e.a }; sp.colorName = `${e.src} · ${e.n}`; sp.orig = { ...sp.colors }; sp.origName = sp.colorName; };
       if (one != null) { specs[0].variant = bodySpecs[one].variant || VAR[one]; putLib(specs[0], libFor[0]); bodySpecs[one] = specs[0]; }
@@ -3986,7 +4054,7 @@ ${excerpt || "(원고 없음)"}`;
       bookMsg("페이지를 나누는 중…");
       // 1) 페이지 만들기
       const pages = [];
-      if (chosenCover && isTypo(chosenCover)) { await paperlogyReady().catch(() => {}); pages.push(renderCover(chosenCover, PW, PH)); }   // 활자 표지는 A5 그대로 다시 그린다
+      if (chosenCover && isTypo(chosenCover)) { await coverFontsReady(chosenCover); pages.push(renderCover(chosenCover, PW, PH)); }   // 활자 표지는 A5 그대로 다시 그린다
       else if (coverBlob) {
         const url = URL.createObjectURL(coverBlob);
         const cp = mk("div", `width:${PW}px;height:${PH}px;background:#000;`);
@@ -4371,7 +4439,7 @@ ${story || "(없음 · 경험이 필요한 자리는 [저자 경험 넣기]로 �
   // ================= 작업 자동 저장 · 불러오기 =================
   // 새로 고침해도 원고·목차·표지·본문 설계가 남게 이 브라우저에 3초마다 저장한다. 다른 PC로 옮길 땐 '작업 파일'로.
   const SAVE_KEY = "ebook-gen-work-v1";
-  const SAVE_IDS = ["t_link", "t_who", "t_me", "r_topic", "reader", "tone", "myVoice", "profileText", "myStory", "bookText", "mTitle", "mSub", "mAuthor"];
+  const SAVE_IDS = ["t_link", "t_who", "t_me", "r_topic", "reader", "tone", "myVoice", "profileText", "myStory", "bookText", "mTitle", "mSub", "mAuthor", "coverFont", "bodyHeadFont", "bodyTextFont"];
   let coverDataUrl = { blob: null, url: "" };
   const blobToUrl = (b) => new Promise((r, j) => { const f = new FileReader(); f.onload = () => r(f.result); f.onerror = j; f.readAsDataURL(b); });
   async function workState(withImage = true) {
@@ -4400,6 +4468,7 @@ ${story || "(없음 · 경험이 필요한 자리는 [저자 경험 넣기]로 �
   async function applyWork(st) {
     SAVE_IDS.forEach(id => { const el = $(id); if (el && st.fields?.[id] != null) el.value = st.fields[id]; });
     $("mNoAuthor").checked = !!st.noAuthor; $("mAuthor").disabled = !!st.noAuthor;
+    fontPrevs.forEach(f => f());
     Object.keys(drafts).forEach(k => delete drafts[k]); Object.assign(drafts, st.drafts || {});
     if (!TABS[current].custom && drafts[TABS[current].key] !== undefined) $("src").value = drafts[TABS[current].key];
     if (st.research?.trim()) { lastResearch = st.research; $("researchText").textContent = st.research; $("researchOut").hidden = false; $("toToc").hidden = false; }

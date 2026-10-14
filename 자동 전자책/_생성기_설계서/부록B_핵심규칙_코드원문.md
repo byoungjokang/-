@@ -82,6 +82,7 @@ const CATS = [
 const FONTS = {
     "블랙한산스": '"Black Han Sans"', "도현": '"Do Hyeon"', "주아": '"Jua"', "노토산스": '"Noto Sans KR"',
     "노토세리프": '"Noto Serif KR"', "고운바탕": '"Gowun Batang"', "나눔명조": '"Nanum Myeongjo"', "송명": '"Song Myung"', "IBM플렉스": '"IBM Plex Sans KR"',
+    "페이퍼로지": '"Paperlogy"', "나눔고딕": '"Nanum Gothic"', "고운돋움": '"Gowun Dodum"', "고딕A1": '"Gothic A1"', "함렛": '"Hahmlet"', "베이글팻원": '"Bagel Fat One"', "나눔펜": '"Nanum Pen Script"',
   };
 ```
 
@@ -367,7 +368,7 @@ async function pdfToMarked(file) {
 - titleLines: 표지에 크게 쓸 제목 줄. 한 줄 8자 안팎으로 끊는다. 글자는 바꾸지 않는다.
 - accentWord: 제목 맨 끝에 있는 숫자·기간 같은 말(예: 7일, 30일, 3단계)이면 그 말을 제목 아래 강조색으로 가장 크게 쓴다. titleLines에는 넣지 않는다. 제목 끝에 그런 말이 없으면 빈 문자열. 제목에 없는 말을 지어 넣지 않는다.
 - 색은 bg=짙은색, ink=옅은색, accent=강조색(#hex) 셋. [디자인 템플릿 10선]의 컬러를 참고해 책의 정서에 맞게 고르고, 강조색은 바탕과 대비 2.5:1 이상.
-- 글꼴은 표지 전용 활자(페이퍼로지)로 고정이라 titleFont·bodyFont는 비워도 된다. motif는 none.`;
+- motif는 none.`;
   function motifSvg(m, a, W, H, ink) {
     const s = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="${W}" height="${H}" preserveAspectRatio="none" style="position:absolute;inset:0">${inner}</svg>`;
     const k = ink || a;
@@ -430,7 +431,10 @@ async function pdfToMarked(file) {
   function drawTypo(x, sp, W, H) {
     const d = { ...typoText(sp), C: typoColors(sp) }, M = 120, TW = W - M * 2, ry = H / 1944;
     const F = { XB: "800", B: "700", R: "400" };
-    const font = (size, face) => `${F[face]} ${size}px Paperlogy, "Noto Sans KR", sans-serif`;
+    // 제목 글꼴을 고르면 제목·강조어는 그 글꼴로. 장식 글꼴이 아니면 부제·작가도 같은 글꼴로 맞춘다
+    const tf = FONTS[sp.titleFont] && sp.titleFont !== "페이퍼로지" ? sp.titleFont : "", deco = tf && DISPLAY_FONT.test(tf);
+    const font = (size, face) => (!tf || (deco && face !== "XB")) ? `${F[face]} ${size}px Paperlogy, "Noto Sans KR", sans-serif`
+      : `${deco ? "400" : face === "XB" ? "900" : face === "B" ? "700" : "400"} ${size}px ${fam(tf)}`;
     const ls = (v) => { try { x.letterSpacing = v + "px"; } catch (e) {} };
     const put = (t, px, py, size, face, color, l = 0) => { x.font = font(size, face); x.fillStyle = color; ls(l); x.fillText(t, px, py); };
     const fit = (texts, face, max, width = TW) => Math.min(max, ...texts.map(t => { x.font = font(max, face); ls(-max * 0.04); return Math.floor(max * width / Math.max(1, x.measureText(t).width)); }));
@@ -532,12 +536,20 @@ async function pdfToMarked(file) {
     const g = c.getContext("2d"); g.scale(scale, scale); drawTypo(g, sp, 1296, Math.round(1296 * COVER_H / COVER_W));
     return c;
   }
+  async function coverFontsReady(sp) {
+    await paperlogyReady().catch(() => {});
+    const tf = sp?.titleFont;
+    if (tf && FONTS[tf] && tf !== "페이퍼로지") {
+      const t = [sp.title, ...(sp.titleLines || []), sp.accentWord, sp.subtitle, sp.author].filter(Boolean).join(" ") || "가";
+      await Promise.all(["400", "700", "900"].map(w => document.fonts.load(`${w} 64px ${FONTS[tf]}`, t).catch(() => {})));
+    }
+  }
   function renderTypo(sp, W, H) {
     const root = mk("div", `position:relative;width:${W}px;height:${H}px;overflow:hidden;background:${typoColors(sp).deep};`);
     const c = document.createElement("canvas"); c.width = 1296; c.height = Math.round(1296 * H / W);
     c.style.cssText = `display:block;width:${W}px;height:${H}px;`;
     const draw = () => drawTypo(c.getContext("2d"), sp, c.width, c.height);
-    if (plOk) draw(); else { draw(); paperlogyReady().then(draw, () => {}); }
+    draw(); coverFontsReady(sp).then(draw, () => {});
     root.appendChild(c); return root;
   }
   function renderCover(sp, W = 600, H = coverH(sp)) {
@@ -597,7 +609,7 @@ async function pdfToMarked(file) {
     box.appendChild(mk("div", `width:${46 * k}px;height:${3 * k}px;background:${accent};margin-bottom:${20 * k}px;`));
     // 3) 메인 제목
     // 블랙한산스·도현·주아·송명은 한 굵기뿐인 제목용 글꼴, 나머지는 가장 굵게
-    const display = /블랙한산스|도현|주아|송명/.test(sp.titleFont || "블랙한산스");
+    const display = DISPLAY_FONT.test(sp.titleFont || "블랙한산스");
     const t = mk("div", `font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${tsize}px;line-height:1.12;color:${ink};font-weight:${display ? 400 : 900};letter-spacing:-0.025em;`);
     lines.forEach((l, i) => { if (i) t.appendChild(document.createElement("br")); t.appendChild(document.createTextNode(l)); });
     box.appendChild(t);
@@ -631,7 +643,7 @@ async function pdfToMarked(file) {
     const x = p(a), y = p(b);
     return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
   }
-  const DISPLAY_FONT = /블랙한산스|도현|주아|송명/;
+  const DISPLAY_FONT = /블랙한산스|도현|주아|송명|베이글팻원|나눔펜/;
   // ---- 표지에서 색 뽑기: 내지 색은 언제나 확정한 표지에서 나온다 ----
   // ---- 색 라이브러리 186종: 캔바 색 조합 150개(Canva 'color palettes', ggthemes canva_palettes 원본 hex) + 2026 트렌드 컬러 조합 36개(팬톤 2026 Cloud Dancer·NYFW·LFW 시즌 컬러) ----
   // 원본 3~4색에서 장 시작 밴드(가장 어두운 색, 더 어둡게) · 본문 종이(가장 밝은 색을 아주 옅게) · 강조(채도 높은 색, 종이와 대비 2.4:1 이상)를 뽑아 둔 값
@@ -1256,7 +1268,10 @@ function edToc(th, parts, book, starts = []) {
 function drawTypo(x, sp, W, H) {
     const d = { ...typoText(sp), C: typoColors(sp) }, M = 120, TW = W - M * 2, ry = H / 1944;
     const F = { XB: "800", B: "700", R: "400" };
-    const font = (size, face) => `${F[face]} ${size}px Paperlogy, "Noto Sans KR", sans-serif`;
+    // 제목 글꼴을 고르면 제목·강조어는 그 글꼴로. 장식 글꼴이 아니면 부제·작가도 같은 글꼴로 맞춘다
+    const tf = FONTS[sp.titleFont] && sp.titleFont !== "페이퍼로지" ? sp.titleFont : "", deco = tf && DISPLAY_FONT.test(tf);
+    const font = (size, face) => (!tf || (deco && face !== "XB")) ? `${F[face]} ${size}px Paperlogy, "Noto Sans KR", sans-serif`
+      : `${deco ? "400" : face === "XB" ? "900" : face === "B" ? "700" : "400"} ${size}px ${fam(tf)}`;
     const ls = (v) => { try { x.letterSpacing = v + "px"; } catch (e) {} };
     const put = (t, px, py, size, face, color, l = 0) => { x.font = font(size, face); x.fillStyle = color; ls(l); x.fillText(t, px, py); };
     const fit = (texts, face, max, width = TW) => Math.min(max, ...texts.map(t => { x.font = font(max, face); ls(-max * 0.04); return Math.floor(max * width / Math.max(1, x.measureText(t).width)); }));
