@@ -276,7 +276,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14a</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14b</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -2501,11 +2501,69 @@ ${part.text}`;
     return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
   }
   const DISPLAY_FONT = /블랙한산스|도현|주아|송명/;
-  function edTheme(sp) {
+  // ---- 표지에서 색 뽑기: 내지 색은 언제나 확정한 표지에서 나온다 ----
+  const hsl = (h) => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+    let hh = 0; if (d) hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return { h: (hh * 60 + 360) % 360, s, l };
+  };
+  const toHex = (rgb) => "#" + rgb.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+  async function paletteFromImage(blob) {
+    const img = await createImageBitmap(blob);
+    const W = 90, H = Math.max(1, Math.round(90 * img.height / img.width));
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d"); g.drawImage(img, 0, 0, W, H);
+    const d = g.getImageData(0, 0, W, H).data, bins = new Map(); let n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 200) continue;
+      const k = (d[i] >> 4) << 8 | (d[i + 1] >> 4) << 4 | (d[i + 2] >> 4);
+      const b = bins.get(k) || { n: 0, r: 0, g: 0, b: 0 }; b.n++; b.r += d[i]; b.g += d[i + 1]; b.b += d[i + 2]; bins.set(k, b); n++;
+    }
+    const list = [...bins.values()].map(b => { const hx = toHex([b.r / b.n, b.g / b.n, b.b / b.n]); return { hex: hx, share: b.n / n, L: lum(hx), ...hsl(hx) }; }).sort((a, b) => b.share - a.share);
+    const bg = list[0].hex;                                   // 가장 넓은 면 = 바탕색
+    const lights = list.filter(x => x.L > 0.55 && x.share > 0.01);
+    const darks = list.filter(x => x.share > 0.002 && x.L < 0.12).sort((a, b) => a.L - b.L);
+    // 강조색: 채도가 높고 너무 어둡거나 밝지 않은 색 중 면적과 채도를 같이 본다 (글자·선처럼 작아도 잡히게)
+    const acc = list.filter(x => x.share > 0.0012 && x.s > 0.18 && x.l > 0.18 && x.l < 0.8 && x.hex !== list[0].hex).sort((a, b) => b.s * Math.sqrt(b.share) - a.s * Math.sqrt(a.share))[0];
+    return { bg, light: (lights[0] || list.slice().sort((a, b) => b.L - a.L)[0]).hex, dark: (darks[0] || list.slice().sort((a, b) => a.L - b.L)[0]).hex, accent: acc ? acc.hex : null };
+  }
+  let palCache = { key: null, pal: null };
+  async function coverPalette() {
+    const key = [coverBlob && coverBlob.size, chosenCover && JSON.stringify(chosenCover)].join("|");
+    if (palCache.key === key) return palCache.pal;
+    let pal = null;
+    if (coverBlob) { try { pal = await paletteFromImage(coverBlob); } catch (e) { pal = null; } }
+    if (chosenCover) {   // 생성기에서 만든 표지면 설계값이 정답
+      const c = chosenCover, cs = [c.bg, c.bg2, c.ink, c.sub, c.accent].map(x => hex(x, "")).filter(Boolean);
+      const byL = cs.slice().sort((a, b) => lum(a) - lum(b));
+      pal = { ...(pal || {}), bg: hex(c.bg, pal?.bg || byL[byL.length - 1]), light: byL[byL.length - 1], dark: byL[0], accent: hex(c.accent, pal?.accent || "") || pal?.accent || null };
+    }
+    palCache = { key, pal }; return pal;
+  }
+  // 표지 팔레트 → 내지 색 3가지 방향 (faithful: 표지 그대로 / calm: 차분하게 / bold: 강조를 진하게)
+  function palToColors(pal, variant) {
+    const v = /calm/.test(variant) ? "calm" : /bold/.test(variant) ? "bold" : "faithful";
+    const darkCover = lum(pal.bg) < 0.25;
+    let accent = pal.accent || mixHex(pal.dark, "#808080", 0.25);
+    let dark = lum(pal.dark) > 0.05 ? mixHex(pal.dark, "#000000", 0.45) : pal.dark;
+    if (darkCover) dark = mixHex(pal.bg, "#000000", lum(pal.bg) > 0.05 ? 0.35 : 0);
+    // 본문 종이: 표지 바탕의 색감을 아주 옅게 (어두운 표지면 강조색 기운만)
+    let paper = darkCover ? mixHex("#f2f2f1", accent, 0.035) : mixHex(pal.light || pal.bg, "#f4f4f4", 0.55);
+    if (lum(paper) < 0.82) paper = mixHex(paper, "#ffffff", 0.5);
+    if (v === "calm") { accent = mixHex(accent, mixHex(pal.dark, "#9a9a9a", 0.5), 0.3); paper = mixHex(paper, "#ffffff", 0.35); dark = mixHex(dark, "#202022", 0.4); }
+    if (v === "bold") { accent = mixHex(accent, "#000000", 0.08); dark = pal.accent ? mixHex(accent, "#000000", 0.8) : dark; paper = mixHex(paper, pal.light || paper, 0.25); }
+    const ink = mixHex(dark, "#000000", 0.25);
+    return { paper, dark, accent, ink: lum(mixHex(ink, "#1d1d1f", 0.6)) < 0.04 ? mixHex(ink, "#1d1d1f", 0.6) : "#1d1d1f", variant: v };
+  }
+  // 색은 표지 팔레트가 있으면 거기서만 (AI가 준 색은 표지를 못 읽었을 때만 쓴다)
+  function edTheme(sp, pal) {
     sp = sp || {};
-    const paper = hex(sp.paper, "#f1f1f2"), dark = hex(sp.dark, "#0a0a0c");
-    let ink = hex(sp.ink, "#1d1d1f"); if (contrast(ink, paper) < 7) ink = lum(paper) > 0.4 ? "#1d1d1f" : "#f1f1f2";
-    let accent = hex(sp.accent, "#e83e6b");
+    const pc = pal ? palToColors(pal, sp.variant || "") : null;
+    const paper = hex(pc?.paper || sp.paper, "#f1f1f2"), dark = hex(pc?.dark || sp.dark, "#0a0a0c");
+    let ink = hex(pc?.ink || sp.ink, "#1d1d1f"); if (contrast(ink, paper) < 7) ink = lum(paper) > 0.4 ? "#1d1d1f" : "#f1f1f2";
+    let accent = hex(pc?.accent || sp.accent, "#e83e6b");
     if (contrast(accent, paper) < 2.2) accent = mixHex(accent, ink, 0.35);
     let deep = mixHex(accent, "#000000", 0.14); for (let i = 0; i < 4 && contrast(deep, paper) < 4.5; i++) deep = mixHex(deep, ink, 0.3);
     let accD = accent; for (let i = 0; i < 4 && contrast(accD, dark) < 3; i++) accD = mixHex(accD, "#ffffff", 0.3);
@@ -3213,7 +3271,7 @@ ${text.slice(0, 14000)}`;
     };
   }
   function renderBodyPreview(sp) {
-    const th = edTheme(sp);
+    const th = edTheme(sp, palCache.pal);
     const parts = bookParts();
     const pt = parts.find(x => x.num && x.text && x.text.length > 400) || parts.find(x => x.text && x.text.length > 200) || {
       title: "01 첫 번째 장", num: 1, sub: "부제가 이렇게 들어가요",
@@ -3238,14 +3296,15 @@ ${text.slice(0, 14000)}`;
     } catch (e) { images = undefined; }
     if (!images && !chosenCover) { bodyState("이 화면에서는 이미지를 AI에게 보낼 수 없어요. 표지 디자인 탭에서 표지를 만들어 '이 표지로 확정'을 누르면 설계값으로 분석해요.", "err"); return; }
     const avoid = bodySpecs.length ? `\n[지난번 3안 · 이번엔 다르게]\n${bodySpecs.map(s => `${s.name}: ${s.paper}/${s.dark}/${s.accent}/${s.headFont}/${s.bodyFont}`).join("\n")}\n` : "";
+    const pal = await coverPalette();
+    const palLine = pal ? `\n[표지에서 뽑은 색 · 내지 색은 이걸로만 만든다]\n바탕 ${pal.bg} · 밝은색 ${pal.light} · 어두운색 ${pal.dark} · 강조색 ${pal.accent || "(없음: 무채색 표지)"}\n` : "";
     const excerpt = currentBookText().slice(0, 4000);
     const prompt = `너는 한국 전자책 본문(내지) 디자이너다. ${images ? "첨부한 이미지는 이 책의 확정된 표지다. 표지의 디자인·컬러·톤·폰트 느낌·정보 위계(제목/부제/라벨의 크기 차이)를 먼저 분석하고," : "아래 [확정 표지 설계값]이 이 책의 확정된 표지다. 표지의 컬러·톤·폰트·위계를 먼저 분석하고,"} 그 표지와 한 권으로 이어지는 A5 본문 디자인 3안을 설계한다.
-${chosenCover ? `\n[확정 표지 설계값]\n${JSON.stringify(chosenCover)}\n` : ""}
+${chosenCover ? `\n[확정 표지 설계값]\n${JSON.stringify(chosenCover)}\n` : ""}${palLine}
 [원칙]
 - 레이아웃·위계·여백은 아래 [내지 디자인 가이드라인]을 엔진이 그대로 지킨다. 너는 이 책에 맞는 색과 글꼴만 정한다.
-- paper(본문 종이)는 아주 옅은 회색·미색(#f0~#fa 대), ink는 거의 검정. dark는 장 시작 밴드·차례에 쓰는 아주 어두운 색: 표지에 어두운 색이 있으면 거기서, 없으면 accent 쪽으로 살짝 물든 먹색.
-- accent는 표지의 강조색 하나. 밝은 종이 위 막대·번호와 어두운 밴드 위 라벨 양쪽에서 다 보여야 한다.
-- 3안: 표지를 가장 충실히 이은 안 / 더 차분한 안(채도 낮춤) / 더 과감한 안(강조색 진하게).
+- 색은 엔진이 [표지에서 뽑은 색]으로 직접 만든다(본문 종이 = 표지 바탕을 아주 옅게, 장 시작 밴드 = 표지의 어두운색, 강조 = 표지 강조색). 너는 3안의 방향(variant)만 정한다: faithful(표지 그대로) / calm(채도를 낮춰 차분하게) / bold(강조를 진하게, 밴드도 강조색 계열). 3안은 반드시 faithful, calm, bold를 하나씩.
+- 표지를 못 읽었을 때만 paper·dark·ink·accent hex가 쓰인다. 그때도 표지 이미지에 있는 색에서 고른다.
 - 글꼴은 이 목록에서만: ${FONT_KEYS}. headFont는 노토산스 또는 IBM플렉스(장 제목만 표지 제목 글꼴을 쓰고 싶으면 블랙한산스·도현도 됨). bodyFont는 노토세리프·고운바탕·나눔명조 중 하나(아주 현대적인 표지만 노토산스).
 - bodySize: 14~15 (A5 기준). ornament: 장 시작 장식 기호 3개(예: "◆ ◇ ◆", "● ○ ●", "— ✦ —").
 
@@ -3258,7 +3317,7 @@ ${TEMPLATE_TEXT}
 ${avoid}
 - 줄표(긴 대시 기호)는 쓰지 않는다.
 [출력] JSON 배열 3개만:
-[{"template":"기준으로 삼은 템플릿","name":"안 이름","concept":"한 줄 설명","analysis":"표지에서 읽은 것 한 줄(색·톤·폰트·위계)","paper":"#hex","dark":"#hex","ink":"#hex","accent":"#hex","headFont":"…","bodyFont":"…","bodySize":14.5,"ornament":"◆ ◇ ◆"}]
+[{"template":"기준으로 삼은 템플릿","name":"안 이름","variant":"faithful|calm|bold","concept":"한 줄 설명","analysis":"표지에서 읽은 것 한 줄(색·톤·폰트·위계)","paper":"#hex","dark":"#hex","ink":"#hex","accent":"#hex","headFont":"…","bodyFont":"…","bodySize":14.5,"ornament":"◆ ◇ ◆"}]
 
 [원고 일부]
 ${excerpt || "(원고 없음)"}`;
@@ -3269,6 +3328,8 @@ ${excerpt || "(원고 없음)"}`;
       const arr = await sample.json(prompt, { signal: bdCtl.signal, modelTier: "default", cache: false, images });
       const specs = (Array.isArray(arr) ? arr : arr?.designs || []).slice(0, 3);
       if (!specs.length) throw { code: "empty_completion" };
+      const VAR = ["faithful", "calm", "bold"];
+      specs.forEach((sp, i) => { if (!/faithful|calm|bold/.test(sp.variant || "") || specs.findIndex(x => x.variant === sp.variant) !== i) sp.variant = VAR[i]; });
       bodySpecs = specs; renderBodyRefs();
       bodyState(currentBookText() ? "본문 디자인 3개가 나왔어요. 마음에 드는 안에서 '이대로 책 전체 디자인 하기'를 누르세요." : "본문 디자인 3개가 나왔어요. 책 전체 디자인을 하려면 표지 디자인 탭에서 원고를 먼저 연결해주세요.", "ok");
     } catch (e) {
@@ -3280,6 +3341,7 @@ ${excerpt || "(원고 없음)"}`;
     bodySpecs.forEach((sp, i) => {
       const card = mk("article", ""); card.className = "ref";
       card.appendChild(renderBodyPreview(sp));
+      { const t = edTheme(sp, palCache.pal), sw = mk("div", "display:flex;gap:6px;margin:8px 0 2px;align-items:center;font-size:12px;color:#999;"); [t.paper, t.dark, t.accent, t.ink].forEach(c => sw.appendChild(mk("span", `width:18px;height:18px;border-radius:4px;background:${c};border:1px solid #444;display:inline-block;`))); sw.appendChild(mk("span", "margin-left:4px;", palCache.pal ? "표지에서 뽑은 색" : "AI 추천 색")); card.appendChild(sw); }
       card.appendChild(mk("div", "", `${i + 1}안 · ${sp.name || ""}`)).className = "ref-name";
       card.appendChild(mk("div", "", [sp.concept, sp.analysis && "표지 분석: " + sp.analysis].filter(Boolean).join(" · "))).className = "ref-concept";
       const b = mk("button", "", "이대로 책 전체 디자인 하기"); b.className = "btn"; b.type = "button";
@@ -3299,7 +3361,7 @@ ${excerpt || "(원고 없음)"}`;
     const parts = bookParts();
     if (!parts.length) { bookMsg("연결된 원고가 없어요. 표지 디자인 탭에서 원고를 첨부하거나 원고 집필에서 가져와주세요.", "err"); return; }
     building = true; btn.disabled = true;
-    const th = edTheme(sp);
+    const th = edTheme(sp, await coverPalette());
     const g = guessTitle(); const title = chosenCover?.title || g.title || "전자책";
     try {
       await Promise.all([loadScript(CDN.jspdf), loadScript(CDN.h2c)]);
