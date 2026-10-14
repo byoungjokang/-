@@ -276,7 +276,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14d</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14e</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -393,6 +393,17 @@
         </div>
       </div>
       <button class="btn" id="goCover" type="button">원고 분석해서 표지 디자인 3개 뽑기</button>
+      <div id="metaBox" hidden style="border:1px solid var(--line, #333);border-radius:14px;padding:16px;margin:4px 0 12px;">
+        <p class="attach-note" id="metaNote" style="margin:0 0 10px;">원고에서 이렇게 정리했어요. 틀린 곳은 고쳐주세요.</p>
+        <div class="field"><label class="lbl" for="mTitle">제목</label><input type="text" id="mTitle" placeholder="책 제목"></div>
+        <div class="field"><label class="lbl" for="mSub">부제 <small>없으면 비워두세요</small></label><input type="text" id="mSub" placeholder="부제"></div>
+        <div class="field"><label class="lbl" for="mAuthor">작가</label>
+          <div style="display:flex;gap:12px;align-items:center;"><input type="text" id="mAuthor" placeholder="작가 이름 (표지에 들어가요)" style="flex:1;">
+          <label style="display:flex;gap:6px;align-items:center;white-space:nowrap;cursor:pointer;"><input type="checkbox" id="mNoAuthor"> 없음</label></div></div>
+        <p style="margin:14px 0 10px;font-weight:700;">이대로 표지 디자인을 만들까요?</p>
+        <button class="btn" id="mGo" type="button">네, 이대로 표지 디자인 만들기</button>
+      </div>
+      <p class="attach-note" id="metaSummary" style="margin:0 0 6px;"></p>
       <p class="note" id="coverState" hidden></p>
       <div class="refs" id="coverRefs" hidden></div>
       <div class="draft-actions single" id="coverActions" hidden>
@@ -2331,10 +2342,11 @@ ${part.text}`;
     return out.map(o => o.lv === 1 ? "# " + o.text : o.lv === 2 ? "■ " + o.text : o.lv === 3 ? (titled ? o.text : (titled = true, "책 제목: " + o.text)) : o.text).join("\n");
   }
   function setBook(text, note) {
-    bookState.text = text;
+    bookState.text = text; bookMeta.confirmed = false; $("metaSummary").textContent = "";
     $("bookText").value = text;
     $("bookNote").textContent = note;
     updateBodyBookNote();
+    if (text.trim()) setTimeout(() => showMetaBox(false), 0);
   }
   $("bookFile").addEventListener("change", async (ev) => {
     const f = ev.target.files?.[0]; if (!f) return;
@@ -2364,11 +2376,58 @@ ${part.text}`;
     $("bodyBookNote").textContent = t ? `연결된 원고: ${t.length.toLocaleString()}자 (표지 디자인 탭의 원고 · 없으면 원고 집필 결과)` : "연결된 원고가 없어요. 표지 디자인 탭에서 원고를 첨부하면 책 전체 디자인까지 할 수 있어요.";
   }
   function guessTitle() {
+    if (bookMeta.confirmed && bookMeta.title) return { title: bookMeta.title, subtitle: bookMeta.subtitle };
+    return guessTitleRaw();
+  }
+  function guessTitleRaw() {
     const pool = [drafts.chapter, drafts.toc, currentBookText(), $("r_topic").value].filter(Boolean).join("\n");
     const t = (pool.match(/책 제목\s*[:：]\s*(.+)/) || pool.match(/\[확정 주제·제목\]\s*\n(.+)/) || [])[1];
     const s = (pool.match(/부제\s*[:：]\s*(.+)/) || [])[1];
     return { title: (t || "").trim(), subtitle: (s || "").trim() };
   }
+  // ---- 표지 만들기 전 확인: 제목·부제·작가 ----
+  const bookMeta = { title: "", subtitle: "", author: "", noAuthor: false, confirmed: false };
+  // 원고 앞부분(첫 장 제목 전)에서 제목·부제·작가를 찾는다
+  function detectBookMeta() {
+    const g = guessTitleRaw(), t = currentBookText();
+    const out = { title: g.title, subtitle: g.subtitle, author: "" };
+    const lines = t.split("\n").slice(0, 80).map(l => l.trim()).filter(Boolean);
+    const stop = lines.findIndex(l => /^#{1,6}\s/.test(l) || TOC_LINE.test(l) || CH_LINE.test(cleanHead(l)) || /━{4,}/.test(l));
+    const head = (stop >= 0 ? lines.slice(0, stop) : lines.slice(0, 8)).map(l => cleanHead(l).replace(/^(책\s*제목|제목)\s*[:：]\s*/, "")).filter(Boolean);
+    const am = t.slice(0, 3000).match(/^\s*(?:지은이|저자|작가|글쓴이|글)\s*[:：]\s*(.+)$/m) || t.slice(0, 3000).match(/^\s*(.{2,20}?)\s+(?:지음|씀|저)\s*$/m);
+    if (am) out.author = am[1].trim();
+    const cand = head.filter(l => l.length <= 40 && !/^(탈고|초고|원고|버전|v\d|ver|\d{4}[.\-/])/i.test(l) && !/^(지은이|저자|작가|부제)/.test(l) && l !== out.author);
+    if (!out.title && cand.length) {
+      // 부제 꼴('~위한', '~하는 법', '~에게')은 부제로, 남은 것 중 가장 짧은 줄을 제목으로
+      const subLike = (l) => /(위한|위하여|에게|하는\s*법|하는\s*방법|이야기|안내서|가이드)$/.test(l) || l.length > 22;
+      const titles = cand.filter(l => !subLike(l)), subs = cand.filter(subLike);
+      out.title = (titles.sort((a, b) => a.length - b.length)[0] || cand[0]);
+      if (!out.subtitle) out.subtitle = subs.find(l => l !== out.title) || "";
+    }
+    if (!out.subtitle) { const sm = t.slice(0, 3000).match(/^\s*부제\s*[:：]\s*(.+)$/m); if (sm) out.subtitle = sm[1].trim(); }
+    return out;
+  }
+  function showMetaBox(scroll) {
+    const m = detectBookMeta();
+    $("mTitle").value = bookMeta.confirmed && bookMeta.title ? bookMeta.title : m.title || "";
+    $("mSub").value = bookMeta.confirmed ? bookMeta.subtitle : m.subtitle || "";
+    $("mAuthor").value = bookMeta.confirmed ? bookMeta.author : m.author || "";
+    $("mNoAuthor").checked = bookMeta.confirmed ? bookMeta.noAuthor : !m.author;
+    $("mAuthor").disabled = $("mNoAuthor").checked;
+    $("metaNote").textContent = m.title ? "원고에서 이렇게 정리했어요. 틀린 곳은 고쳐주세요." : "원고에서 제목을 못 찾았어요. 직접 적어주세요.";
+    $("metaBox").hidden = false; $("goCover").hidden = true;
+    if (scroll) $("metaBox").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  $("mNoAuthor").addEventListener("change", () => { $("mAuthor").disabled = $("mNoAuthor").checked; if ($("mNoAuthor").checked) $("mAuthor").value = ""; });
+  $("mGo").addEventListener("click", () => {
+    const title = $("mTitle").value.trim();
+    if (!title) { $("metaNote").textContent = "제목을 적어주세요."; $("mTitle").focus(); return; }
+    const noAuthor = $("mNoAuthor").checked, author = noAuthor ? "" : $("mAuthor").value.trim();
+    if (!noAuthor && !author) { $("metaNote").textContent = "작가 이름을 적거나 '없음'을 눌러주세요."; $("mAuthor").focus(); return; }
+    Object.assign(bookMeta, { title, subtitle: $("mSub").value.trim(), author, noAuthor, confirmed: true });
+    $("metaSummary").textContent = `제목: ${title}${bookMeta.subtitle ? " · 부제: " + bookMeta.subtitle : ""} · 작가: ${author || "없음"}`;
+    runCover();
+  });
 
   // ---- 표지 그리기 ----
   // 전자책 디자인 템플릿 10선(ebook-design-templates 스킬)의 컬러·폰트·표지 비주얼·금지 요소
@@ -3150,7 +3209,7 @@ ${part.text}`;
     const artRule = artBlob ? `\n[표지 그림이 있다]\n${images ? "첨부한 이미지가 표지에 쓸 그림이다. 그림의 색·밝기·빈 공간(제목을 얹을 자리)을 먼저 분석한다." : "표지에 쓸 그림이 있지만 이번엔 볼 수 없다. 어떤 그림이든 읽히도록 안전하게 설계한다."}\n- 이번 3안의 layout은 반드시 photo-full(그림을 꽉 채우고 위나 아래에 제목), photo-top(위 55%는 그림, 아래는 색 블록에 제목), photo-window(색 배경 위에 그림 창을 두고 위에 제목) 중에서 서로 다르게 고른다. motif는 none.\n- photo-full에는 titlePos(top 또는 bottom: 그림에서 비어 있거나 어두운 쪽)와 scrim(제목 뒤에 깔 반투명 색, 그림의 어두운 색에서 뽑은 #hex)을 넣는다.\n- 색(bg·accent·ink)은 그림에서 뽑는다.\n` : "";
     const avoid = coverSpecs.length ? `\n[${one != null ? "지금 있는 3안 · 이번엔 " + (one + 1) + "안 하나만 새로, 셋 모두와 템플릿·layout·motif·색이 겹치지 않게" : "지난번 3안 · 이번엔 겹치지 않게 완전히 다른 방향으로"}]\n${coverSpecs.map(s => `${s.name}: ${s.layout}/${s.motif}/${s.bg}/${s.titleFont}`).join("\n")}\n` : "";
     const prompt = `너는 한국 전자책 표지 아트디렉터다. 아래 [원고]를 분석해서 전자책 표지 디자인 3안을 설계한다.
-${g.title ? `책 제목은 "${g.title}"${g.subtitle ? `, 부제는 "${g.subtitle}"` : ""}. 제목·부제 글자는 바꾸지 않는다(줄바꿈만 정한다).\n` : "원고에서 책 제목과 부제를 찾고, 없으면 원고 내용으로 짓는다.\n"}
+${bookMeta.confirmed ? (bookMeta.author ? `저자명은 "${bookMeta.author}". 표지 아래쪽에 작게 넣는다.\n` : "저자명은 넣지 않는다(author는 빈 문자열).\n") : ""}${g.title ? `책 제목은 "${g.title}"${g.subtitle ? `, 부제는 "${g.subtitle}"` : ""}. 제목·부제 글자는 바꾸지 않는다(줄바꿈만 정한다).\n` : "원고에서 책 제목과 부제를 찾고, 없으면 원고 내용으로 짓는다.\n"}
 [원칙]
 - 먼저 원고의 독자·정서·약속을 읽고, 아래 [디자인 템플릿 10선]에서 이 책에 맞는 템플릿 3개를 서로 다르게 고른다. 3안은 각각 그 템플릿의 컬러·제목글꼴·비주얼 방향을 따르되, 이 책의 주제에 맞게 조금 다듬어도 된다. 템플릿의 금지 요소는 지킨다.
 - 표지는 판매 썸네일로 작게 봐도 제목이 읽혀야 한다. 제목 줄은 한 줄에 8자 안팎으로 끊는다. 글자색(ink)과 배경(bg)은 대비가 커야 한다.
@@ -3176,9 +3235,14 @@ ${text.slice(0, 14000)}`;
       const arr = await sample.json(prompt, { signal: cvCtl.signal, modelTier: "default", cache: false, images });
       const specs = (Array.isArray(arr) ? arr : arr?.covers || (arr && typeof arr === "object" ? [arr] : [])).slice(0, one != null ? 1 : 3);
       if (!specs.length) throw { code: "empty_completion" };
+      if (bookMeta.confirmed) specs.forEach(sp => {
+        const flat = (x) => String(x || "").replace(/\s+/g, "");
+        sp.title = bookMeta.title; sp.subtitle = bookMeta.subtitle; sp.author = bookMeta.author;
+        if (!Array.isArray(sp.titleLines) || flat(sp.titleLines.join("")) !== flat(bookMeta.title)) { const w = bookMeta.title.split(/\s+/); sp.titleLines = w.length > 1 ? [w.slice(0, Math.ceil(w.length / 2)).join(" "), w.slice(Math.ceil(w.length / 2)).join(" ")] : [bookMeta.title]; }
+      });
       if (one != null) { if (chosenCover === coverSpecs[one]) chosenCover = null; coverSpecs[one] = specs[0]; }
       else coverSpecs = specs;
-      renderCoverRefs();
+      renderCoverRefs(); $("metaBox").hidden = true; $("goCover").hidden = false; $("goCover").textContent = "제목·작가 고치고 표지 다시 뽑기";
       coverState(one != null ? `${one + 1}안을 새로 만들었어요. 다른 안은 그대로예요.` : "표지 3개가 나왔어요. 마음에 드는 걸 PNG로 저장하거나 '이 표지로 확정'을 누르세요. 안마다 '색 바꾸기'와 'AI로 이 안만 다시 생성'도 돼요.", "ok");
     } catch (e) {
       coverState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "설계 결과가 깨졌어요. 한 번만 다시 눌러주세요." : (ERR[e?.code] || "표지 설계에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
@@ -3187,8 +3251,8 @@ ${text.slice(0, 14000)}`;
     }
   }
   let mockQueue = Promise.resolve();
-  $("goCover").addEventListener("click", () => runCover());
-  $("regenCover").addEventListener("click", () => runCover());
+  $("goCover").addEventListener("click", () => { if (!currentBookText()) { coverState("원고를 첨부하거나 붙여넣어주세요. 제목·목차만 있어도 돼요.", "err"); return; } showMetaBox(true); });
+  $("regenCover").addEventListener("click", () => bookMeta.confirmed ? runCover() : showMetaBox(true));
 
   // ---- 본문 디자인: 표지 이미지 넣기 ----
   let coverThumbUrl = "";
