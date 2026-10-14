@@ -892,7 +892,9 @@ function edBlockEl(th, b) {
 function edFooter(th, p, n, run) {
     p.appendChild(mk("div", `position:absolute;left:${ED.mx}px;right:${ED.mx}px;top:${ED.footY}px;height:1px;background:${th.hair};`));
     const f = mk("div", `position:absolute;left:${ED.mx}px;right:${ED.mx}px;top:${ED.footText}px;display:flex;justify-content:space-between;align-items:center;gap:16px;font-family:${th.head};`);
-    f.appendChild(mk("span", `font-size:${edf(th, 10.5)};color:${th.foot};white-space:nowrap;overflow:hidden;`, run));
+    // 머리글이 길면 글자 중간에서 잘리지 않게 말줄임표로 줄인다
+    const maxLen = Math.floor(44 / th.S), runText = run.length > maxLen ? run.slice(0, maxLen - 1).trimEnd() + "…" : run;
+    f.appendChild(mk("span", `font-size:${edf(th, 10.5)};color:${th.foot};white-space:nowrap;`, runText));
     f.appendChild(mk("span", `flex:none;font-size:${edf(th, 12)};font-weight:700;color:${th.accent};letter-spacing:0.04em;`, String(n).padStart(3, "0")));
     p.appendChild(f);
   }
@@ -940,26 +942,47 @@ function edChapter(th, pt, ctx) {
 
 ```js
 function edToc(th, parts, book) {
-    const p = edPage(th, true), K = ED.K, f = (v) => edf(th, v);
-    p.appendChild(mk("div", `position:absolute;left:50%;top:${-Math.round(160 * K)}px;width:${Math.round(760 * K)}px;height:${Math.round(460 * K)}px;transform:translateX(-50%);background:radial-gradient(ellipse at center, ${th.accent}38 0%, ${th.accent}00 68%);`));
-    p.appendChild(mk("div", `position:absolute;left:0;right:0;top:${Math.round(66 * K)}px;text-align:center;font-family:${th.head};font-size:${f(32)};font-weight:700;letter-spacing:0.6em;padding-left:0.6em;color:${th.dText};`, "차례"));
-    p.appendChild(mk("div", `position:absolute;left:50%;top:${Math.round(139 * K)}px;width:${Math.round(150 * K)}px;height:3px;margin-left:${-Math.round(75 * K)}px;background:${th.accent};`));
-    const list = parts.slice(0, 24), top = Math.round(200 * K), avail = ED.footY - 20 - top;
-    const rowH = Math.min(Math.round(105 * K), Math.floor(avail / Math.max(1, list.length))), withSub = rowH >= 50, small = rowH < 40;
-    const box = mk("div", `position:absolute;left:${Math.round(128 * K)}px;right:${Math.round(128 * K)}px;top:${top}px;`);
-    list.forEach(pt => {
-      const m = edMeta(pt);
-      const row = mk("div", `display:flex;align-items:center;height:${rowH}px;border-bottom:1px solid ${th.dLine};box-sizing:border-box;`);
-      row.appendChild(mk("div", `flex:none;width:${Math.round(60 * K)}px;font-family:${th.head};font-size:${f(small ? 13 : 16)};font-weight:700;color:${th.accD};`, pt.num ? String(pt.num).padStart(2, "0") : ""));
+    const K = ED.K, f = (v) => edf(th, v), top = Math.round(200 * K), avail = ED.footY - 24 - top;
+    const host = mk("div", "position:fixed;left:-20000px;top:0;"); document.body.appendChild(host);
+    const shell = (cont) => {
+      const p = edPage(th, true);
+      p.appendChild(mk("div", `position:absolute;left:50%;top:${-Math.round(160 * K)}px;width:${Math.round(760 * K)}px;height:${Math.round(460 * K)}px;transform:translateX(-50%);background:radial-gradient(ellipse at center, ${th.accent}38 0%, ${th.accent}00 68%);`));
+      p.appendChild(mk("div", `position:absolute;left:0;right:0;top:${Math.round(66 * K)}px;text-align:center;font-family:${th.head};font-size:${f(32)};font-weight:700;letter-spacing:0.6em;padding-left:0.6em;color:${th.dText};`, cont ? "차례 (이어서)" : "차례"));
+      p.appendChild(mk("div", `position:absolute;left:50%;top:${Math.round(139 * K)}px;width:${Math.round(150 * K)}px;height:3px;margin-left:${-Math.round(75 * K)}px;background:${th.accent};`));
+      p.appendChild(mk("div", `position:absolute;left:0;right:0;top:${ED.footText}px;text-align:center;font-family:${th.head};font-size:${f(11.5)};letter-spacing:0.4em;color:${th.dFaint};`, book));
+      const box = mk("div", `position:absolute;left:${Math.round(128 * K)}px;right:${Math.round(128 * K)}px;top:${top}px;`);
+      p.appendChild(box); return { p, box };
+    };
+    const row = (pt, k) => {
+      const m = edMeta(pt), pad = Math.round(14 * k);
+      const r = mk("div", `display:flex;align-items:flex-start;padding:${pad}px 0;border-bottom:1px solid ${th.dLine};`);
+      r.appendChild(mk("div", `flex:none;width:${Math.round(60 * K)}px;font-family:${th.head};font-size:${f(16 * k)};line-height:1.45;font-weight:700;color:${th.accD};`, pt.num ? String(pt.num).padStart(2, "0") : ""));
       const col = mk("div", "min-width:0;flex:1;");
-      col.appendChild(mk("div", `font-family:${th.head};font-size:${f(small ? 14 : 17)};font-weight:700;line-height:1.4;color:${pt.num ? th.dText : th.dSub};white-space:nowrap;overflow:hidden;`, m.title));
+      col.appendChild(mk("div", `font-family:${th.head};font-size:${f(17 * k)};font-weight:700;line-height:1.45;color:${pt.num ? th.dText : th.dSub};word-break:keep-all;overflow-wrap:anywhere;`, m.title));
       const sub = pt.sub || (!pt.num && m.label ? m.label : "");
-      if (withSub && sub) col.appendChild(mk("div", `font-family:${th.head};font-size:${f(14)};line-height:1.4;color:${th.dTocSub};margin-top:${f(6)};white-space:nowrap;overflow:hidden;`, noDash(sub)));
-      row.appendChild(col); box.appendChild(row);
-    });
-    p.appendChild(box);
-    p.appendChild(mk("div", `position:absolute;left:0;right:0;top:${ED.footText}px;text-align:center;font-family:${th.head};font-size:${f(11.5)};letter-spacing:0.4em;color:${th.dFaint};`, book));
-    return p;
+      if (sub) col.appendChild(mk("div", `font-family:${th.head};font-size:${f(13.5 * k)};line-height:1.45;color:${th.dTocSub};margin-top:${f(4)};word-break:keep-all;overflow-wrap:anywhere;`, noDash(sub)));
+      r.appendChild(col); return r;
+    };
+    try {
+      // 1) 한 쪽에 다 들어가는 글자 크기를 찾는다
+      for (const k of [1, 0.92, 0.85, 0.78]) {
+        const { p, box } = shell(false); host.appendChild(p);
+        parts.forEach(pt => box.appendChild(row(pt, k)));
+        const h = box.getBoundingClientRect().height; host.removeChild(p);
+        if (h <= avail) return [p];
+      }
+      // 2) 그래도 넘치면 여러 쪽으로 나눈다 (가장 작은 크기로)
+      const pages = []; let cur = null;
+      parts.forEach(pt => {
+        if (!cur) { cur = shell(pages.length > 0); host.appendChild(cur.p); pages.push(cur.p); }
+        const r = row(pt, 0.85); cur.box.appendChild(r);
+        if (cur.box.getBoundingClientRect().height > avail && cur.box.children.length > 1) {
+          cur.box.removeChild(r); cur = shell(true); host.appendChild(cur.p); pages.push(cur.p); cur.box.appendChild(r);
+        }
+      });
+      pages.forEach(p => p.remove());
+      return pages;
+    } finally { host.remove(); }
   }
 ```
 
