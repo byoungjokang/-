@@ -276,7 +276,7 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14j</span></div>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.10.14k</span></div>
     <h1>전자책 생성기</h1>
     <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
   </header>
@@ -4063,6 +4063,96 @@ ${story || "(없음 · 경험이 필요한 자리는 [저자 경험 넣기]로 �
   FIELDS.concat("m_size").forEach(f => $(f).addEventListener("input", buildManual));
   FIELDS.forEach(f => { $(f).value = PRESETS["자기계발 · 마인드"][f] || ""; });
   buildManual();
+
+  // ================= 작업 자동 저장 · 불러오기 =================
+  // 새로 고침해도 원고·목차·표지·본문 설계가 남게 이 브라우저에 3초마다 저장한다. 다른 PC로 옮길 땐 '작업 파일'로.
+  const SAVE_KEY = "ebook-gen-work-v1";
+  const SAVE_IDS = ["t_link", "t_who", "t_me", "r_topic", "reader", "tone", "myVoice", "profileText", "myStory", "bookText", "mTitle", "mSub", "mAuthor"];
+  let coverDataUrl = { blob: null, url: "" };
+  const blobToUrl = (b) => new Promise((r, j) => { const f = new FileReader(); f.onload = () => r(f.result); f.onerror = j; f.readAsDataURL(b); });
+  async function workState(withImage = true) {
+    if (!TABS[current].custom) drafts[TABS[current].key] = $("src").value;
+    if (withImage && coverBlob && coverDataUrl.blob !== coverBlob) { try { coverDataUrl = { blob: coverBlob, url: await blobToUrl(coverBlob) }; } catch (e) {} }
+    const fields = {}; SAVE_IDS.forEach(id => { const el = $(id); if (el) fields[id] = el.value; });
+    return {
+      v: 1, at: Date.now(), fields, drafts: { ...drafts }, noAuthor: $("mNoAuthor").checked,
+      research: lastResearch || $("researchText").textContent, toc: $("tocText").textContent,
+      draftParts, bookText: bookState.text, bookMeta: { ...bookMeta },
+      coverSpecs, chosen: chosenCover ? coverSpecs.indexOf(chosenCover) : -1,
+      coverImage: withImage && coverBlob ? coverDataUrl.url : "", bodySpecs,
+    };
+  }
+  const hasWork = (s) => !!(s && (s.draftParts?.length || s.toc?.trim() || s.research?.trim() || s.bookText?.trim() || s.coverSpecs?.length));
+  let lastSaved = "";
+  async function autoSave() {
+    try {
+      const st = await workState(true); if (!hasWork(st)) return;
+      let txt = JSON.stringify(st); if (txt === lastSaved) return;
+      try { localStorage.setItem(SAVE_KEY, txt); }
+      catch (e) { st.coverImage = ""; txt = JSON.stringify(st); localStorage.setItem(SAVE_KEY, txt); } // 용량이 모자라면 표지 그림만 빼고
+      lastSaved = txt; $("saveBarNote").textContent = `자동 저장됨 · ${new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`;
+    } catch (e) {}
+  }
+  async function applyWork(st) {
+    SAVE_IDS.forEach(id => { const el = $(id); if (el && st.fields?.[id] != null) el.value = st.fields[id]; });
+    $("mNoAuthor").checked = !!st.noAuthor; $("mAuthor").disabled = !!st.noAuthor;
+    Object.keys(drafts).forEach(k => delete drafts[k]); Object.assign(drafts, st.drafts || {});
+    if (!TABS[current].custom && drafts[TABS[current].key] !== undefined) $("src").value = drafts[TABS[current].key];
+    if (st.research?.trim()) { lastResearch = st.research; $("researchText").textContent = st.research; $("researchOut").hidden = false; $("toToc").hidden = false; }
+    if (st.toc?.trim()) { $("tocText").textContent = st.toc; $("tocOut").hidden = false; $("toDraft").hidden = false; }
+    draftParts = Array.isArray(st.draftParts) ? st.draftParts : [];
+    if (draftParts.length) { drawDraft(); $("draftOut").hidden = false; $("draftActions").hidden = false; renderFix(); }
+    bookState.text = st.bookText || ""; if (st.bookText) $("bookText").value = st.bookText; updateBodyBookNote();
+    Object.assign(bookMeta, st.bookMeta || {});
+    if (bookMeta.confirmed) $("metaSummary").textContent = `제목: ${bookMeta.title}${bookMeta.subtitle ? " · 부제: " + bookMeta.subtitle : ""} · 작가: ${bookMeta.author || "없음"}`;
+    coverSpecs = Array.isArray(st.coverSpecs) ? st.coverSpecs : [];
+    chosenCover = st.chosen >= 0 ? coverSpecs[st.chosen] || null : null;
+    if (coverSpecs.length) { renderCoverRefs(); $("goCover").textContent = "제목·작가 고치고 표지 다시 뽑기"; }
+    if (st.coverImage) { try { coverBlob = await (await fetch(st.coverImage)).blob(); setCoverThumb(coverBlob, chosenCover ? "확정한 표지를 불러왔어요." : "넣어 둔 표지 이미지를 불러왔어요."); } catch (e) {} }
+    else if (chosenCover) { try { coverBlob = await coverPng(chosenCover); setCoverThumb(coverBlob, "확정한 표지를 불러왔어요."); } catch (e) {} }
+    bodySpecs = Array.isArray(st.bodySpecs) ? st.bodySpecs : [];
+    if (bodySpecs.length) { try { await coverPalette(); } catch (e) {} renderBodyRefs(); }
+  }
+  // 저장 막대 (탭 바로 위)
+  const bar = mk("div", "display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:0 0 12px;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);font-size:13px;");
+  bar.id = "saveBar";
+  const note = mk("span", "color:var(--ink-faint);", "작업은 이 브라우저에 자동 저장돼요"); note.id = "saveBarNote";
+  const btns = mk("div", "display:flex;gap:6px;flex-wrap:wrap;");
+  const bExp = mk("button", "", "작업 파일로 저장"); bExp.className = "btn ghost"; bExp.type = "button"; bExp.title = "다른 PC·브라우저로 옮기거나 따로 보관할 때";
+  const bImpL = mk("label", "", "작업 파일 불러오기"); bImpL.className = "btn ghost file-btn";
+  const bImp = mk("input", ""); bImp.type = "file"; bImp.accept = ".json,application/json"; bImp.hidden = true; bImp.id = "workFile"; bImpL.appendChild(bImp);
+  const bNew = mk("button", "", "새로 시작"); bNew.className = "btn ghost"; bNew.type = "button";
+  btns.append(bExp, bImpL, bNew); bar.append(note, btns);
+  $("tabs").parentNode.insertBefore(bar, $("tabs"));
+  const barSay = (t) => { note.textContent = t; };
+  bExp.addEventListener("click", async () => {
+    const st = await workState(true); if (!hasWork(st)) { barSay("아직 저장할 작업이 없어요."); return; }
+    const name = safeName(bookMeta.title || guessTitle().title || "전자책") + "_작업.json";
+    await saveTo(name, new Blob([JSON.stringify(st)], { type: "application/json" }), (m) => barSay(m));
+  });
+  bImp.addEventListener("change", async (ev) => {
+    const f = ev.target.files?.[0]; if (!f) return;
+    try { const st = JSON.parse(await f.text()); if (!hasWork(st)) throw new Error("empty"); await applyWork(st); barSay(`${f.name} 작업을 불러왔어요. 완성본 PDF는 '이대로 책 전체 디자인 하기'로 다시 만들어 주세요.`); await autoSave(); }
+    catch (e) { barSay("작업 파일을 읽지 못했어요. 생성기에서 저장한 .json 파일인지 확인해 주세요."); }
+    ev.target.value = "";
+  });
+  let confirmNew = false;
+  bNew.addEventListener("click", () => {
+    if (!confirmNew) { confirmNew = true; bNew.textContent = "정말 지울까요? 한 번 더 누르기"; setTimeout(() => { confirmNew = false; bNew.textContent = "새로 시작"; }, 4000); return; }
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    lastSaved = ""; confirmNew = false; bNew.textContent = "새로 시작"; barSay("저장된 작업을 지웠어요. 새로 고침하면 빈 화면으로 시작해요.");
+  });
+  // 처음 열 때 저장된 작업이 있으면 불러온다
+  (async () => {
+    let st = null; try { st = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) {}
+    if (hasWork(st)) {
+      try { await applyWork(st); lastSaved = JSON.stringify(st); barSay(`지난 작업을 불러왔어요 (${new Date(st.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}). 완성본 PDF는 다시 만들어 주세요.`); }
+      catch (e) { barSay("지난 작업을 불러오지 못했어요."); }
+    }
+    setInterval(autoSave, 3000);
+    window.addEventListener("pagehide", () => { autoSave(); });
+  })();
+
 })();
 </script>
 
