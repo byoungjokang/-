@@ -1,0 +1,16 @@
+{
+  "name": "ebook-autopilot-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "전자책 생성기 — A4 docx 빌더/검증/초기화 스크립트",
+  "scripts": {
+    "init": "node init_book.js",
+    "status": "node status.js",
+    "validate": "node validate_book.js",
+    "build": "node build_ebook.js",
+    "pdf": "node to_pdf.js"
+  },
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}

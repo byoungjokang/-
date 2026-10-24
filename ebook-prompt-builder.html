@@ -1,0 +1,3285 @@
+<title>전자책 생성기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Do+Hyeon&family=Jua&family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;800&family=Song+Myung&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+  /* 검정 바탕 + 노란 글씨, 한 가지 테마로 고정 */
+  :root, :root[data-theme="light"], :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #0c0c0b;
+    --panel: #121210;
+    --field: #0d0d0c;
+    --line: #26241c;
+    --line-strong: #423d26;
+    --ink: #f4ecd0;
+    --ink-soft: #d6c99c;
+    --ink-faint: #958b69;
+    --accent: #e8c547;
+    --accent-soft: #f0d36a;
+    --accent-ink: #0c0c0b;
+    --accent-wash: rgba(232, 197, 71, 0.10);
+    --r: 6px;
+    --ok: #b8e986;
+    --display: "Black Han Sans", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    --body: "IBM Plex Sans KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 40px 16px 72px;
+    word-break: keep-all;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+  h1, h2 { font-family: var(--display); font-weight: 400; color: var(--accent); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+  h1 { font-size: clamp(40px, 9vw, 60px); line-height: 1.08; letter-spacing: -0.02em; }
+  h1::after { content: ""; display: block; width: 56px; height: 5px; background: var(--accent); margin-top: 16px; }
+  h2 { font-size: clamp(22px, 5vw, 28px); line-height: 1.35; font-weight: 400; }
+  .lede { color: var(--ink-soft); margin: 18px 0 0; max-width: 46ch; font-size: 16px; line-height: 1.75; }
+  .ver { display: inline-block; margin-left: 10px; padding: 2px 9px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--accent); font-size: 11.5px; letter-spacing: 0.04em; font-weight: 700; vertical-align: 1px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; color: var(--ink-faint); font-weight: 700; margin-bottom: 12px; }
+
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 28px 32px; display: flex; flex-direction: column; gap: 22px; }
+  @media (max-width: 480px) { .panel { padding: 4px 16px 24px; } }
+
+  .tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-bottom: 1px solid var(--line); margin: 0 -28px; padding: 0 16px; }
+  @media (max-width: 640px) { .tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 -16px; padding: 0 4px; } }
+  .tab {
+    font: inherit; font-weight: 600; font-size: 14px; line-height: 1.35; text-align: left;
+    padding: 18px 10px 14px; cursor: pointer; background: transparent; border: 0;
+    color: var(--ink-faint); box-shadow: inset 0 -2px 0 transparent;
+    display: flex; flex-direction: column; gap: 4px; transition: color .18s, box-shadow .18s;
+  }
+  .tab-no { font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; color: var(--line-strong); font-variant-numeric: tabular-nums; transition: color .18s; }
+  .tab[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+  .tab[aria-selected="true"] .tab-no { color: var(--accent); }
+  .tab:hover:not([aria-selected="true"]) { color: var(--ink-soft); }
+  .tab:hover .tab-no { color: var(--ink-faint); }
+  .tab:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  label.lbl, div.lbl { font-weight: 700; font-size: 15px; color: var(--accent-soft); }
+  label.lbl small, div.lbl small { font-weight: 400; color: var(--ink-faint); font-size: 13px; margin-left: 4px; }
+  textarea, input[type="text"], select {
+    width: 100%; font: inherit; color: var(--ink);
+    background: var(--field); border: 1px solid var(--line-strong); border-radius: var(--r);
+    padding: 12px 14px; transition: border-color .18s;
+  }
+  textarea { min-height: 150px; resize: vertical; line-height: 1.7; }
+  textarea::placeholder, input::placeholder { color: var(--ink-faint); }
+  textarea:hover, input[type="text"]:hover, select:hover { border-color: var(--ink-faint); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: 16px; cursor: pointer;
+    width: 100%; padding: 15px; border-radius: var(--r); border: 0;
+    background: var(--accent-soft); color: var(--accent-ink);
+    transition: background-color .18s, transform .12s, border-color .18s, color .18s;
+  }
+  .btn:active:not([disabled]) { transform: scale(0.985); }
+  .btn { background: var(--accent); font-weight: 700; letter-spacing: -0.005em; }
+  .btn:hover { background: var(--accent-soft); }
+  .btn.ghost:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
+  .btn[disabled] { opacity: 0.55; cursor: progress; }
+  .btn.ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong); font-size: 14px; font-weight: 600; padding: 10px 14px; width: auto; }
+
+  .out { border-top: 1px solid var(--line); padding-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .out-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .out-head strong { font-size: 14px; color: var(--accent); letter-spacing: 0.04em; }
+  .out-actions { display: flex; gap: 8px; }
+  .sub-note { font-weight: 400; color: var(--ink-faint); letter-spacing: 0; font-size: 13px; }
+  pre.result {
+    margin: 0; white-space: pre-wrap; word-break: break-word;
+    font-family: var(--body); font-size: 14.5px; line-height: 1.8;
+    background: var(--field); border: 1px solid var(--line); border-radius: var(--r);
+    padding: 16px; max-height: 520px; overflow: auto; color: var(--ink);
+  }
+  .note { font-size: 13px; color: var(--ink-faint); margin: 0; }
+  .note.err { color: #ff8a65; }
+  .note.ok { color: var(--ok); }
+
+  .chips-lbl { font-weight: 700; font-size: 15px; }
+  .chips-lbl span { font-weight: 400; color: var(--ink-faint); }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .chip {
+    font: inherit; font-size: 14px; cursor: pointer;
+    padding: 9px 16px; border-radius: var(--r);
+    background: transparent; color: var(--accent-soft); border: 1px solid var(--line-strong);
+  }
+  .chip:hover { background: var(--accent-wash); }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-strong); border-radius: var(--r); overflow: hidden; }
+  .seg-btn { font: inherit; font-size: 14px; font-weight: 700; padding: 11px 8px; cursor: pointer; background: transparent; color: var(--ink-faint); border: 0; }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--line-strong); }
+  .seg-btn[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent-soft); }
+  .levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  @media (max-width: 520px) { .levels { grid-template-columns: 1fr; } }
+  .level { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; border: 1px solid var(--line-strong); border-radius: var(--r); padding: 11px 12px; }
+  .level input { accent-color: var(--accent); margin: 4px 0 0; flex: none; }
+  .level span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--ink-soft); }
+  .level small { font-size: 12.5px; color: var(--ink-faint); line-height: 1.5; }
+  .level:has(input:checked) { border-color: var(--accent); background: var(--accent-wash); }
+  .level:has(input:checked) b { color: var(--accent); }
+  .level:has(input:focus-visible) { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+  .go-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  .go-row .btn { width: auto; flex: 0 0 auto; padding-inline: 28px; }
+  .go-note { font-size: 13.5px; color: var(--ink-faint); }
+  @media (max-width: 520px) { .go-row .btn { width: 100%; } }
+  .src-list { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .src-head { font-weight: 700; color: var(--ink-soft); margin-bottom: 4px; }
+  .src-list a { color: var(--accent-soft); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src-list a:hover { text-decoration: underline; }
+  .gate { border: 1px solid var(--accent); background: var(--accent-wash); border-radius: var(--r); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .gate strong { color: var(--accent); font-size: 17px; font-weight: 900; }
+  .gate ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; color: var(--ink); }
+  .gate b { color: var(--accent); }
+  .gate-link { display: flex; gap: 8px; }
+  .voice-files { display: flex; flex-direction: column; gap: 6px; }
+  .voice-file { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line-strong); border-radius: var(--r); padding: 8px 12px; font-size: 13.5px; color: var(--ink-soft); }
+  .voice-file b { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .voice-file span { color: var(--ink-faint); white-space: nowrap; }
+  .voice-file .kind { color: var(--accent); font-weight: 700; flex: none; }
+  .voice-file button { margin-left: auto; flex: none; background: transparent; border: 0; color: var(--ink-faint); font: inherit; cursor: pointer; padding: 2px 6px; }
+  .voice-file button:hover { color: var(--accent); }
+  .gate-link input { flex: 1; min-width: 0; font-size: 13px; padding: 10px 12px; }
+  .gate-link .btn { width: auto; padding: 10px 16px; font-size: 14px; flex: none; }
+  .scope { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 520px) { .scope { grid-template-columns: 1fr; } }
+  .scope .check span { display: block; }
+  .scope .check b { color: inherit; }
+  .divider { display: flex; flex-direction: column; gap: 2px; border-top: 1px dashed var(--line-strong); padding-top: 18px; margin-top: 8px; }
+  .divider span { font-weight: 700; color: var(--ink-soft); font-size: 14px; }
+  .divider small { color: var(--ink-faint); font-size: 12.5px; }
+  .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); font-size: 15px; padding: 12px; }
+  .btn.secondary:hover { background: var(--accent-wash); }
+  pre.result.manuscript { max-height: 70vh; font-size: 15px; line-height: 1.95; }
+  .deep { display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--accent); border-radius: 10px; padding: 18px 16px; background: var(--accent-wash); }
+  .deep h3 { margin: 0; font-size: 16px; color: var(--accent); }
+  .deep .step { display: flex; flex-direction: column; gap: 10px; border-top: 1px dashed var(--line-strong); padding-top: 14px; }
+  .deep .step b.num { color: var(--accent); }
+  .deep textarea { min-height: 54px; }
+  .deep .hooks { display: flex; flex-direction: column; gap: 6px; }
+  .deep .hooks label { display: flex; gap: 8px; align-items: flex-start; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; line-height: 1.6; }
+  .deep .hooks label:has(input:checked) { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .deep .hooks input { margin-top: 5px; accent-color: var(--accent); flex: none; }
+  .deep .marks { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+  .deep .marks div { border-left: 3px solid var(--accent); padding: 4px 10px; }
+  .deep .marks s { color: var(--ink-faint); }
+  .deep .marks small { color: var(--accent); font-weight: 700; margin-right: 6px; }
+  .profile { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .profile summary { cursor: pointer; font-weight: 700; color: var(--accent); font-size: 14px; }
+  .draft-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .draft-actions .btn { padding: 13px 8px; font-size: 15px; }
+  .save-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--r); }
+  .save-row span { color: var(--ink-soft); font-size: 14px; flex: 1 1 100%; }
+  .save-row .btn { flex: 1 1 0; }
+  /* PDF로 그릴 A5 페이지 (화면 밖에서만 쓰임) */
+  .pdf-host { position: fixed; left: -10000px; top: 0; }
+  .pdf-page { box-sizing: border-box; background: #fff; color: #1a1a1a; font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; overflow: hidden; }
+  .pdf-inner { height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+  .pdf-inner > * { flex: none; }
+  .pdf-cover { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px; }
+  .pdf-cover-title { font-family: "Black Han Sans", "Noto Sans KR", sans-serif; font-size: 34px; line-height: 1.3; color: #111; }
+  .pdf-cover-title::after { content: ""; display: block; width: 48px; height: 5px; background: #ffd400; margin: 18px auto 0; }
+  .pdf-cover-sub { font-size: 15px; color: #555; line-height: 1.6; }
+  .pdf-h1 { color: #111; font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; letter-spacing: 0; font-size: 21px; font-weight: 900; line-height: 1.4; margin: 0 0 22px; padding-bottom: 12px; border-bottom: 3px solid #ffd400; }
+  .pdf-h2 { font-size: 15.5px; font-weight: 700; margin: 18px 0 8px; }
+  .pdf-p { font-size: 12.5px; line-height: 1.85; margin: 0 0 9px; word-break: keep-all; }
+  .attach-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .file-btn { display: inline-flex; align-items: center; cursor: pointer; }
+  .attach-note { font-size: 13px; color: var(--ink-faint); margin: 0; }
+  .refs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 640px) { .refs { grid-template-columns: 1fr; } .refs .ref { align-items: center; } }
+  .refs.body { grid-template-columns: 1fr; }
+  .final-head { display: flex; flex-direction: column; gap: 6px; }
+  .final-title { font-family: var(--display); font-size: clamp(26px, 6vw, 36px); line-height: 1.15; color: var(--ink); text-wrap: balance; }
+  .final-sub { color: var(--ink-soft); font-size: 14px; }
+  .final-covers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .final-covers figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .final-covers figure > div { border-radius: 4px; overflow: hidden; }
+  .final-covers figcaption { font-size: 12px; color: var(--ink-faint); }
+  .final-covers figure.picked figcaption { color: var(--accent); font-weight: 700; }
+  .final-all { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border: 1px solid var(--accent); border-radius: var(--r); padding: 16px 18px; background: var(--accent-wash); }
+  .final-all > div { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+  .final-all b { font-size: 17px; }
+  .final-all small { color: var(--ink-soft); font-size: 13px; }
+  .final-all .btn { width: auto; padding: 12px 22px; }
+  .final-group { display: flex; flex-direction: column; }
+  .final-group h3 { margin: 0 0 4px; font-size: 12.5px; letter-spacing: 0.12em; color: var(--ink-faint); padding-bottom: 8px; border-bottom: 1px solid var(--line-strong); }
+  .final-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .final-row > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .final-row b { font-weight: 600; }
+  .final-row small { color: var(--ink-faint); font-size: 12.5px; }
+  .final-row.missing b { color: var(--ink-faint); }
+  .final-row .btn { width: auto; padding: 8px 16px; font-size: 14px; }
+  .ref { border: 1px solid var(--line-strong); border-radius: var(--r); padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--field); align-items: flex-start; }
+  .refs.body .ref > div:first-child { max-width: 100%; overflow-x: auto; }
+  .ref-name { font-weight: 900; color: var(--accent); font-size: 14px; }
+  .ref-concept { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+  .ref-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; margin-top: auto; }
+  .ref-actions.one { grid-template-columns: 1fr; }
+  .ref-actions .wide { grid-column: 1 / -1; }
+  .ref-actions .btn { width: 100%; padding: 9px 6px; font-size: 13.5px; }
+  .draft-actions.single { grid-template-columns: 1fr; }
+  .cover-drop { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .cover-drop img { width: 120px; height: 160px; object-fit: cover; border: 1px solid var(--line-strong); border-radius: var(--r); }
+  .cover-drop-side { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .mp { display: flex; flex-direction: column; gap: 14px; }
+  .mp-box { display: flex; flex-direction: column; gap: 8px; }
+  .mp-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .mp-head strong { color: var(--accent); font-size: 14.5px; }
+  .mp-hint { margin: 0; font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+  .pane { display: flex; flex-direction: column; gap: 22px; }
+  .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .cats.sub { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  .check {
+    display: flex; align-items: center; gap: 9px; cursor: pointer;
+    border: 1px solid var(--line-strong); border-radius: var(--r); padding: 10px 12px;
+    font-size: 14px; color: var(--ink-soft); line-height: 1.4;
+  }
+  .check.other { grid-column: span 2; }
+  @media (max-width: 400px) { .check.other { grid-column: auto; } }
+  .check input.other-input { flex: 1; min-width: 0; width: auto; height: auto; padding: 6px 10px; font-size: 14px; font-weight: 400; accent-color: auto; }
+  .check input[type=checkbox] { accent-color: var(--accent); width: 17px; height: 17px; margin: 0; flex: none; }
+  .check:has(input:checked) { border-color: var(--accent); background: var(--accent-wash); color: var(--accent); font-weight: 700; }
+  .check:has(input:focus-visible) { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+
+  .topics { display: flex; flex-direction: column; gap: 12px; }
+  .topic { border: 1px solid var(--line); border-radius: var(--r); padding: 16px; background: var(--field); display: flex; flex-direction: column; gap: 10px; }
+  .topic-head { display: flex; gap: 10px; align-items: baseline; }
+  .topic-no { font-family: var(--display); color: var(--accent); font-size: 22px; font-variant-numeric: tabular-nums; flex: none; }
+  .topic-title { font-weight: 700; font-size: 16px; line-height: 1.5; color: var(--ink); }
+  .topic-one { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+  .scores { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ink-faint); }
+  .scores b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .meter { display: inline-flex; gap: 2px; vertical-align: middle; margin-left: 4px; }
+  .meter i { width: 9px; height: 9px; border-radius: 2px; background: var(--line-strong); }
+  .meter i.on { background: var(--accent); }
+  .tag { font-size: 12px; border: 1px solid var(--line-strong); border-radius: var(--r); padding: 1px 9px; color: var(--ink-soft); }
+  .why { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+  .why b { color: var(--ink); }
+  .topic-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .topic-actions a { color: var(--accent-soft); font-size: 14px; padding: 10px 4px; }
+
+  .hint { font-size: 13px; color: var(--ink-faint); margin: -12px 0 0; }
+  footer { color: var(--ink-faint); font-size: 12.5px; text-align: left; border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">EBOOK · GENERATOR <span class="ver" title="원본 링크의 버전과 같으면 최신이에요">버전 2026.09.26n</span></div>
+    <h1>전자책 생성기</h1>
+    <p class="lede">관심 분야 하나를 고르면 팔리는 주제를 뽑고, 리서치를 거쳐 목차와 원고까지 바로 써줘요. 원고를 분석해 표지와 본문 디자인까지 뽑아 파일로 저장해줘요.</p>
+  </header>
+
+  <!-- AI 섹션 -->
+  <div class="gate" id="gate" hidden>
+    <strong id="gateTitle">AI 기능은 내 계정으로 복사해서 써야 작동해요</strong>
+    <ol id="gateSteps">
+      <li>크롬·사파리에서 <b>claude.ai에 로그인</b>한 상태로 이 링크를 열기 (카톡 안에서 열지 말기)</li>
+      <li>화면 맨 위 줄의 <b>복사</b>(사본 만들기) 버튼을 눌러 <b>내 계정으로 복사</b>하기</li>
+      <li>복사된 <b>내 생성기</b>에서 '팔리는 주제 10개 생성' 누르기 → 바로 작동해요</li>
+      <li>안 되면 claude.ai <b>설정 → 기능</b>에서 <b>"AI 기반 아티팩트"</b>를 켜기</li>
+    </ol>
+    <div class="gate-link">
+      <input type="text" id="gateUrl" readonly value="https://claude.ai/artifact/FAqAox5isaZSMtRTHRGroy" aria-label="생성기 링크">
+      <button class="btn" id="gateCopy" type="button">링크 복사</button>
+    </div>
+    <p class="note" id="gateNote" hidden></p>
+    <div id="diagBox" hidden style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:13px;color:var(--ink-soft)">문제가 계속되면 아래 진단 정보를 캡처해서 보내주세요.</div>
+      <pre class="result" id="diagText" style="font-size:12px;max-height:none"></pre>
+      <button class="btn ghost" id="diagRetry" type="button">AI 권한 다시 요청하기</button>
+    </div>
+  </div>
+
+  <section class="panel" aria-label="AI로 만들기">
+    <div class="tabs" role="tablist" id="tabs"></div>
+
+    <div id="topicPane" class="pane" hidden>
+      <div class="field">
+        <div class="lbl">관심 분야 <small>한 번에 하나만 체크돼요</small></div>
+        <div class="cats" id="cats"></div>
+      </div>
+      <div class="field" id="subWrap" hidden>
+        <div class="lbl">세부 분야 <small id="knife"></small></div>
+        <div class="cats sub" id="subs"></div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="lbl" for="t_link">나와의 접점</label>
+          <select id="t_link">
+            <option value="① 이미 극복했다 · 내 이야기가 곧 증거">① 이미 극복했다</option>
+            <option value="② 극복하고 싶다/극복 중이다 · 연구하며 쓰는 연구 기반 메신저">② 극복 중이다</option>
+            <option value="③ 관심이 있다 · 관심이 연구의 연료">③ 관심만 있다</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="lbl" for="t_who">대상 좁히기 <small>선택</small></label>
+          <input type="text" id="t_who" placeholder="예: 30대 여자, 첫 팀장">
+        </div>
+      </div>
+      <div class="field">
+        <label class="lbl" for="t_me">내 경험·강점 <small>선택 · 쓸수록 내 무기가 들어가요</small></label>
+        <textarea id="t_me" style="min-height:90px" placeholder="예: 연기 강사 11년, 소심해서 발표 때 목소리 떨던 사람들 수백 명 가르침"></textarea>
+      </div>
+      <button class="btn" id="goTopic" type="button">팔리는 주제 10개 생성</button>
+      <p class="note" id="topicState" hidden></p>
+      <div class="topics" id="topicList" hidden></div>
+      <p class="note" id="topicFoot" hidden>시장성·대중성 점수와 근거는 AI가 알고 있는 내용으로 추정한 거예요. 고르기 전에 '검색해보기'로 네이버에서 실제 질문·후기가 있는지 꼭 확인하세요.</p>
+    </div>
+
+    <div id="researchPane" class="pane" hidden>
+      <div class="field">
+        <label class="lbl" for="r_topic">확정 주제 <small>팔리는 주제에서 고르면 자동으로 채워져요</small></label>
+        <textarea id="r_topic" style="min-height:120px" placeholder="예: 회의 때 목소리가 떨리는 3년 차 직장인이, 연기 호흡법 3단계로 2주 만에 떨지 않고 말하는 법"></textarea>
+      </div>
+      <div class="field">
+        <div class="lbl">리서치 수준 <small>높을수록 자료가 많지만 사용량을 많이 써요</small></div>
+        <div class="levels" role="radiogroup" aria-label="리서치 수준" id="levels">
+          <label class="level"><input type="radio" name="r_level" id="lv-low" value="low"><span><b>낮음</b><small>핵심만 빠르게 · 사용량 적음</small></span></label>
+          <label class="level"><input type="radio" name="r_level" id="lv-mid" value="mid" checked><span><b>보통</b><small>리서치 지도 + 전체 보고서</small></span></label>
+          <label class="level"><input type="radio" name="r_level" id="lv-high" value="high"><span><b>높음</b><small>전체 보고서 + 2차 심화·통념 검증 · 사용량 많음</small></span></label>
+        </div>
+      </div>
+      <div class="go-row">
+        <button class="btn" id="goResearch" type="button">주제 리서치 하기</button>
+        <span class="go-note">(리서치한 주제를 기반으로 목차와 초안을 뽑습니다)</span>
+      </div>
+      <p class="note" id="researchState" hidden></p>
+      <div class="out" id="researchOut" hidden>
+        <div class="out-head">
+          <strong>리서치 보고서</strong>
+          <div class="out-actions">
+            <button class="btn ghost" id="stopResearch" type="button" hidden>멈추기</button>
+            <button class="btn ghost" id="copyResearch" type="button">복사</button>
+          </div>
+        </div>
+        <pre class="result" id="researchText"></pre>
+        <button class="btn" id="toToc" type="button" hidden>이 리서치로 목차·초안 뽑기 →</button>
+      </div>
+    </div>
+
+    <div id="coverPane" class="pane" hidden>
+      <div class="field">
+        <label class="lbl" for="bookText">원고 <small>원고 전체, 또는 제목·목차만 있어도 돼요</small></label>
+        <div class="attach-row">
+          <label class="btn ghost file-btn" for="bookFile">원고 첨부 (DOCX)<input type="file" id="bookFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label>
+          <button class="btn ghost" id="bookFromDraft" type="button">원고 집필에서 가져오기</button>
+          <span class="attach-note" id="bookNote">워드(DOCX) 파일만 돼요</span>
+        </div>
+        <textarea id="bookText" style="min-height:130px" placeholder="파일을 첨부하거나, 원고를 여기에 붙여넣으세요."></textarea>
+      </div>
+      <div class="field">
+        <div class="lbl">표지 그림 <small>선택 · 넣으면 그림 위에 제목을 얹은 표지를 만들어요</small></div>
+        <div class="cover-drop">
+          <img id="artThumb" alt="표지 그림" hidden>
+          <div class="cover-drop-side">
+            <div class="attach-row">
+              <label class="btn ghost file-btn" for="artFile">그림 넣기<input type="file" id="artFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+              <button class="btn ghost" id="artClear" type="button" hidden>그림 빼기</button>
+            </div>
+            <span class="attach-note" id="artNote">그림이 없으면 도형으로 표지를 그려요. 그림은 맨 아래 '표지 그림 프롬프트'를 이미지 AI(미드저니·나노바나나·ChatGPT)에 넣어 만들 수 있어요.</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn" id="goCover" type="button">원고 분석해서 표지 디자인 3개 뽑기</button>
+      <p class="note" id="coverState" hidden></p>
+      <div class="refs" id="coverRefs" hidden></div>
+      <div class="draft-actions single" id="coverActions" hidden>
+        <button class="btn secondary" id="regenCover" type="button">다시 생성 (3개 새로)</button>
+      </div>
+      <div class="divider"><span>목업 프롬프트</span><small>(이미지 AI에 넣으면 사진 같은 책 목업이나 표지 그림이 나와요. 확정한 표지가 있으면 그 제목·색을 그대로 써요)</small></div>
+      <div class="seg" id="mpLang" role="group" aria-label="프롬프트 언어">
+        <button type="button" class="seg-btn" id="mpKo" aria-pressed="true">한국어 프롬프트</button>
+        <button type="button" class="seg-btn" id="mpEn" aria-pressed="false">영어 프롬프트 (미드저니 등 해외 도구용)</button>
+      </div>
+      <button class="btn secondary" id="mockPromptBtn" type="button">목업 프롬프트 만들기</button>
+      <p class="note" id="mockPromptState" hidden></p>
+      <div class="mp" id="mockPromptOut" hidden>
+        <div class="mp-box">
+          <div class="mp-head"><strong>① 완성 목업 프롬프트</strong><button class="btn ghost" type="button" data-copy="mpFull">복사</button></div>
+          <p class="mp-hint">ChatGPT 또는 구글 제미나이에 붙여넣으세요. 한글 제목까지 들어간 책 목업이 한 번에 나와요. 글자가 틀리면 "제목 글자를 정확히 다시" 라고 한 번 더 요청하세요.</p>
+          <pre class="result" id="mpFull"></pre>
+        </div>
+        <div class="mp-box">
+          <div class="mp-head"><strong>② 그림만 프롬프트</strong><button class="btn ghost" type="button" data-copy="mpArt">복사</button></div>
+          <p class="mp-hint">아무 이미지 AI(미드저니·코파일럿·제미나이 등)에 넣으세요. 글자 없는 그림이 나오면 위 '그림 넣기'로 올리세요. 제목은 생성기가 정확히 얹고 3D 목업까지 만들어줘요.</p>
+          <pre class="result" id="mpArt"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div id="bodyPane" class="pane" hidden>
+      <div class="field">
+        <div class="lbl">표지 디자인에서 확정된 이미지를 넣어주세요 <small>AI가 디자인·컬러·톤·폰트·위계를 분석해요</small></div>
+        <div class="cover-drop">
+          <img id="coverThumb" alt="확정한 표지" hidden>
+          <div class="cover-drop-side">
+            <label class="btn ghost file-btn" for="coverFile">표지 이미지 넣기<input type="file" id="coverFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+            <span class="attach-note" id="coverNote">PNG · JPG · WEBP</span>
+          </div>
+        </div>
+      </div>
+      <p class="attach-note" id="bodyBookNote"></p>
+      <button class="btn" id="goBody" type="button">표지 분석해서 본문 디자인 3개 뽑기</button>
+      <p class="note" id="bodyState" hidden></p>
+      <div class="refs body" id="bodyRefs" hidden></div>
+      <div class="draft-actions single" id="bodyActions" hidden>
+        <button class="btn secondary" id="regenBody" type="button">다시 생성 (3개 새로)</button>
+      </div>
+      <p class="note" id="bookState" hidden></p>
+      <div class="divider"><span>이미지 AI용 본문 삽화 프롬프트만 받기</span><small>(이미지 AI에 넣으면 본문에 넣을 삽화가 나와요)</small></div>
+      <button class="btn secondary" id="bodyPromptBtn" type="button">본문 삽화 프롬프트 생성</button>
+      <pre class="result" id="bodyPromptOut" hidden></pre>
+    </div>
+
+    <div id="finalPane" class="pane" hidden>
+      <div class="final-head">
+        <div class="eyebrow" style="margin:0">최종 결과물</div>
+        <div class="final-title" id="finalTitle">아직 만든 책이 없어요</div>
+        <div class="final-sub" id="finalSub">앞 단계에서 원고·표지·본문 디자인을 만들면 여기에 모여요.</div>
+      </div>
+      <div class="final-covers" id="finalCovers" hidden></div>
+      <div class="final-all">
+        <div><b>전체 한 번에 받기</b><small id="finalCount">파일을 한 폴더에 담아 ZIP 하나로 받아요</small></div>
+        <button class="btn" id="finalZip" type="button">전체 받기 (ZIP)</button>
+      </div>
+      <p class="note" id="finalState" hidden></p>
+      <div id="finalList" style="display:flex;flex-direction:column;gap:24px"></div>
+    </div>
+
+    <div class="seg" id="modeSeg" role="group" aria-label="원고 집필 방식" hidden>
+      <button type="button" class="seg-btn" id="modeAi" aria-pressed="true">목차로 원고 뽑기</button>
+      <button type="button" class="seg-btn" id="modeManual" aria-pressed="false">직접 입력으로 만들기</button>
+    </div>
+
+    <div id="genericPane" class="pane">
+    <div class="field">
+      <label class="lbl" for="src" id="srcLabel">원고</label>
+      <textarea id="src"></textarea>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label class="lbl" for="reader">타깃 독자 <small>필수 · 성별·나이·상황까지 구체적으로</small></label>
+        <input type="text" id="reader" placeholder="예: 소개팅에서 번번이 애프터가 안 되는 30대 초반 남자">
+      </div>
+      <div class="field">
+        <label class="lbl" for="tone">톤 <small>선택</small></label>
+        <select id="tone">
+          <option value="">알아서</option>
+          <option>반말·직설 (코치가 옆에서 말하듯)</option>
+          <option>존댓말·다정한 에세이</option>
+          <option>정리형·실용 매뉴얼</option>
+          <option>스토리텔링·경험담 중심</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="tocBox" class="pane" hidden>
+      <div class="field">
+        <div class="lbl">분량 <small>하나만 체크돼요</small></div>
+        <div class="cats scope" id="tocSize">
+          <label class="check"><input type="checkbox" id="size-mid" value="본문 40~50p · 챕터 7~9개 · 챕터당 4~6p" checked><span><b>40~50p</b> · 적당히 (챕터 7~9개)</span></label>
+          <label class="check"><input type="checkbox" id="size-big" value="본문 70~80p · 챕터 11~14개 · 챕터당 5~7p"><span><b>70~80p</b> · 두툼하게 (챕터 11~14개)</span></label>
+        </div>
+      </div>
+      <button class="btn" id="goToc" type="button">이대로 목차 뽑기</button>
+      <p class="note" id="tocState" hidden></p>
+      <div class="out" id="tocOut" hidden>
+        <div class="out-head">
+          <strong id="tocTitle">목차</strong>
+          <div class="out-actions">
+            <button class="btn ghost" id="stopToc" type="button" hidden>멈추기</button>
+            <button class="btn ghost" id="copyToc" type="button">복사</button>
+          </div>
+        </div>
+        <pre class="result manuscript" id="tocText"></pre>
+        <button class="btn" id="toDraft" type="button" hidden>이 목차로 원고 뽑기 →</button>
+      </div>
+      <div class="divider"><span>목차 대신 목차 프롬프트만 받기</span><small>(이 프롬프트를 개인 AI에게 맡기면 또 다른 목차가 나와요)</small></div>
+    </div>
+
+    <div id="draftBox" class="pane" hidden>
+      <div class="field">
+        <div class="lbl">원고 범위 <small>하나만 체크돼요</small></div>
+        <div class="cats scope" id="scope">
+          <label class="check"><input type="checkbox" id="scope-test" value="test" checked><span><b>테스트</b> · 프롤로그 + 1장만</span></label>
+          <label class="check"><input type="checkbox" id="scope-all" value="all"><span><b>전체 원고</b> · 프롤로그부터 에필로그까지</span></label>
+        </div>
+        <p class="hint" style="margin:0">전체 원고는 챕터마다 따로 써서 몇 분 걸리고 사용량을 많이 써요. 테스트로 문체를 먼저 확인해보세요.</p>
+      </div>
+      <div class="field">
+        <label class="lbl" for="myVoice">내 말투 샘플 <small>선택 · 강력 추천 · 평소 내가 쓴 글 5~10줄 (블로그·카톡·인스타)</small></label>
+        <textarea id="myVoice" style="min-height:100px" placeholder="예: 저도 처음엔 면접만 가면 머리가 하얘졌거든요. 준비한 답은 다 외웠는데 막상 질문 들으면 첫마디부터 꼬이더라구요…&#10;이 칸을 채우면 AI가 이 말투를 따라 써서 AI 티가 확 줄어요."></textarea>
+        <div class="attach-row">
+          <label class="btn ghost file-btn" for="voiceFiles">파일 첨부 (여러 개 가능)<input type="file" id="voiceFiles" multiple accept=".docx,.pdf,.txt,.md,.skill,.zip" hidden></label>
+          <button class="btn ghost" id="voiceClear" type="button" hidden>첨부 모두 빼기</button>
+          <span class="attach-note" id="voiceNote">내가 쓴 이 책 원고·블로그 글이나 문체 가이드 · DOCX·PDF·TXT·MD·.skill</span>
+        </div>
+        <div class="voice-files" id="voiceList" hidden></div>
+        <details class="profile" id="profileBox" hidden>
+          <summary>AI가 뽑은 '내 문체 규칙' 보기·고치기</summary>
+          <p class="note" style="margin:6px 0">첨부한 내 글·원고와 말투 샘플을 분석해서 만든 이 저자 전용 규칙이에요. 원고를 쓸 때 기본 규칙보다 먼저 지켜요. 틀린 곳은 직접 고쳐도 돼요.</p>
+          <textarea id="profileText" style="min-height:220px"></textarea>
+        </details>
+      </div>
+      <div class="field">
+        <label class="lbl" for="myStory">내 경험·에피소드 <small>선택 · 강력 추천 · 책에 넣을 실제 이야기 (챕터 번호를 붙이면 그 챕터에 넣어요)</small></label>
+        <textarea id="myStory" style="min-height:110px" placeholder="예:&#10;01 첫 면접에서 준비한 답을 다 외워 갔는데 떨어진 날. 면접관이 &quot;준비 많이 하셨네요&quot; 하고 웃었다.&#10;03 스터디원 12명 중 나만 떨어졌을 때 들은 말.&#10;사서 읽는 사람은 정보가 아니라 이 사람의 이야기를 산다. 경험이 없으면 AI 책처럼 읽혀요."></textarea>
+      </div>
+      <button class="btn" id="goDraft" type="button">이대로 원고 뽑기</button>
+      <p class="note" id="draftState" hidden></p>
+      <div class="out" id="draftOut" hidden>
+        <div class="out-head">
+          <strong id="draftTitle">원고</strong>
+          <div class="out-actions">
+            <button class="btn ghost" id="stopDraft" type="button" hidden>멈추기</button>
+            <button class="btn ghost" id="copyDraft" type="button">전체 복사</button>
+          </div>
+        </div>
+        <pre class="result manuscript" id="draftText"></pre>
+        <div class="draft-actions" id="draftActions" hidden>
+          <button class="btn secondary" id="regenDraft" type="button">다시 생성</button>
+          <button class="btn" id="saveDraft" type="button">파일로 저장</button>
+          <button class="btn secondary" id="polishDraft" type="button" style="grid-column:1 / -1">AI 말투 다듬기 (좋은 문장은 두고 어색한 곳만 고치기)</button>
+        </div>
+        <div class="save-row" id="saveRow" hidden>
+          <span>어떤 파일로 저장할까요?</span>
+          <button class="btn ghost" id="savePdf" type="button">PDF로 저장</button>
+          <button class="btn ghost" id="saveDocx" type="button">DOCX(워드)로 저장</button>
+        </div>
+        <p class="note" id="saveState" hidden></p>
+        <details class="profile" id="polishLogBox" hidden>
+          <summary id="polishLogSum">다듬기 기록 · 어디를 왜 고쳤는지</summary>
+          <pre class="result" id="polishLog" style="white-space:pre-wrap"></pre>
+        </details>
+      </div>
+      <div class="deep" id="deepBox">
+        <h3>한 챕터 깊게 쓰기 · 사람 냄새 나는 원고 (추천)</h3>
+        <p class="note" style="margin:0">AI가 먼저 질문 5개를 해요. 한 줄씩 답하면 설계도와 첫 문장 후보 5개를 만들고, 고른 설계도로 쓴 뒤 독자 입장에서 스스로 채점해서 걸리는 문장만 고쳐요. 가장 좋은 모델로 써서 한 챕터에 1~3분 걸려요.</p>
+        <div class="step">
+          <div class="lbl"><b class="num">1.</b> 쓸 챕터 고르고 질문 받기</div>
+          <select id="deepSec"><option value="">목차를 먼저 붙여넣고 '챕터 불러오기'를 누르세요</option></select>
+          <div class="draft-actions">
+            <button class="btn secondary" id="deepLoad" type="button">챕터 불러오기</button>
+            <button class="btn" id="deepAsk" type="button">질문 받기</button>
+          </div>
+        </div>
+        <div class="step" id="deepQStep" hidden>
+          <div class="lbl"><b class="num">2.</b> 한 줄씩 답하기 <small>모르면 비워도 돼요. 실제 대사·카톡은 그대로 적을수록 좋아요</small></div>
+          <div id="deepQ" style="display:flex;flex-direction:column;gap:10px"></div>
+          <button class="btn" id="deepPlanBtn" type="button">설계도 만들기</button>
+        </div>
+        <div class="step" id="deepPlanStep" hidden>
+          <div class="lbl"><b class="num">3.</b> 설계도 확인하기 <small>첫 문장을 하나 고르고, 마음에 안 드는 칸은 직접 고치세요</small></div>
+          <div class="hooks" id="deepHooks"></div>
+          <div id="deepPlan" style="display:flex;flex-direction:column;gap:10px"></div>
+          <button class="btn" id="deepWrite" type="button">이 설계도로 쓰기</button>
+        </div>
+        <p class="note" id="deepState" hidden></p>
+        <div class="step" id="deepOut" hidden>
+          <div class="out-head">
+            <strong id="deepTitle">원고</strong>
+            <div class="out-actions">
+              <button class="btn ghost" id="deepStop" type="button" hidden>멈추기</button>
+              <button class="btn ghost" id="deepCopy" type="button">복사</button>
+            </div>
+          </div>
+          <pre class="result manuscript" id="deepText"></pre>
+          <div id="deepMarksWrap" hidden>
+            <div class="lbl"><b class="num">4.</b> 독자 채점 · 고친 문장 <small>독자가 읽다 멈춘 곳만 고쳤어요</small></div>
+            <div class="marks" id="deepMarks"></div>
+          </div>
+          <div class="draft-actions">
+            <button class="btn secondary" id="deepRedo" type="button">다시 쓰기</button>
+            <button class="btn" id="deepPut" type="button">원고에 넣기</button>
+          </div>
+        </div>
+      </div>
+      <div class="divider" id="promptDivider"><span>원고 대신 집필 프롬프트만 받기</span><small>(이 프롬프트를 개인 AI에게 맡기면 또 다른 원고가 나와요)</small></div>
+    </div>
+
+    <button class="btn" id="go" type="button">프롬프트 생성</button>
+    <p class="note" id="aiState" hidden></p>
+
+    <div class="out" id="aiOut" hidden>
+      <div class="out-head">
+        <strong id="aiOutTitle">결과</strong>
+        <div class="out-actions">
+          <button class="btn ghost" id="stop" type="button" hidden>멈추기</button>
+          <button class="btn ghost" id="copyAi" type="button">복사</button>
+        </div>
+      </div>
+      <pre class="result" id="aiText"></pre>
+    </div>
+    </div>
+    <div id="manualPane" class="pane" hidden>
+      <p class="hint" style="margin:0">항목을 손으로 채우면 AI 없이 바로 전자책 집필 프롬프트가 완성돼요. 원고가 아직 없을 때 쓰세요.</p>
+      <div>
+        <div class="chips-lbl">책 유형 <span>· 눌러서 기본값 채우기</span></div>
+        <div class="chips" id="presets"></div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="m_topic">주제 (원씽 한 문장)</label>
+        <input type="text" id="m_topic">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="lbl" for="m_reader">누가</label>
+          <input type="text" id="m_reader">
+        </div>
+        <div class="field">
+          <label class="lbl" for="m_pain">뭐가 안 돼서 (결핍)</label>
+          <input type="text" id="m_pain">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="lbl" for="m_result">어떤 결과를 얻는</label>
+          <input type="text" id="m_result">
+        </div>
+        <div class="field">
+          <label class="lbl" for="m_method">무슨 방법 (내 무기)</label>
+          <input type="text" id="m_method">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="lbl" for="m_tone">문체</label>
+          <input type="text" id="m_tone">
+        </div>
+        <div class="field">
+          <label class="lbl" for="m_size">분량</label>
+          <select id="m_size">
+            <option value="5개 챕터, 챕터당 A4 3~4장 (총 약 20~30쪽)">얇게 · 20~30쪽</option>
+            <option value="7개 챕터, 챕터당 A4 5~6장 (총 약 40~60쪽)" selected>보통 · 40~60쪽</option>
+            <option value="10개 챕터, 챕터당 A4 7~8장 (총 약 80~100쪽)">두껍게 · 80~100쪽</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="lbl" for="m_story">넣고 싶은 내 경험·사례 <small>선택</small></label>
+        <textarea id="m_story" style="min-height:90px"></textarea>
+      </div>
+
+      <div class="out">
+        <div class="out-head">
+          <strong>완성된 프롬프트 <span class="sub-note">(이 프롬프트를 가지고 개인 AI에게 맡기면 또 다른 전자책이 나와요)</span></strong>
+          <div class="out-actions"><button class="btn ghost" id="copyManual" type="button">복사</button></div>
+        </div>
+        <pre class="result" id="manualText"></pre>
+        <p class="note" id="manualNote" hidden></p>
+      </div>
+    </div>
+  </section>
+
+
+  <footer>AI 생성은 보는 사람의 Claude 계정으로 실행돼요. 처음 누를 때 허용 창이 한 번 떠요. 원고 집필 탭의 '직접 입력으로 만들기'는 AI 없이 바로 작동해요.</footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- AI 탭 정의 ----------
+  const TABS = [
+    { key: "topic", label: "팔리는 주제", custom: true },
+    { key: "research", label: "주제 리서치", custom: true },
+    {
+      key: "toc", label: "목차 설계",
+      srcLabel: "확정 주제 + 리서치",
+      ph: "주제와 리서치 보고서를 붙여넣으세요. 주제 리서치 탭에서 '이 리서치로 목차·초안 뽑기'를 누르면 자동으로 채워져요.",
+      btn: "목차 프롬프트 생성",
+      task: `원고/메모(와 [주제 리서치 보고서]가 있으면 그것)를 읽고 전자책 목차와 초안을 설계한다.
+- [주제 리서치 보고서]가 있으면 그 안의 【사람들이 실제로 막히는 지점】【목차 재료】【걸러야 할 통념】을 근거로 챕터를 짜고, 각 챕터 옆에 (근거: …)를 짧게 단다.
+- [확정 주제·제목]이 있으면 그 제목과 원씽을 그대로 쓰고 바꾸지 않는다. 없을 때만 원씽 한 문장을 새로 만든다: "(누가)(어떤 상황에서)(뭐가 안 돼서)(어떤 결과를 얻는)(무슨 방법)".
+- PART 3~4개 + 챕터 7~10개. 흐름은 "문제 인식 → 원인 해체 → 해결 방법 → 실전 적용". 각 챕터 제목은 궁금증이 생기게, 한 줄 요약을 붙인다.
+- 각 챕터마다 초안 3~4줄: 도입 장면 1줄, 핵심 주장 1줄, 쓸 근거·사례 1~2줄.
+- 그다음 "이 목차로 챕터를 쓰게 하는 프롬프트"를 한 덩어리로 작성한다. 사용자가 그대로 복사해 ChatGPT/Claude에 붙여넣을 수 있게, 역할·독자·문체·챕터 구조(도입 사례 → 핵심 주장 → 근거 → 방법 → 실천 과제)·분량을 모두 담는다.`
+    },
+    {
+      key: "chapter", label: "원고 집필",
+      srcLabel: "설계된 목차",
+      ph: "목차 설계 결과를 붙여넣으세요. 목차 설계 탭에서 '이 목차로 원고 뽑기'를 누르면 자동으로 채워져요. 넣고 싶은 내 경험도 같이 적으면 원고에 들어가요.",
+      btn: "집필 프롬프트 생성",
+      task: `붙여넣은 목차와 메모를 보고, 이 챕터 하나를 쓰게 만드는 프롬프트를 만든다.
+- 먼저 이 챕터의 핵심 주장 1문장, 독자가 챕터를 읽고 얻을 변화 1문장.
+- 그다음 복사용 프롬프트 한 덩어리: 역할, 독자, 문체 규칙(문장 길이·말투·금지 표현), 구조(훅이 되는 장면 → 통념 제시 → 뒤집기 → 방법 3단계 → 오늘 할 실천 1개), 반드시 넣을 저자 경험, 분량(A4 4~6장), 마지막 문장 처리 방식.
+- 원고에 저자 경험이 있으면 그 표현을 살리고 지어내지 말라고 명시한다.`
+    },
+    {
+      key: "cover", label: "표지 디자인", custom: true,
+      srcLabel: "원고 전체 또는 제목·목차",
+      ph: "표지 이미지를 만들기 위해 제목, 부제, 목차나 원고 전체를 붙여넣으세요.",
+      btn: "표지 이미지 프롬프트 생성",
+      task: `이 전자책의 표지 이미지를 만들 이미지 생성 AI(미드저니, 달리, 나노바나나 등)용 프롬프트를 만든다.
+- 책의 정서를 한 줄로 요약 (예: "혼자 버티던 사람이 숨을 고르는 순간").
+- 표지 콘셉트 3안. 각 안마다: 콘셉트 이름, 한국어 설명 2줄, 영어 이미지 프롬프트(구도·피사체·조명·색감·질감·스타일, 세로 3:4 전자책 표지 비율, 상단/하단에 제목 넣을 여백, 이미지 안에 글자 넣지 말 것 "no text").
+- 마지막에 어울리는 제목 폰트 느낌과 컬러 팔레트(HEX 3개).`
+    },
+    {
+      key: "body", label: "본문 디자인 하기", custom: true,
+      srcLabel: "챕터 본문 일부",
+      ph: "이미지를 넣을 챕터나 단락을 붙여넣으세요. 앞뒤 흐름이 보이면 더 정확해요.",
+      btn: "본문 이미지 프롬프트 생성",
+      task: `붙여넣은 본문에서 이미지를 넣으면 좋은 지점을 3~5곳 고르고, 각각의 삽화/인포그래픽 프롬프트를 만든다.
+- 각 지점마다: 넣을 위치(해당 문장 앞부분 인용), 이미지 유형(장면컷/설명 인포그래픽/비교표/체크리스트), 한국어 설명 1줄, 영어 이미지 프롬프트(가로 16:9 또는 1:1 명시, 일관된 일러스트 스타일).
+- 모든 이미지에 공통으로 붙일 "스타일 고정 문구"를 영어로 맨 위에 먼저 제시해 책 전체 톤이 흔들리지 않게 한다.`
+    },
+    { key: "final", label: "최종 결과물", custom: true }
+  ];
+
+  const mk0 = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
+  let current = 0;
+  const drafts = {};
+  const tabsEl = $("tabs");
+  TABS.forEach((t, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "tab"; b.role = "tab"; b.id = "tab-" + t.key;
+    b.append(mk0("span", "tab-no", String(i + 1).padStart(2, "0")), document.createTextNode(t.label));
+    b.addEventListener("click", () => selectTab(i));
+    tabsEl.appendChild(b);
+  });
+
+  let manualMode = false;
+  function applyPanes() {
+    const t = TABS[current];
+    const isChapter = t.key === "chapter";
+    $("topicPane").hidden = t.key !== "topic";
+    $("researchPane").hidden = t.key !== "research";
+    $("coverPane").hidden = t.key !== "cover";
+    $("bodyPane").hidden = t.key !== "body";
+    $("finalPane").hidden = t.key !== "final";
+    if (t.key === "final") window.__renderFinal?.();
+    $("modeSeg").hidden = !isChapter;
+    $("manualPane").hidden = !(isChapter && manualMode);
+    $("genericPane").hidden = !!t.custom || (isChapter && manualMode);
+    $("draftBox").hidden = !isChapter;
+    $("tocBox").hidden = t.key !== "toc";
+    $("go").classList.toggle("secondary", isChapter || t.key === "toc");
+    $("modeAi").setAttribute("aria-pressed", String(!manualMode));
+    $("modeManual").setAttribute("aria-pressed", String(manualMode));
+  }
+  $("modeAi").addEventListener("click", () => { manualMode = false; applyPanes(); });
+  $("modeManual").addEventListener("click", () => { manualMode = true; applyPanes(); });
+
+  // 앞 단계 결과를 다음 탭 첫 칸에 자동으로 넘긴다. 사용자가 직접 고친 내용은 덮어쓰지 않는다.
+  const autoFilled = {};
+  var lastResearch = "";
+  function upstreamFor(key) {
+    if (key === "toc") {
+      const topic = $("r_topic").value.trim();
+      const rep = lastResearch || "";
+      if (!topic && !rep) return "";
+      return topic + (rep ? `\n\n[주제 리서치 보고서]\n${rep}` : "");
+    }
+    if (key === "chapter") return $("tocOut").hidden ? "" : $("tocText").textContent.trim();
+    return "";
+  }
+  function carryForward(key) {
+    const up = upstreamFor(key);
+    if (!up) return;
+    const cur = drafts[key];
+    if (cur === undefined || cur.trim() === "" || cur === autoFilled[key]) {
+      drafts[key] = up; autoFilled[key] = up;
+    }
+  }
+
+  function selectTab(i) {
+    if (!TABS[current].custom) drafts[TABS[current].key] = $("src").value;
+    carryForward(TABS[i].key);
+    const prev = current;
+    current = i;
+    const t = TABS[i];
+    [...tabsEl.children].forEach((b, j) => b.setAttribute("aria-selected", String(j === i)));
+    applyPanes();
+    if (!t.custom) {
+      $("srcLabel").textContent = t.srcLabel;
+      $("src").placeholder = t.ph;
+      if (drafts[t.key] !== undefined) $("src").value = drafts[t.key];
+      else if (TABS[prev].custom) $("src").value = "";
+      $("go").textContent = t.btn;
+      $("aiOutTitle").textContent = t.label + " 결과";
+    }
+    try { localStorage.setItem("ebook-rpb-tab", t.key); } catch (e) {}
+  }
+  let startTab = 0;
+  try {
+    const saved = localStorage.getItem("ebook-rpb-tab");
+    const idx = TABS.findIndex(t => t.key === saved);
+    if (idx >= 0) startTab = idx;
+  } catch (e) {}
+  selectTab(startTab);
+
+  // ---------- AI 호출 ----------
+  const diagT0 = performance.now();
+  let samplePromise = window.claude?.use ? window.claude.use("sample") : Promise.resolve(null);
+  // AI가 연결되지 않을 때 원인을 화면에 보여준다 (캡처해서 보내면 원인을 알 수 있게)
+  async function runDiag(extra) {
+    const lines = [];
+    let framed = "?"; try { framed = window.self !== window.top ? "예" : "아니오"; } catch (e) { framed = "예(교차)"; }
+    lines.push("window.claude: " + (window.claude ? "있음" : "없음") + " · use: " + (typeof window.claude?.use));
+    lines.push("프레임 안: " + framed + " · 주소: " + location.host);
+    const fn = await samplePromise.catch(e => "오류:" + (e?.code || e?.message || e));
+    lines.push("sample: " + (fn ? (typeof fn === "string" ? fn : "연결됨") : "null") + " (" + ((performance.now() - diagT0) / 1000).toFixed(1) + "초)");
+    try {
+      const pm = window.claude?.use ? await window.claude.use("permissions") : null;
+      if (!pm) lines.push("permissions: null");
+      else {
+        lines.push("권한 전체: " + JSON.stringify(await pm.state()));
+        lines.push("sample 권한: " + await pm.state("sample") + " · downloads 권한: " + await pm.state("downloads"));
+      }
+    } catch (e) { lines.push("permissions 오류: " + (e?.code || e?.message || e)); }
+    try { const dl = window.claude?.use ? await window.claude.use("downloads") : null; lines.push("downloads: " + (dl ? "연결됨" : "null")); } catch (e) { lines.push("downloads 오류: " + (e?.code || e?.message)); }
+    if (extra) lines.push(extra);
+    lines.push("브라우저: " + navigator.userAgent);
+    lines.push("시각: " + new Date().toLocaleString("ko-KR"));
+    $("diagText").textContent = lines.join("\n");
+    $("diagBox").hidden = false;
+  }
+  // 카톡 안 브라우저 등 Claude 로그인이 없는 곳이면 맨 위에 여는 법 안내
+  const inKakao = /KAKAOTALK/i.test(navigator.userAgent || "");
+  if (inKakao) {
+    $("gateTitle").textContent = "카카오톡 안에서는 AI 기능이 안 돼요";
+    $("gate").hidden = false;
+  }
+  samplePromise.then(fn => { if (!fn) { $("gate").hidden = false; runDiag(); } });
+  $("diagRetry").addEventListener("click", async () => {
+    let r = "";
+    try {
+      const pm = await window.claude?.use?.("permissions");
+      r = "요청 결과: " + (pm ? JSON.stringify(await pm.request(["sample"])) : "permissions 없음");
+      const again = await window.claude?.use?.("sample");
+      r += " · 다시 받은 sample: " + (again ? "연결됨" : "null");
+      if (again) { samplePromise = Promise.resolve(again); $("gate").hidden = true; }
+    } catch (e) { r = "요청 오류: " + (e?.code || e?.message || e); }
+    runDiag(r);
+  });
+  $("gateCopy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("gateUrl").value); flash($("gateNote"), "링크를 복사했어요. 크롬·사파리 주소창에 붙여넣으세요.", "ok"); }
+    catch (e) { $("gateUrl").select(); flash($("gateNote"), "링크 칸을 길게 눌러 복사해주세요.", "err"); }
+  });
+  let ctl = null;
+
+  const ERR = {
+    not_granted: "AI 사용이 허용되지 않았어요. 아래 '직접 입력으로 만들기'는 그대로 쓸 수 있어요.",
+    rate_limited: "요청이 많아요. 잠시 뒤에 다시 눌러주세요.",
+    prompt_too_large: "원고가 너무 길어요. 핵심 챕터나 목차만 남기고 다시 시도해주세요.",
+    refused: "이 내용으로는 답을 만들지 못했어요. 원고를 조금 바꿔 다시 시도해주세요.",
+    session_expired: "로그인이 만료됐어요. 페이지를 새로고침해주세요.",
+  };
+
+  function setState(msg, kind) {
+    const el = $("aiState");
+    el.hidden = !msg; el.textContent = msg || "";
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+
+  $("go").addEventListener("click", async () => {
+    const src = $("src").value.trim();
+    if (!src) { setState("먼저 원고나 메모를 붙여넣어주세요.", "err"); $("src").focus(); return; }
+    const sample = await samplePromise;
+    if (!sample) { setState("이 화면에서는 AI 생성을 쓸 수 없어요. 아래 '직접 입력으로 만들기'를 이용해주세요.", "err"); return; }
+
+    const t = TABS[current];
+    const reader = $("reader").value.trim();
+    const tone = $("tone").value;
+    const prompt = `너는 한국 전자책(PDF 전자책, 크몽·탈잉·클래스101 등에서 판매) 기획·편집 전문가다.
+아래 [원고]를 끝까지 읽고 작업을 수행한다. 원고에 없는 사실·수치·경험담은 지어내지 않는다.
+${reader ? "타깃 독자: " + reader + "\n" : ""}${tone ? "문체: " + tone + "\n" : ""}
+[작업]
+${t.task}
+
+[출력 형식]
+마크다운 기호(#, **, 표)는 쓰지 말고, 사람이 바로 복사해 쓸 수 있는 일반 텍스트로. 섹션 구분은 【 】 제목과 빈 줄로 한다.
+
+[원고]
+${src.slice(0, 50000)}`;
+
+    ctl = new AbortController();
+    $("go").disabled = true; $("stop").hidden = false;
+    $("aiOut").hidden = false; $("aiText").textContent = "원고를 읽는 중…";
+    setState("");
+    try {
+      const { truncated } = await sample(prompt, {
+        signal: ctl.signal,
+        modelTier: "default",
+        onText: ({ text }) => { $("aiText").textContent = text; },
+      });
+      setState(truncated ? "답이 길어서 중간에 잘렸어요. 원고를 줄여 다시 시도해보세요." : "완료됐어요. 복사해서 쓰세요.", truncated ? "err" : "ok");
+    } catch (e) {
+      $("aiText").textContent = e?.text || "";
+      if (!e?.text) $("aiOut").hidden = true;
+      if (e?.code !== "cancelled") setState(ERR[e?.code] || "생성에 실패했어요. 잠시 뒤 다시 눌러주세요.", "err");
+      else setState("멈췄어요.");
+    } finally {
+      $("go").disabled = false; $("stop").hidden = true;
+    }
+  });
+  $("stop").addEventListener("click", () => ctl?.abort());
+
+  // ---------- 팔리는 주제 ----------
+  const CATS = [
+    ["스타일링 & 뷰티", "체형·나이·상황(소개팅/면접/결혼식)·예산. '예뻐지는 법'이 아니라 '어떤 콤플렉스를 어떤 자리에서 가리느냐'로 쪼갠다.", ["옷 잘 입는 법", "메이크업", "노화·주름 관리", "피부 좋아지는 법", "이성에게 매력적인 스타일링"]],
+    ["육아 & 가족", "아이 나이(영아/4~7세/초등/사춘기)·부모 상황(맞벌이/외벌이/한부모)·구체적 문제 행동. '좋은 부모'는 결핍이 아니다. '소리 안 지르고 싶다'가 결핍이다.", ["좋은 부모 되기", "초보 부모 육아", "자녀를 똑똑하게 키우는 법", "아동 예절"]],
+    ["인생의 목적 찾기", "가장 추상적이라 쪼개기가 제일 중요하다. 인생 단계(대학생/30대 직장인/육아 끝난 40대/은퇴) × 지금 막힌 상태(퇴사 고민/번아웃/공허함).", ["인생 목표 설정", "삶의 이유 돌아보기", "마음 돌보기"]],
+    ["돈 버는 법", "가장 경쟁이 심하다. 직업(보험/학원/병원/프리랜서) × 채널(카톡/인스타/전화/대면) × 단계(0→1, 첫 매출)로 쪼개야 살아남는다.", ["세일즈", "마케팅", "퍼스널 브랜딩", "카피라이팅", "SNS 수익화", "취직", "사업 시작", "사업 자동화", "온라인 교육 코스"]],
+    ["기업가 교육", "회사 규모(5인 미만/30인)·리더 상태(처음 팀장/내향형)·직원 유형(MZ/연상 부하/알바). 대기업 리더십 책과 소상공인 사장의 결핍은 다르다.", ["리더십", "직원 관리", "재무", "운영", "세무"]],
+    ["사랑 & 인간관계", "성별 × 나이 × 상태(모솔/이별 직후/결혼 앞둔/재혼) × 채널(앱/소개팅/모임/회사). 결핍이 가장 뜨거워 쪼갤수록 팔린다.", ["더 많은 이성을 만나는 법", "이상형의 배우자를 얻는 법", "관계 갈등·재결합", "연애 커뮤니케이션", "이별 후 멘탈"]],
+    ["시간관리 & 생산성", "시간이 없는 이유가 원씽이다. 야근·아이·미루기·유튜브 중 무엇 때문인지 · 원인 × 직업 상태로 쪼갠다.", ["시간관리", "생산성"]],
+    ["부동산", "자본 규모(5천/1억 이하) × 단계(권리분석/임장/명도) × 독자 상태(직장인 주말/주부). 숫자를 제목에 넣을수록 원씽이 선명해진다.", ["부동산 경매", "소액 부동산", "저평가 지역", "공인중개사"]],
+    ["돈 관리", "소득 상태(사회초년생/월급 250/프리랜서 불규칙) × 문제(카드값/충동구매/물린 주식) × 목표 숫자(1천만 원). 숫자와 상황을 제목에 박아야 한다.", ["목돈 만들기", "투자·재테크", "주식", "가계부", "돈 마인드셋"]],
+    ["전문가 스킬", "장면(결혼식 사회/축사/면접/카메라 앞) × 결핍 유형(떨림/논리/목소리) × 대상(신입/경력/공무원). '어디서 쓰는 스킬이냐'로 쪼갠다.", ["스피치", "인터뷰", "자기소개서", "정부지원금·투자", "코딩", "세일즈 피치", "책 쓰기", "디자인", "영상 편집"]],
+    ["개인 성장", "비라스의 본거지. 자존감·감정은 '어떤 장면에서 무너지느냐'로 쪼갠다. 남 눈치, 비교, 거절 못 함, 외모, 실패 후 · 장면 하나가 책 하나다.", ["자존감", "감정", "행복", "라이프스타일", "명상", "외국어", "뇌 기능"]],
+    ["종교·신념·영성", "신앙 단계(초신자/오래된 신자) × 형태(혼자/자녀와/매일 아침) × 종교 유무. '종교 없이'라는 조건이 큰 시장이다.", ["성경", "신념 강화", "개인적 신념"]],
+    ["집 꾸미기", "집 형태(원룸/전세/신혼집) × 제약(못 안 박고/50만 원/혼자) × 부위(조명/침실/베란다). 제약 조건이 원씽이다.", ["셀프 인테리어", "홈가드닝", "집수리", "풍수", "DIY"]],
+    ["생존·캠핑", "경험 수준(첫 캠핑/혼캠) × 동반자(아이/반려견/혼자) × 형태(차박/백패킹). 응급처치는 '누구를 위한'이 원씽이다.", ["캠핑", "야생 생존", "응급처치", "자급자족", "낚시"]],
+    ["반려동물", "문제 행동(짖음/분리불안/배변/줄당김) × 시기(입양 첫 달/노령) × 견종·묘종. '훈련'이 아니라 '문제 행동 하나'가 책이다.", ["강아지", "고양이", "교감"]],
+    ["교육", "학년(고1/고3/재수) × 전형(내신/정시/학종) × 성적대(중위권→상위권) × 과목. '공부 잘하는 법'은 없고 '중위권 수학 포기자'는 있다.", ["대학 입시", "공부 방법", "성적 향상", "영어 회화"]],
+    ["취미·스포츠", "수준(입문/100타/슬라이스) × 대상(여자 초보/자취생/아이 엄마) × 상황(캠핑/도시락/소개팅). 취미는 '첫 성과 한 장면'이 원씽이다.", ["골프", "테니스", "요리", "그림", "춤", "와인·위스키", "가죽공예", "뜨개질"]],
+  ];
+
+  // 체크박스지만 한 번에 하나만 켜지게
+  // 체크박스지만 한 번에 하나만 켜지게. 마지막에 '기타(직접 입력)' 칸이 붙는다.
+  function checkList(el, items, name, onChange, otherPh) {
+    el.innerHTML = "";
+    const all = [...items, null];
+    all.forEach((label, i) => {
+      const lab = document.createElement("label");
+      lab.className = "check" + (label === null ? " other" : "");
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.id = name + "-" + i;
+      const pick = () => {
+        el.querySelectorAll("input[type=checkbox]").forEach(o => { if (o !== cb) o.checked = false; });
+        onChange(cb.checked ? i : -1);
+      };
+      cb.addEventListener("change", pick);
+      lab.append(cb);
+      if (label === null) {
+        const txt = document.createElement("input");
+        txt.type = "text"; txt.id = name + "-other"; txt.className = "other-input";
+        txt.placeholder = otherPh; txt.setAttribute("aria-label", "기타 직접 입력");
+        txt.addEventListener("input", () => {
+          const on = txt.value.trim() !== "";
+          if (cb.checked !== on) { cb.checked = on; pick(); }
+        });
+        lab.append(document.createTextNode("기타"), txt);
+      } else {
+        lab.append(document.createTextNode(label));
+      }
+      el.appendChild(lab);
+    });
+  }
+  const otherVal = (name) => ($(name + "-other")?.value || "").trim();
+  let catIdx = -1, subIdx = -1;
+  checkList($("cats"), CATS.map(c => c[0]), "cat", (i) => {
+    catIdx = i; subIdx = -1;
+    const isOther = i === CATS.length;
+    $("subWrap").hidden = i < 0 || isOther;
+    if (i >= 0 && !isOther) {
+      $("knife").textContent = "선택 · 이 분야의 칼: " + CATS[i][1];
+      checkList($("subs"), CATS[i][2], "sub", (j) => { subIdx = j; }, "직접 입력");
+    }
+  }, "예: 퍼스널컬러, 사주, 운전");
+
+  function topicState(msg, kind) {
+    const el = $("topicState");
+    el.hidden = !msg; el.textContent = msg || "";
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+  const meter = (n) => {
+    const v = Math.max(0, Math.min(5, Math.round(Number(n) || 0)));
+    return '<span class="meter" aria-hidden="true">' + [1,2,3,4,5].map(k => '<i class="' + (k <= v ? "on" : "") + '"></i>').join("") + "</span>";
+  };
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function renderTopics(list) {
+    const box = $("topicList");
+    box.innerHTML = "";
+    list.forEach((t, i) => {
+      const card = document.createElement("article");
+      card.className = "topic";
+      const q = encodeURIComponent(t.search || t.title || "");
+      card.innerHTML = `
+        <div class="topic-head"><span class="topic-no">${String(i + 1).padStart(2, "0")}</span><span class="topic-title">${esc(t.title)}${t.subtitle ? `<br><span class="topic-one">${esc(t.subtitle)}</span>` : ""}</span></div>
+        <p class="topic-one">${esc(t.onething)}</p>
+        <div class="scores">
+          <span>시장성 <b>${esc(t.market)}</b>${meter(t.market)}</span>
+          <span>대중성 <b>${esc(t.mass)}</b>${meter(t.mass)}</span>
+          ${t.grammar ? `<span class="tag">${esc(t.grammar)}</span>` : ""}
+        </div>
+        <p class="why"><b>팔릴 근거</b> ${esc(t.evidence)}</p>
+        ${t.edge ? `<p class="why"><b>차별화</b> ${esc(t.edge)}</p>` : ""}
+        <div class="topic-actions">
+          <button class="btn ghost" type="button" data-pick="${i}">이 주제로 리서치하기</button>
+          <a href="https://search.naver.com/search.naver?query=${q}" target="_blank" rel="noopener">네이버에서 검색해보기 ↗</a>
+          <a href="https://kmong.com/search?keyword=${q}" target="_blank" rel="noopener">크몽 경쟁 확인 ↗</a>
+        </div>`;
+      box.appendChild(card);
+    });
+    box.hidden = list.length === 0;
+    $("topicFoot").hidden = list.length === 0;
+    box.querySelectorAll("[data-pick]").forEach(b => b.addEventListener("click", () => {
+      const t = list[Number(b.dataset.pick)];
+      $("r_topic").value = `[확정 주제·제목]\n${t.title}\n${t.subtitle ? "부제: " + t.subtitle + "\n" : ""}\n[원씽 한 문장]\n${t.onething}\n\n[팔릴 근거]\n${t.evidence}\n\n[차별화]\n${t.edge || ""}\n\n[저자 경험·강점]\n${$("t_me").value.trim() || "(없음)"}`;
+      if ($("t_who").value.trim()) $("reader").value = $("t_who").value.trim();
+      selectTab(TABS.findIndex(x => x.key === "research"));
+      $("researchPane").scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+  }
+
+  let tctl = null;
+  $("goTopic").addEventListener("click", async () => {
+    if (catIdx < 0) { topicState("관심 분야를 하나 체크해주세요.", "err"); return; }
+    const sample = await samplePromise;
+    if (!sample) { topicState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
+    let cat, knife, sub = "";
+    if (catIdx === CATS.length) {
+      cat = otherVal("cat");
+      if (!cat) { topicState("기타 칸에 관심 키워드를 적어주세요.", "err"); $("cat-other").focus(); return; }
+      knife = "대상(누가) × 상황(어디서·언제) × 결핍(뭐가 막히나) × 결과(눈에 보이는 한 장면) × 방법(내 무기). 이 키워드에서 사람들이 돈을 쓰는 결핍 장면을 먼저 찾는다.";
+    } else {
+      [cat, knife] = CATS[catIdx];
+      if (subIdx === CATS[catIdx][2].length) {
+        sub = otherVal("sub");
+        if (!sub) { topicState("세부 분야 기타 칸에 키워드를 적어주세요.", "err"); $("sub-other").focus(); return; }
+      } else if (subIdx >= 0) sub = CATS[catIdx][2][subIdx];
+    }
+    const who = $("t_who").value.trim();
+    const me = $("t_me").value.trim();
+
+    const prompt = `너는 한국 PDF 전자책(크몽·클래스101·탈잉에서 판매) 주제 기획 전문가다.
+아래 관심 분야 하나로 "팔리는 전자책 주제" 정확히 10개를 만든다.
+
+[관심 분야]
+${cat}${sub ? " > " + sub : " (세부 분야 자유)"}
+${who ? "대상 좁히기: " + who + "\n" : ""}나와의 접점: ${$("t_link").value}
+저자 경험·강점: ${me || "(없음)"}
+
+[원칙 · 주제 쪼개기]
+- 넓은 주제는 팔리지 않는다. 5개의 칼로 쪼갠다: ①대상(누가) ②상황(어디서·언제) ③결핍(뭐가 막히나 · 몰라서/떨려서/시간·돈이 없어서/자꾸 포기해서) ④결과(눈에 보이는 한 장면) ⑤방법(저자의 무기).
+- 이 분야의 칼: ${knife}
+- 원씽 한 문장 형식: "(누가) (어떤 상황에서) (뭐가 안 돼서) (어떤 결과를 얻는) (무슨 방법)". 빈칸이 있으면 덜 쪼갠 것.
+- 결핍은 뾰족하게, 시장은 살아 있게. 너무 잘게 쪼개 검색하는 사람이 없는 주제는 한 칸 넓힌다.
+- 저자 경험·강점이 있으면 최소 5개 주제의 ⑤방법에 그것을 넣는다. 원씽은 '남과 다른 주제'가 아니라 '나만 이렇게 말할 수 있는 주제'다.
+- 결핍 6종(외모·내면·관계·돈·성적 욕망·행복) 중 사람들이 돈을 쓰는 결핍에 붙인다.
+
+[원칙 · 숫자 제목]
+- 10개 제목 모두 숫자를 하나 이상 넣는다. 숫자는 독자가 치를 비용 또는 얻을 결과를 미리 알려줘야 한다.
+- 숫자 꼴을 섞는다: 기간(2주 만에, 30일), 하루 투자 시간(하루 10분), 개수(20개 기본템, 3단계, 5가지), 금액(월 100만 원, 50만 원으로), 확률 폭로(100명 중 99명이 ~하는), 변화량(10kg, 5살 어려 보이는, 100타 깨기). 같은 꼴은 3번까지만.
+- 제목은 그대로 판매 페이지 제목이 되게, 25~40자, 대상이 얼굴이 그려지게 쓴다. "아무도 알려주지 않는", "진짜 이유", "절대"는 10개 전체에서 합쳐 1번까지만.
+
+[평가 · 각 주제마다]
+- market(시장성, 1~5): 이 결핍에 사람들이 실제로 돈을 쓰는가. 크몽·클래스101·유튜브에 비슷한 유료 상품·강의가 팔리고 있는가.
+- mass(대중성, 1~5): 이 고민을 가진 사람이 얼마나 많은가. 네이버 지식인·카페·유튜브 댓글에 이 질문이 흔한가.
+- evidence(팔릴 근거, 1~2문장): 왜 팔리는지 구체적으로. 어떤 플랫폼에 어떤 유형 상품이 있는지, 어떤 검색·질문이 흔한지, 어떤 시기적 수요가 있는지. 모르는 수치는 지어내지 말고 "~로 보인다"처럼 추정임을 드러낸다.
+- edge(차별화, 1문장): 기존 상품과 겹칠 때 대상·상황·방법 중 무엇을 비틀었는지.
+- 점수는 후하게 주지 말고 10개 사이에 차이가 나게 준다.
+
+[출력]
+JSON 배열 하나만. 설명·코드블록 없이. 시장성+대중성 합이 높은 순으로 정렬.
+[{"title":"숫자가 들어간 판매용 제목","subtitle":"누가 어떤 결과를 얻는지 드러나는 부제 20~30자","onething":"원씽 한 문장","market":4,"mass":5,"evidence":"...","edge":"...","grammar":"숫자·기간형 | 확률 폭로형 | 개수형 | 금액형 | 변화량형 중 하나","search":"네이버에서 검색해볼 짧은 키워드 2~4단어"}]`;
+
+    tctl = new AbortController();
+    $("goTopic").disabled = true;
+    $("goTopic").textContent = "주제 뽑는 중… (30초~1분)";
+    topicState("");
+    try {
+      const list = await sample.json(prompt, { signal: tctl.signal, modelTier: "default" });
+      const arr = Array.isArray(list) ? list : (list?.topics || []);
+      if (!arr.length) throw { code: "empty_completion" };
+      renderTopics(arr.slice(0, 10));
+      topicState(`${cat}${sub ? " · " + sub : ""} · 팔리는 주제 ${Math.min(arr.length, 10)}개를 뽑았어요. 마음에 드는 걸 골라 '이 주제로 리서치하기'를 누르세요.`, "ok");
+    } catch (e) {
+      topicState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "결과 형식이 깨졌어요. 한 번만 다시 눌러주세요." : (ERR[e?.code] || "생성에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
+    } finally {
+      $("goTopic").disabled = false;
+      $("goTopic").textContent = "팔리는 주제 10개 생성";
+    }
+  });
+
+  // ---------- 주제 리서치 ----------
+  // 검색 도구 없이 AI 지식으로 한다(공개 링크 유지). 수준은 분석 깊이·호출 횟수로 나뉜다.
+  const LEVELS = {
+    low:  { label: "낮음", tier: "default", passes: 1, depth: "짧게. 【리서치 지도】는 3줄, 나머지 섹션은 각 3~4줄, 【목차 재료】는 8개." },
+    mid:  { label: "보통", tier: "default", passes: 1, depth: "보통 분량. 모든 섹션을 충실하게, 【목차 재료】는 10개." },
+    high: { label: "높음", tier: "complex", passes: 2, depth: "깊게. 모든 섹션을 충실하게, 【목차 재료】는 12개. 이어서 2차 심화를 한 번 더 한다." },
+  };
+
+  function researchState(msg, kind) {
+    const el = $("researchState");
+    el.hidden = !msg; el.textContent = msg || "";
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+
+  let rctl = null;
+  $("goResearch").addEventListener("click", async () => {
+    const topic = $("r_topic").value.trim();
+    if (!topic) { researchState("리서치할 주제를 적거나, 팔리는 주제에서 하나 골라주세요.", "err"); $("r_topic").focus(); return; }
+    const sample = await samplePromise;
+    if (!sample) { researchState("이 화면에서는 AI 리서치를 쓸 수 없어요.", "err"); return; }
+    const lv = LEVELS[document.querySelector('input[name="r_level"]:checked')?.value || "mid"];
+
+    const prompt = `너는 전자책 주제 리서치 전문가다. 아래 [확정 주제]로 전자책 목차를 짜기 위한 리서치 보고서를 쓴다.
+검색 도구 없이 네가 아는 지식으로 쓴다. 확실하지 않은 수치·연구·인용은 쓰지 않고, 연구를 언급할 땐 널리 알려진 것만 저자·연도와 함께 쓴다. 기억이 흐리면 "~로 알려져 있다"처럼 낮춰 쓴다.
+
+[확정 주제]
+${topic}
+
+[분량] ${lv.label} · ${lv.depth}
+
+[1단계 · 리서치 지도 (먼저 스스로 판단)]
+- 주제 유형: 심리/관계/멘탈형, 실무 스킬/취미형, 재무/전문지식형, 육아/가족/반려동물형, 신념/영성형 중 무엇인지 (섞이면 섞인 대로).
+- 관련 학문·전문 분야 2~4개 (심리학이 늘 정답은 아니다).
+- 검증된 방법론·고전 계보가 있으면 적고, 없으면 억지로 만들지 않는다.
+- 대중적으로 퍼졌지만 과장되거나 틀린 통념 1~2개 (항상 채운다).
+- 유형별 톤: 심리형은 사람의 착각을 찌르고, 실무형은 시중 방법론의 허점을, 재무형은 뻔한 조언을 근거로, 신념형은 대상을 까지 않고 클리셰만 짚는다. 뻔한 위로·두루뭉술한 조언은 쓰지 않는다.
+
+[보고서 구성]
+【리서치 지도】 위 판단 결과
+【통합 인사이트】 단 하나의 핵심 명제
+【사람들이 실제로 막히는 지점】 구체적 장면으로 5~8개
+【이미 나와 있는 방법과 그 허점】 시중 콘텐츠가 반복하는 조언과, 그게 안 먹히는 이유
+【검증된 근거】 전문가 방법론·연구 (확실한 것만)
+【걸러야 할 통념】 어디까지 맞고 어디부터 틀린지
+【시장 진단과 빈틈】 이 주제가 파고들 차별화 지점
+【목차 재료】 챕터 후보 (각 한 줄 + 어떤 근거에서 나왔는지)
+【직접 확인해볼 검색어】 네이버·유튜브에 쳐볼 검색어 5개
+
+[형식]
+마크다운 기호(#, **, 표) 없이 일반 텍스트. 섹션은 【 】 제목과 빈 줄로 구분.`;
+
+    rctl = new AbortController();
+    $("goResearch").disabled = true; $("stopResearch").hidden = false;
+    $("researchOut").hidden = false; $("toToc").hidden = true;
+    $("researchText").textContent = "리서치 중… (30초~2분)";
+    researchState("");
+    let report = "";
+    try {
+      const r1 = await sample(prompt, {
+        signal: rctl.signal, modelTier: lv.tier, cache: false,
+        onText: ({ text }) => { $("researchText").textContent = text; },
+      });
+      report = r1.text;
+      let truncated = r1.truncated;
+      if (lv.passes > 1) {
+        researchState("1차 완료 · 2차 심화 리서치 중…");
+        const deep = `아래는 [확정 주제]에 대한 1차 리서치 보고서다. 1차와 겹치지 않게 2차 심화 리서치를 쓴다.
+【2차 심화 · 통념 검증】 1차의 【걸러야 할 통념】과 이 주제에서 유행하는 조언 3~5개를 하나씩: 어디까지 근거가 있고 어디부터 과장인지
+【2차 심화 · 놓친 각도】 1차에 없던 대상·상황·방법 각도 3~5개
+【2차 심화 · 챕터별 근거 매핑】 1차 【목차 재료】 각 챕터에 쓸 구체 근거·사례·장면 1~2줄씩
+【2차 심화 · 차별화 한 줄】 이 책만 할 수 있는 말 한 문장
+확실하지 않은 수치·연구·인용은 쓰지 않는다. 마크다운 기호 없이 일반 텍스트.
+
+[확정 주제]
+${topic}
+
+[1차 보고서]
+${report}`;
+        const r2 = await sample(deep, {
+          signal: rctl.signal, modelTier: lv.tier, cache: false,
+          onText: ({ text }) => { $("researchText").textContent = report + "\n\n" + text; },
+        });
+        report = report + "\n\n" + r2.text;
+        truncated = truncated || r2.truncated;
+      }
+      lastResearch = report;
+      $("researchText").textContent = report;
+      $("toToc").hidden = false;
+      researchState(truncated ? "보고서가 길어서 중간에 잘렸어요. 수준을 낮추거나 주제를 좁혀보세요." : `리서치 완료 · 수준 ${lv.label} · AI 지식 기반이라, 중요한 수치는 【직접 확인해볼 검색어】로 확인하세요.`, truncated ? "err" : "ok");
+    } catch (e) {
+      const keep = report ? report + (e?.text ? "\n\n" + e.text : "") : (e?.text || "");
+      $("researchText").textContent = keep;
+      if (report) { lastResearch = report; $("toToc").hidden = false; }
+      if (!keep) $("researchOut").hidden = true;
+      if (e?.code !== "cancelled") researchState(ERR[e?.code] || "리서치에 실패했어요. 잠시 뒤 다시 눌러주세요.", "err");
+      else researchState("멈췄어요.");
+    } finally {
+      $("goResearch").disabled = false; $("stopResearch").hidden = true;
+    }
+  });
+  $("stopResearch").addEventListener("click", () => rctl?.abort());
+  $("copyResearch").addEventListener("click", () => copy($("researchText").textContent, $("researchState")));
+
+  $("toToc").addEventListener("click", () => {
+    const tocIdx = TABS.findIndex(x => x.key === "toc");
+    drafts.toc = `${$("r_topic").value.trim()}\n\n[주제 리서치 보고서]\n${lastResearch || $("researchText").textContent}`;
+    selectTab(tocIdx);
+    $("src").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  // ---------- 이대로 목차 뽑기 ----------
+  function singleCheck(el) {
+    el.querySelectorAll("input").forEach(cb => cb.addEventListener("change", () => {
+      if (cb.checked) el.querySelectorAll("input").forEach(o => { if (o !== cb) o.checked = false; });
+      else if (![...el.querySelectorAll("input")].some(o => o.checked)) cb.checked = true;
+    }));
+  }
+  singleCheck($("tocSize"));
+  function tocState(msg, kind) {
+    const el = $("tocState");
+    el.hidden = !msg; el.textContent = msg || "";
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+  let tocCtl = null;
+  $("goToc").addEventListener("click", async () => {
+    const src = $("src").value.trim();
+    if (!src) { tocState("주제와 리서치 내용을 붙여넣어주세요. 주제 리서치에서 '이 리서치로 목차·초안 뽑기'를 누르면 자동으로 채워져요.", "err"); $("src").focus(); return; }
+    const sample = await samplePromise;
+    if (!sample) { tocState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
+    const size = $("tocSize").querySelector("input:checked").value;
+    const reader = $("reader").value.trim();
+    if (!reader) { tocState("타깃 독자를 먼저 적어주세요. 성별·나이·상황까지 구체적으로 적어야 그 독자에게 맞는 목차가 나와요. (예: 소개팅에서 번번이 애프터가 안 되는 30대 초반 남자)", "err"); $("reader").focus(); return; }
+    const tone = $("tone").value;
+    const prompt = `너는 한국 PDF 전자책 목차 설계 전문가다. 아래 [자료]로 판매용 전자책 목차를 바로 쓸 수 있게 완성한다. 프롬프트가 아니라 목차 자체를 쓴다.
+
+[분량] ${size}
+[타깃 독자 · 필수 조건] ${reader}
+- 모든 장의 제목·순서·주장·예시는 이 독자가 실제로 겪는 상황에서 나온다. 다른 성별·나이·상황의 독자를 가정하지 않는다.
+- 장 제목은 이 독자가 쓰는 말로, 이 독자가 겪는 장면이 떠오르게 짓는다.
+${tone ? "[톤] " + tone + "\n" : ""}
+[원칙]
+- 목차는 가설이자 주장이다. 각 장에 (제목 = 결론) + 주장 한 줄이 붙는다.
+- [확정 주제·제목]이 있으면 책 제목·부제·원씽을 그대로 쓰고 바꾸지 않는다.
+- 먼저 속으로 문제-해결 표를 만든다: 독자가 실제로 겪는 문제 → 세상이 주는 뻔한 답 → 그걸 뒤집는 해결책(원인 재진단) → 한 문장 제목. [주제 리서치 보고서]가 있으면 【사람들이 실제로 막히는 지점】【걸러야 할 통념】【목차 재료】를 이 표의 재료로 쓴다.
+- 뼈대는 주제에 맞는 하나를 고른다: 상황별 처방형 / 단계 모델형 / 내면→기술형 / 통념 부정 문답형 / 실용 매뉴얼형 / 유형 진단형 / 고백형(프롤로그→고백→진단→전환→실전→본질→에필로그).
+- 제목 문법을 섞는다: 상황형·명령형·금지형·질문형·통념부정형·아포리즘형·2인칭형·대상지정형·단계형·네이밍형·숫자기간형·확률폭로형·대비형·이유폭로형·조건반전형·유형분류형 등. 한 권에 최소 8종, 같은 문법 3회 이상 금지. 네이밍('작은따옴표 기법명')은 2~4개. "아무도 알려주지 않는"·"진짜 이유"·"절대"는 한 권에 한 번.
+- 육아·건강·상실처럼 독자가 이미 죄책감을 안고 있는 주제는 도발·훈계조를 쓰지 않는다.
+- 저자 경험이 필요한 장은 [원료 필요]를 붙인다. 없는 경험을 지어내지 않는다.
+
+[출력 · 마크다운 기호(#, **, 표) 없이 일반 텍스트, 이 순서 그대로]
+책 제목: …
+부제: …
+원씽: …
+타깃 독자: ${reader}
+분량: ${size}
+뼈대: (고른 아키타입과 이유 한 줄)
+
+프롤로그 [자극·문법] 제목
+  주장: …
+  결론: …
+  초안: 도입 장면 1줄 / 핵심 주장 1줄 / 쓸 근거·사례 1줄
+
+PART 1. 파트 제목
+01 [자극·문법] 제목
+  주장: …
+  결론: …
+  초안: …
+(… 모든 장 …)
+
+에필로그 [자극·문법] 제목
+  주장: …
+  결론: …
+  초안: …
+
+문법 분포: 사용한 문법 N종 / 네이밍 N개
+상세페이지에 앞세울 장: 01, 04 … (이유 한 줄)
+
+[자료]
+${src.slice(0, 50000)}`;
+
+    tocCtl = new AbortController();
+    $("goToc").disabled = true; $("stopToc").hidden = false; $("toDraft").hidden = true;
+    $("tocOut").hidden = false; $("tocText").textContent = "목차 짜는 중… (30초~1분)";
+    $("tocTitle").textContent = "목차 · " + size.split(" · ")[0];
+    tocState("");
+    try {
+      const { text, truncated } = await sample(prompt, {
+        signal: tocCtl.signal, modelTier: "default",
+        onText: ({ text }) => { $("tocText").textContent = text; },
+      });
+      $("tocText").textContent = text;
+      $("toDraft").hidden = false;
+      tocState(truncated ? "목차가 길어서 중간에 잘렸어요. 다시 눌러보세요." : "목차 완성. 마음에 들면 '이 목차로 원고 뽑기'를 누르세요.", truncated ? "err" : "ok");
+    } catch (e) {
+      $("tocText").textContent = e?.text || "";
+      if (!e?.text) $("tocOut").hidden = true; else $("toDraft").hidden = false;
+      if (e?.code !== "cancelled") tocState(ERR[e?.code] || "목차 생성에 실패했어요. 잠시 뒤 다시 눌러주세요.", "err");
+      else tocState("멈췄어요.");
+    } finally {
+      $("goToc").disabled = false; $("stopToc").hidden = true;
+    }
+  });
+  $("stopToc").addEventListener("click", () => tocCtl?.abort());
+  $("copyToc").addEventListener("click", () => copy($("tocText").textContent.trim(), $("tocState")));
+
+  // ---------- 이대로 원고 뽑기 ----------
+  singleCheck($("scope"));
+  function draftState(msg, kind) {
+    const el = $("draftState");
+    el.hidden = !msg; el.textContent = msg || "";
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+
+  // 문체 규칙: 병조쌤이 정리한 "전자책 생성기 글쓰기 가이드라인"을 프롬프트용으로 옮겼다.
+  // 계정 스킬은 아티팩트 안 AI가 불러올 수 없어서 글자로 넣는다.
+  const STYLE_RULES = `[문체 규칙 · 전자책 생성기 글쓰기 가이드라인 (1·2·3차 통합) · 반드시 지킨다]
+한 줄 요약: 짧게 끊고, 단정하고, 결론부터 말한다. 저자가 독자 한 명을 앞에 앉혀놓고 말하는 선배처럼 쓴다. 설명보다 장면이 먼저, 장면 다음에 원리, 원리 다음에 할 일.
+
+1. 문장
+- 단문. 한 문장에 한 가지 말만. 쉼표로 길게 이어 붙이지 않는다. 두 줄 넘게 이어지면 끊는다.
+- 두괄식. 핵심을 먼저 던지고 이유와 예시는 뒤에 붙인다. 문단 첫 문장만 읽어도 요지가 나와야 한다.
+- 짧은 문장 사이에 가끔 조금 긴 문장을 섞어 리듬을 만든다. 모든 문장을 매끈하게 다듬지 않는다. 말하다 끊기는 느낌(말줄임, 한 단어 문장, 되묻기)도 괜찮다.
+- 중요한 문장은 앞뒤를 비우고 한 줄 문단으로 혼자 세운다 (결정타). 섹션마다 한두 개. 모든 문장을 한 줄씩 떼지는 않는다. 설명은 2~4문장으로 묶는다.
+- 대구로 리듬을 만든다: 같은 틀을 두 번 반복해 대비시킨다 (예: "표면에 반응하는 대화는 정보 교환이다. 전제에 반응하는 대화는 인간 탐구다.").
+
+2. 어미와 호칭
+- 본문 서술은 단정형 "~다 / ~이다 / ~하라 / ~해라 / ~해보자". 존댓말(~습니다, ~해요)은 예시 대화 속 대사에서만 쓴다.
+- "~인 것 같다", "~일 수도 있다", "~할 수 있다" 같은 흐리는 끝맺음은 최소화한다. 확신 있게 끊는다. 다만 결과를 약속하는 말("무조건", "100%", "자동으로 성공한다")은 쓰지 않는다.
+- "~해야 한다"는 실패 조건·필수 순서일 때만. 모든 문장을 명령으로 끝내지 않는다.
+- 독자에게 직접 말 건다: "차이를 알겠는가?", "생각해봐라." 질문을 던지고 바로 스스로 답한다 ("이 대화는 실패했는가? 아니다.", "그렇다.", "맞다."). 곧바로 답하지 않는 질문은 소절당 0~2개.
+- "당신"은 독자의 고민을 직접 짚을 때만. "우리"는 함께 절차를 따라갈 때. "여러분"은 쓰지 않는다. 뜻이 분명하면 주어를 생략한다.
+
+3. 저자 목소리
+- "나"는 저자의 실제 경험·판단에만. 저자의 실패나 창피했던 순간을 가끔 솔직하게 꺼낸다. 단 [저자 실제 경험]·첨부 원고·인터뷰 답에 있는 것만 쓴다. 없으면 지어내지 말고 [저자 경험 넣기: 이 자리에 맞는 실패·창피했던 순간]으로 자리만 비워둔다.
+- 흔한 실수는 세게 깐다. 표현은 과감하게 ("이건 최악이다.", "시작부터 시원하게 말아먹는다."). 독자가 "어, 나 얘기네" 하고 뜨끔하게 만든다. 까는 대상은 행동이지 사람이 아니다. 독자는 "원래 다들 그렇게 하니까 몰랐던 사람"으로 둔다.
+- 통념을 먼저 꺼내고 뒤집는다 ("여자는 재밌는 남자를 좋아한다고들 한다. 여자들이 말하는 재밌는 남자는 개그 타율이 높은 남자가 아니다."). 뒤집기는 섹션의 반전 지점에서 한두 번. "단순히 ~가 아니라 ~다"처럼 한 문장에 몰아넣은 공식 문장은 쓰지 않고, 두 문장으로 끊어서 친다.
+- 비유는 일상에서 가져온다 (국밥집 사장, 자전거 바퀴, 캠핑에서 태운 삼겹살).
+
+4. 장면과 감정 (가장 중요)
+- 설명보다 장면이 먼저다. "힘들었다", "당황했다"처럼 감정을 말하지 말고, 그 순간 뭘 봤고 뭘 했는지 보여준다 (휴대폰을 뒤집어 놓았다, 읽음 표시 1이 안 없어졌다).
+- 장면은 요약하지 않는다. 카톡·문자·대사를 실제 문장 그대로 쓴다. 실제 카톡·대면 말투 그대로 (ㅋㅋ, ㅠ, 말줄임표 허용). "후기는 ~였다", "~라는 말을 들었다"로 요약하지 않는다.
+- 추상적인 말 대신 구체적인 상황, 숫자, 물건, 대사. 인물은 주선자, 친구, 상대처럼 그 장면에 실제로 있을 사람.
+- 독자가 "이거 내 얘긴데" 하고 뜨끔하는 문장을 섹션마다 하나는 꼭 넣고, 짧게 끊어 친다 (예: "남자로서의 자격 박탈..."). 감정을 설명하지 말고 찌른다.
+- 가상의 장면은 써도 되지만 저자 본인의 경험처럼 쓰지 않는다.
+
+5. 설득 장치
+- 근거는 짧게, 숫자는 구체적으로. 학자 이름·연도·수치를 한두 줄로 박고 바로 본론으로 돌아온다 (예: "심리학자 톰 길로비치의 2000년 연구에서, 사람들은 자기 실수를 50%가 알아챌 거라 예상했지만 실제로는 25%만 알아챘다."). 논문 괄호 인용 "(저자, 연도)"은 쓰지 않는다. 확실한 것만 쓰고, 연구·숫자를 지어내지 않는다.
+- 이 책의 기법에는 이름을 붙여 무기처럼 느끼게 한다 (예: 전제 대화법, 침묵 선점법(先占法)). 이름은 생활어로 짓고 공학 용어로 짓지 않는다.
+- 좋은 예와 나쁜 예는 나란히 놓아 대비시킨다. 설명보다 대비가 빠르다.
+- 예시 대화는 "상대: …" / "나: …" 줄로 쓰고, 대사 뒤에 한두 줄로 왜 먹혔는지 짚는다. 분석은 "→ 읽어낼 것: …", "→ 반응: …"처럼 화살표로 층을 나눈다.
+- 설명을 늘리지 말고 정확한 한 줄로 넘긴다. 덜 쓸수록 세다.
+
+6. 섹션 전개 (내용에 맞게 고른다. 매 문단 같은 틀을 반복하지 않는다)
+- 이야기형(서문·동기·마인드 챕터): 장면 → 뜨끔한 한 방 → 통념 뒤집기 → 원리 한두 줄 → 혼자 선 한 줄로 끝. 목록·표 없이 산문으로.
+- 방법형(기법 챕터): 훅(흔한 실수나 통념) → 왜 망하는지 한두 줄로 세게 → 기법 이름 + 한 줄 정의(필요하면 근거 한 줄) → 쪼개기(1층/2층/3층 또는 번호) → 대화 예시나 비교 → 반론 처리("만약 틀리면?" 같은 걱정을 먼저 꺼내 해소) → 혼자 선 한 줄 정리 → (선택) 연습.
+- 실습형: 끝나면 무엇이 남는지 → 준비·시작 조건 → 번호 순서 → 완성 예시나 양식 → 완료 확인 기준.
+- 경험형(저자 경험 자료가 있을 때만): 당시 상황과 기대 → 시도 → 실패 → 판단을 바꾼 계기 → 독자가 가져갈 원리.
+- 끝은 교훈 요약 문단이 아니라 혼자 선 결정타 한 줄. 문단마다 교훈을 정리하지 않는다. "결국 ~이다"는 챕터에 한 번 이하.
+
+7. 형식 (책이지 슬라이드가 아니다)
+- 소제목, 불릿, 굵은 글씨를 남발하지 않는다. 이야기 부분은 문단으로 이어 쓴다.
+- 번호·표·비교는 방법형의 쪼개기, 대화 예시, 실습 절차에만 쓴다. "첫째, 둘째, 셋째" 나열이나 무조건 3개씩 묶기는 하지 않는다.
+- 이모지 금지. 느낌표는 대사 안에서만, 챕터에 한두 번. 긴 줄표(—) 금지. 작은따옴표 강조를 한 문장에 여러 개 잇달아 쓰지 않는다.
+
+8. 금지어 (쓰는 순간 톤이 무너진다. 친구한테 말로 설명할 때 쓰는 단어로 바꾼다)
+- 메커니즘 → 원리, 이유, 왜 그런지 / 효과적(으로) → 잘 먹힌다, 통한다 / 이러한, 이와 같은 → 이런, 이게 / 구조 → 판, 흐름, 상황 / 뿌리 → 이유, 출발점 / 핵심적인 역할을 한다 → ~가 전부다, ~에 달렸다 / 다양한, 여러 가지 측면에서 → 구체적으로 하나씩 / 중요합니다, 필수적입니다, ~하는 것이 중요하다 → ~해야 한다, ~없으면 끝이다 / 결론적으로, 요약하자면 → 정리하면, 결국 / ~를 통해 ~할 수 있습니다 → ~하면 ~된다.
+- 회로, 작동, 신호, 필터, 채널, 과부하, 처리 용량, 시스템, 알고리즘, 트리거, 최적화, 프레임, 인풋, 아웃풋 같은 공학·개념어 → 생활어 ("과부하가 걸린다" → "신경 쓸 게 너무 많아 정신이 없다", "신호를 보낸다" → "티가 난다"). 꼭 필요한 전문 용어는 독자가 겪는 장면으로 먼저 풀어준 뒤 쓰고, 제목·소제목에는 쓰지 않는다.
+- 뻔한 말: "진정한", "당신의 잠재력", "새로운 시작", "성장의 여정", "여러분의 어려움에 깊이 공감한다".
+- 쉬운 동사를 쓴다: 작성을 진행한다 → 쓴다, 활용이 가능하다 → 쓸 수 있다, 개선을 도모한다 → 고친다.
+
+9. 주제 안에서만
+- 모든 예시·사례·근거는 이 책의 핵심 주제(책 제목·원씽·이번 섹션의 할 말)와 타깃 독자 상황 안에서 고른다. 주제와 다른 분야의 흔한 예시(주제가 소개팅인데 회사 얘기 등)를 끌어오지 않는다.
+- 앞 섹션에서 쓰던 상황과 인물을 이어받는다. 섹션마다 새 인물·새 상황을 만들지 않는다.
+- 같은 결론을 반복하지 않는다. 분량은 공감·다짐·요약이 아니라 장면·사례·조건·실행 설명으로 채운다.
+
+10. 쓰고 나서 스스로 확인
+- 금지어가 하나라도 들어갔나? 서술문이 ~습니다/~해요로 끝난 곳이 있나? 두 줄 넘는 문장이 있나? 문단 첫 문장만 읽어도 요지가 나오나? 혼자 선 결정타 문장이 있나? 대사가 실제 사람 말투인가? 한 줄로 줄일 수 있는 설명이 있나? 걸리면 고친 뒤 낸다.`;
+  // AI 문장과 사람 문장 비교 예시: 규칙보다 예시를 더 잘 따라 한다 (내용이 아니라 바꾸는 방식만 본다)
+  const PAIRS = `[AI 문장 → 사람 문장 · 이렇게 바꾼다. 예시의 내용·주제는 가져오지 않고 바꾸는 방식만 본다]
+✗ 소개팅에서 첫인상은 매우 중요한 역할을 합니다.
+○ 소개팅은 카페 문 열고 3초면 거의 정해진다.
+✗ 상대방은 당신의 노력을 다소 부담스럽게 느꼈을 수 있습니다.
+○ "좋은 사람 같은데 너무 노력하는 게 보였대."
+✗ 거절 메시지를 받으면 많은 사람들이 좌절감과 불안을 느끼게 됩니다.
+○ 1이 안 없어진다. 샤워하고 나와서 확인한다. 누웠다가 또 확인한다.
+✗ 따뜻함은 호감 형성에 핵심적인 역할을 한다는 것이 다양한 연구를 통해 밝혀졌습니다.
+○ 유능함은 존경을 부른다. 따뜻함은 호감을 부른다.
+✗ 과도한 자기 점검은 인지적 과부하를 일으켜 부자연스러운 행동으로 이어질 수 있습니다.
+○ 다음 질문 뭐였지. 방금 웃은 거 어색했나. 머리가 이렇게 바쁘면 몸이 못 따라온다.
+✗ 결론적으로, 진정한 여유는 단순히 노력을 줄이는 것이 아니라 올바른 방향으로 노력하는 것입니다.
+○ 성실함은 죄가 없다. 방향이 틀렸을 뿐이다.
+바꾸는 방식: 설명을 장면·대사로, 흐리는 말을 단정으로, 긴 문장을 끊어서, 금지어를 생활어로, 요약 교훈을 대구 한 줄로.`;
+  const BANNED = /메커니즘|효과적|이러한|이와 같은|핵심적인 역할|다양한|필수적|중요합니다|결론적으로|요약하자면|진정한|여러분|회로|과부하/g;
+  // 첨부한 문체 자료: 가이드(규칙)는 규칙으로, 원고·글은 말투 견본으로 쓴다
+  let voiceFiles = [];
+  const voiceFilesBlock = () => {
+    if (!voiceFiles.length) return "";
+    let budget = 14000;
+    const guides = voiceFiles.filter(f => f.kind === "가이드"), samples = voiceFiles.filter(f => f.kind === "내 글"), drafts0 = voiceFiles.filter(f => f.kind === "내 원고");
+    const take = (f, cap) => { const t = f.text.slice(0, Math.min(cap, budget)); budget -= t.length; return t; };
+    let out = "";
+    if (guides.length) out += `\n[첨부한 문체 가이드 · 아래 규칙을 그대로 지킨다. 위 [문체 규칙]과 부딪히면 이 가이드를 우선한다]\n` + guides.map(f => `(${f.name})\n${take(f, 8000)}`).join("\n\n") + "\n";
+    if (samples.length && budget > 500) out += `\n[첨부한 내 글 · 이 사람의 어휘·어미·문장 길이·호흡을 그대로 따라 쓴다. 내용은 가져오지 않는다]\n` + samples.map(f => `(${f.name})\n${take(f, 4000)}`).join("\n\n") + "\n";
+    if (drafts0.length) {
+      let b2 = 24000;
+      out += `\n[저자가 직접 쓴 이 책의 원고 · 가장 우선한다]
+- 이번 섹션에 해당하는 내용이 이 원고에 있으면, 그 문장을 최대한 그대로 살려서 쓴다.
+- 잘 읽히고 독자의 감정·욕구·생각을 건드리는 문장은 고치지 않는다. 저자의 말투(존댓말·반말, 어휘, 유머)는 [문체 규칙]보다 우선한다.
+- 고치는 곳은 이것만: 맥락이 어긋나는 곳, 사실·숫자·앞뒤 설명이 서로 안 맞는 곳, 주제·타깃 독자에서 벗어난 곳, AI처럼 어색하거나 개념어로 된 문장, 앞뒤 장과 연결이 끊긴 곳.
+- 원고에 없는 섹션은 이 원고의 말투와 수준에 맞춰 새로 쓴다.\n` + drafts0.map(f => { const t = f.text.slice(0, b2); b2 -= t.length; return `(${f.name})\n${t}`; }).join("\n\n") + "\n";
+    }
+    return out;
+  };
+  const voiceBlock = () => {
+    const v = ($("myVoice")?.value || "").trim(), st = ($("myStory")?.value || "").trim(), pf = ($("profileText")?.value || "").trim();
+    return (pf ? `\n[저자 전용 문체 규칙 · 이 저자의 글에서 뽑았다. 어휘·말버릇·호칭·유머·장면 쓰는 법은 이것을 따른다. 단문·단정·두괄식·금지어 같은 [문체 규칙]과 부딪히면 [문체 규칙]을 따른다]\n${pf.slice(0, 4000)}\n` : "") + voiceFilesBlock() + (v ? `\n[내 말투 샘플 · 이 사람의 어휘·어미·문장 길이·호흡을 그대로 따라 쓴다. 내용은 가져오지 않는다]\n${v.slice(0, 3000)}\n` : "") +
+      (st ? `\n[저자 실제 경험 · 이번 섹션과 맞는 것만 장면으로 살려 넣는다. 챕터 번호가 붙은 건 그 챕터에만. 여기 없는 경험은 지어내지 않는다]\n${st.slice(0, 6000)}\n` : "");
+  };
+
+  // 목차 → 원고로 쓸 섹션 목록 (같은 목차면 다시 묻지 않는다)
+  let secCache = { key: "", list: null };
+  async function getSections(sample, outline, signal) {
+    if (secCache.key === outline && secCache.list) return secCache.list;
+    const list = await sample.json(`아래 전자책 목차에서 원고로 쓸 섹션을 순서대로 뽑아라.
+맨 앞에 프롤로그, 그다음 각 챕터, 맨 끝에 에필로그. 목차에 프롤로그·에필로그가 없어도 넣는다.
+챕터 title은 "01 챕터 제목"처럼 두 자리 번호로 시작하고, 새 PART가 시작되는 챕터만 앞에 "PART 1. 파트 제목 · "을 붙인다.
+JSON 배열만: [{"title":"프롤로그: 제목","summary":"이 섹션에서 할 말 한 줄"},{"title":"PART 1. 파트 제목 · 01 챕터 제목","summary":"…"}]
+
+[목차]
+${outline.slice(0, 30000)}`, { signal, modelTier: "quick" });
+    if (!Array.isArray(list) || !list.length) throw { code: "empty_completion" };
+    secCache = { key: outline, list };
+    return list;
+  }
+
+  // 내 글을 넣으면 먼저 문체를 분석해 '이 저자 전용 문체 규칙'을 만든다 (같은 글이면 다시 분석하지 않는다)
+  let profileKey = "";
+  const profileSource = () => {
+    let budget = 12000, src = "";
+    const add = (name, t) => { if (budget <= 300 || !t) return; const x = t.slice(0, Math.min(budget, 5000)); budget -= x.length; src += `(${name})\n${x}\n\n`; };
+    add("말투 샘플", ($("myVoice")?.value || "").trim());
+    voiceFiles.filter(f => f.kind !== "가이드").forEach(f => add(f.name, f.text));
+    return src.trim();
+  };
+  async function ensureProfile(sample, signal, say) {
+    const src = profileSource();
+    if (!src || src.length < 200) return;
+    if (src === profileKey && $("profileText").value.trim()) return;
+    say?.("내 글을 분석해서 '내 문체 규칙'을 만드는 중…");
+    const { text } = await sample(`너는 문체 분석가다. 아래 [저자 글]을 깊이 분석해서, 이 사람이 어떤 주제를 쓰더라도 이 사람처럼 쓰게 만드는 '저자 전용 문체 규칙'을 만든다.
+분석할 것 (항목마다 1~3줄, 원문에서 짧게 인용해 근거를 붙인다):
+1. 말투와 어미 (존댓말·반말·단정형, 문장 끝 습관)
+2. 문장 길이와 리듬 (짧은 문장 비율, 긴 문장이 나오는 자리)
+3. 문단 호흡 (한 줄 문단을 쓰는 자리, 문단 길이)
+4. 자주 쓰는 표현과 말버릇 (원문 그대로 3~6개)
+5. 독자와의 거리 (호칭, 말 거는 방식, 질문 던지는 습관)
+6. 장면·대사 쓰는 법 (카톡·대사를 어떻게 보여주는지)
+7. 유머와 세게 말하는 방식
+8. 이 사람이 안 쓰는 말과 문장 (AI 같은 표현 중 이 글에 없는 것)
+규칙은 "~한다", "~하지 않는다"처럼 따라 할 수 있는 지시로 쓴다. 글의 내용·주제·인물은 적지 않는다. 15~25줄. 제목·인사·설명 없이 규칙만.
+
+[저자 글]
+${src}`, { signal, modelTier: "default", cache: false });
+    const t = (text || "").trim();
+    if (!t) return;
+    profileKey = src;
+    $("profileText").value = t; $("profileBox").hidden = false;
+  }
+  let dctl = null, draftParts = [];
+  $("goDraft").addEventListener("click", async () => {
+    const outline = $("src").value.trim();
+    if (!outline) { draftState("먼저 목차를 붙여넣어주세요. 목차 설계 결과의 '이 목차로 원고 뽑기'를 누르면 자동으로 채워져요.", "err"); $("src").focus(); return; }
+    const sample = await samplePromise;
+    if (!sample) { draftState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
+    const all = $("scope-all").checked;
+    let reader = $("reader").value.trim();
+    if (!reader) { const m = outline.match(/타깃 독자\s*[:：]\s*(.+)/); if (m) { reader = m[1].trim(); $("reader").value = reader; } }
+    if (!reader) { draftState("타깃 독자를 먼저 적어주세요. 성별·나이·상황까지 구체적으로 적어야 그 독자에게 맞는 원고가 나와요.", "err"); $("reader").focus(); return; }
+    const tone = $("tone").value || "평서체 (~다 / ~이다 / ~한다) 실전 안내형";
+
+    dctl = new AbortController();
+    $("goDraft").disabled = true; $("stopDraft").hidden = false;
+    $("draftOut").hidden = false;
+    $("draftText").textContent = "";
+    draftParts = [];
+    $("draftActions").hidden = true; $("saveRow").hidden = true; saveState("");
+    draftState("목차를 읽고 원고 순서를 잡는 중…");
+    let done = "";
+    try {
+      // 1) 목차에서 쓸 섹션 목록 뽑기
+      await ensureProfile(sample, dctl.signal, draftState);
+      let sections = (await getSections(sample, outline, dctl.signal)).slice();
+      if (!Array.isArray(sections) || !sections.length) throw { code: "empty_completion" };
+      if (!all) sections = sections.slice(0, 2);
+      $("draftTitle").textContent = all ? `전체 원고 · ${sections.length}개 섹션` : "테스트 원고 · 프롤로그 + 1장";
+
+      // 2) 섹션마다 하나씩 쓰기
+      for (let i = 0; i < sections.length; i++) {
+        const sec = sections[i];
+        draftState(`${i + 1}/${sections.length} 쓰는 중 · ${sec.title}`);
+        const head = `\n\n━━━━━━━━━━━━━━━━\n${sec.title}\n━━━━━━━━━━━━━━━━\n\n`;
+        const isPro = i === 0, isEpi = all && i === sections.length - 1;
+        const prompt = `너는 한국 PDF 전자책 대필 작가다. 아래 [책 정보와 목차]를 바탕으로 [이번 섹션] 하나의 본문 원고를 쓴다.
+
+[문체]
+${tone}
+[타깃 독자 · 필수 조건] ${reader}
+- 인물·예시·장면·말투·호칭·속마음을 모두 이 독자 기준으로 쓴다. 독자의 성별 시점에서 쓰고, 다른 성별·나이·상황의 독자를 가정하지 않는다.
+${STYLE_RULES}
+${PAIRS}
+- 저자 경험은 [저자 실제 경험]이나 [책 정보와 목차]에 나온 것만 쓴다. 없는 경험·사례·수치·연구를 지어내지 않는다. 경험이 필요한 자리는 [저자 경험 넣기: 어떤 경험]으로 비워둔다.
+${voiceBlock()}
+
+[구조]
+${isPro ? "프롤로그: 독자가 겪는 장면 하나로 시작 → 이 책이 왜 필요한지 → 이 책을 읽으면 얻는 것 → 첫 장으로 넘기는 한 줄. A4 1.5~2장 분량." : isEpi ? "에필로그: 책 전체를 한 문장으로 묶기 → 독자에게 바통을 넘기는 마지막 문장. A4 1~1.5장 분량." : "챕터 내용에 맞게 [문체 규칙]의 개념 설명형·실습형·경험형 중 하나를 기본으로 고르고 필요하면 조합한다. 독자의 구체적인 장면에서 시작해 이유·예시·다음 행동으로 이어간다. 분량은 목차의 '분량' 줄(챕터당 페이지)을 따르고, 없으면 A4 3~4장. 소제목은 흐름이 크게 바뀔 때만 0~2개."}
+
+[출력]
+섹션 제목은 쓰지 말고 본문만. 소제목이 꼭 필요하면 ■ 로 시작하는 한 줄. 기법 쪼개기와 실습 단계만 "1. "로 시작하는 줄, 실천 체크리스트는 실습 섹션에만 □ 로 시작하는 줄. 대화 예시는 "상대: …", "나: …" 줄로, 분석은 "→ " 줄로. 좋은 예·나쁜 예 비교는 표 대신 "✗ 나쁜 예: …", "○ 좋은 예: …" 줄로. 대사는 곧은 따옴표 "…". 독자 가슴에 남길 한 문장이 있으면 둥근 따옴표 “…”로 감싼 한 줄로 본문 중간에 둔다(섹션당 0~1개, 끝 요약용으로 쓰지 않는다). 마크다운 기호(#, **) 금지.
+
+[이번 섹션]
+${sec.title}${sec.summary ? "\n할 말: " + sec.summary : ""}
+
+[전체 섹션 순서]
+${sections.map((s, k) => (k === i ? "▶ " : "  ") + s.title).join("\n")}
+${i > 1 ? "\n[앞에서 이미 다룬 섹션 · 같은 말을 반복하지 않는다]\n" + sections.slice(0, i - 1).map(x => "- " + x.title + (x.summary ? ": " + x.summary : "")).join("\n") + "\n" : ""}${done ? "\n[바로 앞 섹션 원고 · 여기서 쓰던 상황·인물·예시를 이어받고, 내용은 반복하지 않는다]\n" + (done.length > 2500 ? "…" + done.slice(-2500) : done) + "\n" : ""}${sections[i + 1] ? "\n[바로 다음 섹션 · 이 내용은 미리 쓰지 않는다. 이번 섹션 끝은 다음 섹션으로 자연스럽게 넘어가게]\n" + sections[i + 1].title + (sections[i + 1].summary ? ": " + sections[i + 1].summary : "") + "\n" : ""}
+[책 정보와 목차]
+${outline.slice(0, 30000)}`;
+        const before = $("draftText").textContent + head;
+        const { text } = await sample(prompt, {
+          signal: dctl.signal, modelTier: "default", cache: false,
+          onText: ({ text }) => { $("draftText").textContent = before + text; },
+        });
+        $("draftText").textContent = before + text;
+        draftParts.push({ title: sec.title, text });
+        done = text;
+      }
+      if (all) setTimeout(() => window.__prewarmDraft?.(), 1500);
+      draftState(all ? "전체 원고 완성. 마음에 들면 '파일로 저장', 아니면 '다시 생성'을 누르세요." : "테스트 원고 완성. 문체가 마음에 들면 '전체 원고'로 바꿔 다시 뽑아보세요.", "ok");
+    } catch (e) {
+      if (e?.text) $("draftText").textContent += e.text;
+      if (!$("draftText").textContent.trim()) $("draftOut").hidden = true;
+      if (e?.code === "cancelled") draftState("멈췄어요. 여기까지 쓴 원고는 남아 있어요.");
+      else if (e?.code === "invalid_json" || e?.code === "empty_completion") draftState("목차를 읽지 못했어요. 목차가 제대로 붙어 있는지 확인하고 다시 눌러주세요.", "err");
+      else draftState((ERR[e?.code] || "원고 생성이 중간에 멈췄어요. 잠시 뒤 다시 눌러주세요.") + (($("draftText").textContent.trim()) ? " 여기까지 쓴 원고는 남아 있어요." : ""), "err");
+    } finally {
+      $("goDraft").disabled = false; $("stopDraft").hidden = true;
+      $("draftActions").hidden = draftParts.length === 0;
+    }
+  });
+  $("stopDraft").addEventListener("click", () => dctl?.abort());
+  $("copyDraft").addEventListener("click", () => copy($("draftText").textContent.trim(), $("draftState")));
+
+  // ── 한 챕터 깊게 쓰기: 인터뷰 → 설계도(첫 문장 후보 5개) → 집필(가장 좋은 모델) → 독자 채점 → 걸린 문장만 고치기
+  // 규칙을 많이 주는 대신 잘 쓴 글 견본 하나와 짧은 금지 목록만 준다.
+  const EXAMPLE_TEXT = `"괜찮은 사람이던데"는 칭찬이 아니다. 탈락 통보다.
+
+소개팅 끝나고 그녀가 친구한테 보내는 카톡을 생각해봐라.
+"괜찮은 사람이긴 한데..."
+직장 멀쩡하고, 매너 좋고, 대화도 안 끊겼다. 흠잡을 데가 없다. 그런데 또 만나고 싶지는 않다.
+
+왜 그럴까. 사람은 처음 본 상대를 두 가지로 잰다. 이 사람 능력 있나. 이 사람 나한테 따뜻한가.
+심리학자 수전 피스크는 2007년 논문에서 이 둘을 유능함과 따뜻함으로 정리했다. 사람은 따뜻함을 먼저 보고, 더 무겁게 본다.
+
+유능함은 존경을 부른다. 따뜻함은 호감을 부른다.
+
+전날 밤 메모장을 다시 보자. 회사 얘기, 오사카 여행, 질문 열두 개, 리뷰 300개짜리 파스타집. 전부 '저 괜찮은 사람이에요'를 증명하는 것들이다.
+그녀는 정확하게 봤다. 괜찮은 사람 시험은 만점이다.
+
+좋아지는 사람 시험지에는 이름만 쓰고 나왔다.
+
+(다른 섹션 일부)
+민수는 면접 보러 온 사람처럼 앉았다. 하는 일, 주말 풋살, 지난달 오사카. 준비한 순서대로 매끄럽게 나온다. 실수도 없고 침묵도 없다.
+이게 면접형 소개팅이다. 합격 통보는 오지 않는다.
+
+상대: 요즘 일이 좀 힘들어서요...
+준호: (잠깐 가만히 있다가) 어떤 게 제일 힘들어요?
+
+그녀는 그날 20분 동안 자기 얘기를 했다.
+민수는 자기를 보여줬다. 준호는 그녀를 봐줬다.`;
+  const DEEP_BANS = `[금지 · 이것만 지킨다]
+1. 금지어: 메커니즘, 효과적, 이러한, 구조, 뿌리, 핵심적인 역할, 다양한, 필수적, 중요합니다, 결론적으로, ~를 통해, 진정한, 여러분. 회로·작동·신호·필터·채널·과부하 같은 공학·개념어. 전부 친구한테 말하듯 생활어로 푼다.
+2. 책 주제 밖의 예시(주제가 소개팅인데 회사 얘기 등)를 끌어오지 않는다.
+3. 장면을 요약하지 않는다. 대사·카톡은 실제 말투 그대로 (ㅋㅋ, ㅠ 허용). 존댓말은 대사 안에서만, 서술은 ~다/~이다/~하라로 단정하게.
+4. 저자 경험·숫자·연구를 지어내지 않는다. 인터뷰 답에 없는 저자 경험이 필요하면 [저자 경험 넣기: 어떤 경험]으로 비워둔다. 근거는 확실한 것만 학자·연도·수치 한 줄로, 괄호 인용 없이.
+5. 감정을 설명하지 않는다("힘들었다", "공감한다" 금지). 그 순간 뭘 봤고 뭘 했는지로 보여준다. 흔한 실수는 세게 까되 사람이 아니라 행동을 깐다.
+6. 소제목·불릿·굵은 글씨 남발, "첫째 둘째 셋째", 3개씩 묶기, 문단마다 교훈 정리 금지. 번호·비교는 기법을 쪼갤 때와 대화 예시에만. 끝은 요약 대신 혼자 선 한 줄.
+7. "단순히 ~가 아니라 ~다" 공식 문장, "~인 것 같다" 흐리기, 긴 줄표(—), 이모지, 느낌표 남발, 마크다운 기호(#, **) 금지.
+8. 같은 말을 반복하거나 요약·다짐으로 분량을 늘리지 않는다.
+쓰는 법: 단문으로 끊고 두괄식으로. 저자가 독자 한 명을 앉혀놓고 말하는 선배처럼. 질문을 던지고 바로 스스로 답한다. 통념을 먼저 꺼내고 두 문장으로 뒤집는다. 대구로 리듬을 만든다. 중요한 문장은 한 줄 문단으로 혼자 세운다. 기법에는 이름을 붙인다. 모든 문장을 매끈하게 다듬지 않는다. 저자의 실패·창피했던 순간은 인터뷰 답·경험 메모에 있을 때만 솔직하게.`;
+  let deepSecs = [], deepCtl = null, deepResult = null;
+  const deepState = (msg, kind) => { const el = $("deepState"); el.hidden = !msg; el.textContent = msg || ""; el.className = "note" + (kind ? " " + kind : ""); };
+  const deepBusy = (on) => { ["deepLoad", "deepAsk", "deepPlanBtn", "deepWrite", "deepRedo", "deepPut"].forEach(id => $(id).disabled = on); $("deepStop").hidden = !on; };
+  const deepErr = (e) => {
+    if (e?.code === "cancelled") deepState("멈췄어요.");
+    else if (e?.code === "invalid_json" || e?.code === "empty_completion") deepState("AI 답을 읽지 못했어요. 한 번 더 눌러주세요.", "err");
+    else deepState(ERR[e?.code] || "중간에 멈췄어요. 잠시 뒤 다시 눌러주세요.", "err");
+  };
+  const deepSec = () => deepSecs[+$("deepSec").value];
+  const deepReader = () => {
+    let r = $("reader").value.trim();
+    if (!r) { const m = $("src").value.match(/타깃 독자\s*[:：]\s*(.+)/); if (m) { r = m[1].trim(); $("reader").value = r; } }
+    return r;
+  };
+  const deepAnswers = () => [...$("deepQ").querySelectorAll("textarea")].map(t => ({ q: t.dataset.q, a: t.value.trim() }));
+  const deepPlanText = () => {
+    const hook = $("deepHooks").querySelector("input:checked");
+    const own = $("deepHookOwn")?.value.trim();
+    const lines = [`첫 문장: ${own || (hook ? hook.value : "")}`];
+    $("deepPlan").querySelectorAll("textarea").forEach(t => { if (t.value.trim()) lines.push(`${t.dataset.k}: ${t.value.trim()}`); });
+    return lines.join("\n");
+  };
+  async function deepLoadSecs(sample) {
+    const outline = $("src").value.trim();
+    if (!outline) throw { code: "no_outline" };
+    deepSecs = await getSections(sample, outline, deepCtl.signal);
+    const sel = $("deepSec"), keep = sel.value;
+    sel.innerHTML = "";
+    deepSecs.forEach((x, k) => { const o = document.createElement("option"); o.value = k; o.textContent = x.title; sel.appendChild(o); });
+    sel.value = keep && deepSecs[+keep] ? keep : (deepSecs.length > 1 ? "1" : "0");
+  }
+  async function deepStart(fn) {
+    const sample = await samplePromise;
+    if (!sample) { deepState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내를 확인해주세요.", "err"); return; }
+    deepCtl = new AbortController(); deepBusy(true);
+    try {
+      if (!deepSecs.length) await deepLoadSecs(sample);
+      await fn(sample);
+    } catch (e) {
+      if (e?.code === "no_outline") { deepState("먼저 위 칸에 목차를 붙여넣어주세요.", "err"); $("src").focus(); }
+      else deepErr(e);
+    } finally { deepBusy(false); }
+  }
+  $("deepStop").addEventListener("click", () => deepCtl?.abort());
+  $("deepLoad").addEventListener("click", () => deepStart(async (sample) => {
+    secCache = { key: "", list: null }; deepSecs = [];
+    deepState("목차에서 챕터를 불러오는 중…");
+    await deepLoadSecs(sample);
+    deepState(`챕터 ${deepSecs.length}개를 불러왔어요. 쓸 챕터를 고르고 '질문 받기'를 누르세요.`, "ok");
+  }));
+
+  // 1) 저자 인터뷰 질문 5개
+  $("deepAsk").addEventListener("click", () => deepStart(async (sample) => {
+    const reader = deepReader();
+    if (!reader) { deepState("타깃 독자를 먼저 적어주세요. 성별·나이·상황까지 구체적으로요.", "err"); $("reader").focus(); return; }
+    const sec = deepSec();
+    deepState(`질문 만드는 중 · ${sec.title}`);
+    const qs = await sample.json(`너는 전자책 편집자다. 저자가 [이번 챕터]를 쓰기 전에 저자에게 물을 질문 5개를 만든다.
+질문은 이 챕터 주제에 딱 맞게 구체적으로, 저자가 한 줄로 답할 수 있게. 아래 5가지를 순서대로 하나씩 묻는다.
+1. 이 챕터 주제에서 독자가 겪는 최악의 순간. 그때 상대가 실제로 한 말이나 보낸 카톡 원문.
+2. 독자가 이 주제에 대해 당연하게 믿고 있지만 사실은 틀린 상식 하나.
+3. 저자가 직접 겪었거나 옆에서 본 실제 사례 하나 (누가, 어디서, 무슨 말).
+4. 그 순간 독자가 속으로 진짜 원하는 것 (입 밖에 안 내는 욕구).
+5. 이 챕터를 다 읽은 독자가 딱 하나 가져가야 할 것.
+[타깃 독자] ${reader}
+[이번 챕터] ${sec.title}${sec.summary ? " / " + sec.summary : ""}
+[책 목차 일부]
+${$("src").value.trim().slice(0, 6000)}
+JSON만: {"questions":["질문1","질문2","질문3","질문4","질문5"]}`, { signal: deepCtl.signal, modelTier: "default" });
+    const list = (qs?.questions || []).slice(0, 5);
+    if (!list.length) throw { code: "empty_completion" };
+    const box = $("deepQ"); box.innerHTML = "";
+    list.forEach((q, k) => {
+      const f = document.createElement("div"); f.className = "field";
+      const l = document.createElement("label"); l.className = "lbl"; l.htmlFor = "deepA" + k; l.textContent = `${k + 1}. ${q}`;
+      const t = document.createElement("textarea"); t.id = "deepA" + k; t.dataset.q = q; t.placeholder = "한 줄이면 돼요. 모르면 비워두세요";
+      f.append(l, t); box.appendChild(f);
+    });
+    $("deepQStep").hidden = false; $("deepPlanStep").hidden = true;
+    deepState("질문에 한 줄씩 답하고 '설계도 만들기'를 누르세요. 답이 구체적일수록 글이 살아나요.", "ok");
+    $("deepA0").focus();
+  }));
+
+  // 2) 설계도 + 첫 문장 후보 5개
+  $("deepPlanBtn").addEventListener("click", () => deepStart(async (sample) => {
+    const sec = deepSec(), reader = deepReader();
+    deepState(`설계도 만드는 중 · ${sec.title}`);
+    const ans = deepAnswers().map((x, k) => `Q${k + 1}. ${x.q}\nA. ${x.a || "(답 없음)"}`).join("\n");
+    const plan = await sample.json(`너는 베스트셀러 전자책 기획 편집자다. 저자 인터뷰 답을 바탕으로 [이번 챕터]의 설계도를 짠다.
+목표: 인간미 있고, 독자의 생각·감정·욕구를 건드리고, 상식을 뒤집고, 재미와 교훈이 있고, 짧게 끊어 쉽게 읽히는 글.
+- 저자 답에 있는 장면·대사를 최우선으로 쓴다. 답이 없는 칸은 이 책 주제 안에서 가상 장면으로 채우되 저자 경험처럼 쓰지 않는다.
+- 모든 예시는 이 책 주제와 타깃 독자 상황 안에서. 개념어(회로, 작동, 신호 등) 금지.
+- 첫 문장 후보 5개는 서로 다른 방식으로: 장면으로 시작 / 대사·카톡으로 시작 / 상식을 뒤집는 단정 / 독자 속마음 찌르기 / 숫자나 의외의 사실. 각 40자 안팎.
+[타깃 독자] ${reader}
+[이번 챕터] ${sec.title}${sec.summary ? " / " + sec.summary : ""}
+[저자 인터뷰]
+${ans}
+${($("myStory")?.value || "").trim() ? "[저자 실제 경험 메모]\n" + $("myStory").value.trim().slice(0, 3000) + "\n" : ""}
+JSON만: {"hooks":["첫 문장 후보 5개"],"scene":"첫 장면 (누가 어디서 무슨 말, 대사 원문 포함)","myth":"뒤엎을 상식","inner":"독자 속마음 (입 밖에 안 내는 욕구)","twist":"반전 (상식이 틀린 진짜 이유)","proof":"근거 (저자 사례나 확실한 연구, 없으면 빈 문자열)","lesson":"교훈 딱 하나","ending":"마지막 문장 (다음 챕터로 넘기는 한 줄)"}`, { signal: deepCtl.signal, modelTier: "complex" });
+    if (!plan || !Array.isArray(plan.hooks)) throw { code: "invalid_json" };
+    const hb = $("deepHooks"); hb.innerHTML = "";
+    plan.hooks.slice(0, 5).forEach((h, k) => {
+      const l = document.createElement("label");
+      const r = document.createElement("input"); r.type = "radio"; r.name = "deepHook"; r.value = h; r.checked = k === 0;
+      const sp = document.createElement("span"); sp.textContent = h;
+      l.append(r, sp); hb.appendChild(l);
+    });
+    const own = document.createElement("textarea"); own.id = "deepHookOwn"; own.placeholder = "직접 쓴 첫 문장 (쓰면 위 후보 대신 이걸 써요)"; own.style.minHeight = "44px";
+    hb.appendChild(own);
+    const fields = [["scene", "첫 장면"], ["myth", "뒤엎을 상식"], ["inner", "독자 속마음"], ["twist", "반전"], ["proof", "근거"], ["lesson", "교훈 하나"], ["ending", "마지막 문장"]];
+    const pb = $("deepPlan"); pb.innerHTML = "";
+    fields.forEach(([key, label]) => {
+      const f = document.createElement("div"); f.className = "field";
+      const l = document.createElement("label"); l.className = "lbl"; l.htmlFor = "deepP_" + key; l.textContent = label;
+      const t = document.createElement("textarea"); t.id = "deepP_" + key; t.dataset.k = label; t.value = plan[key] || "";
+      f.append(l, t); pb.appendChild(f);
+    });
+    $("deepPlanStep").hidden = false;
+    deepState("첫 문장을 고르고, 고칠 칸은 고친 뒤 '이 설계도로 쓰기'를 누르세요.", "ok");
+    $("deepPlanStep").scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
+
+  // 3) 집필 → 4) 독자 채점 → 걸린 문장만 고치기
+  async function deepWriteRun(sample) {
+    const sec = deepSec(), reader = deepReader(), idx = +$("deepSec").value;
+    const tone = $("tone").value || "평서체 (~다 / ~이다 / ~한다) 실전 안내형";
+    const prev = draftParts.find(p => p.title === deepSecs[idx - 1]?.title)?.text || "";
+    const next = deepSecs[idx + 1];
+    const ans = deepAnswers().filter(x => x.a).map(x => `- ${x.q} → ${x.a}`).join("\n");
+    await ensureProfile(sample, deepCtl.signal, deepState);
+    $("deepOut").hidden = false; $("deepMarksWrap").hidden = true;
+    $("deepTitle").textContent = sec.title; $("deepText").textContent = "";
+    deepState(`쓰는 중 · ${sec.title} (가장 좋은 모델이라 조금 걸려요)`);
+    const { text: draft } = await sample(`너는 사람 냄새 나는 글로 유명한 한국 전자책 작가다. [설계도]대로 [이번 챕터] 본문을 쓴다.
+
+[잘 쓴 글 견본 · 이 결로 쓴다]
+결론부터 짧게 끊고, 장면과 대사로 먼저 느끼게 하고, 대구로 리듬을 만들고, 결정타는 한 줄 문단으로 혼자 세운다. 견본의 내용·인물·주제는 절대 가져오지 않는다. 호흡과 온도만 따른다.
+---
+${EXAMPLE_TEXT}
+---
+${voiceBlock()}
+[문체] ${tone}
+[타깃 독자 · 필수] ${reader}. 이 독자의 시점·말투·속마음으로 쓴다.
+${DEEP_BANS}
+${PAIRS}
+
+[설계도 · 이 순서와 내용을 따른다]
+${deepPlanText()}
+${ans ? "\n[저자 인터뷰 답 · 여기 있는 장면과 대사를 그대로 살린다]\n" + ans + "\n" : ""}
+[이번 챕터] ${sec.title}${sec.summary ? "\n할 말: " + sec.summary : ""}
+${prev ? "\n[바로 앞 챕터 끝부분 · 이어받되 반복하지 않는다]\n…" + prev.slice(-1500) + "\n" : ""}${next ? "\n[다음 챕터 · 미리 쓰지 않는다] " + next.title + "\n" : ""}
+[출력]
+챕터 제목 없이 본문만. 분량은 목차의 분량 기준을 따르고 없으면 A4 2~3장. 소제목은 흐름이 크게 바뀔 때만 ■ 로 시작하는 한 줄(0~2개). 번호 줄 "1. "은 기법 쪼개기에만. 대화 예시는 "상대: …", "나: …" 줄로, 분석은 "→ " 줄로. 좋은 예·나쁜 예 비교는 "✗ 나쁜 예: …", "○ 좋은 예: …" 줄로. 대사는 곧은 따옴표 "…". 독자 가슴에 남길 한 문장이 있으면 둥근 따옴표 “…”로 감싼 한 줄로 본문 중간에 둔다(0~1개).`, {
+      signal: deepCtl.signal, modelTier: "complex", cache: false,
+      onText: ({ text }) => { $("deepText").textContent = text; },
+    });
+    $("deepText").textContent = draft;
+    deepState("독자 입장에서 채점하는 중…");
+    const marks = await sample.json(`너는 이 책을 돈 주고 산 독자다: ${reader}.
+아래 원고를 처음부터 읽으면서, 읽다가 멈칫하거나 넘기고 싶어진 문장만 골라라. 잘 읽히는 문장은 절대 고르지 않는다.
+고르는 이유는 이것만: 지루함 / 설명조 / 안 믿김 / AI티 / 금지어 / 존댓말 서술 / 긴 문장 / 흐리는 말 / 교훈 정리 / 감정 설명 / 주제 이탈 / 맥락 안 맞음.
+각 문장은 원고에 있는 그대로 정확히 옮기고, 그 자리에 들어갈 고친 문장을 쓴다. 고친 문장도 같은 말투, 더 짧고 구체적으로. 빼는 게 나으면 fix를 빈 문자열로.
+최대 8개. 고칠 게 없으면 빈 배열.
+JSON만: [{"line":"원고 속 문장 그대로","why":"이유","fix":"고친 문장"}]
+
+[원고]
+${draft}`, { signal: deepCtl.signal, modelTier: "complex" });
+    let text = draft; const applied = [];
+    (Array.isArray(marks) ? marks : []).forEach(m => {
+      const line = (m?.line || "").trim();
+      if (line.length < 4 || !text.includes(line)) return;
+      text = text.replace(line, (m.fix || "").trim());
+      applied.push(m);
+    });
+    text = text.replace(/\n{3,}/g, "\n\n").replace(/[ \t]+\n/g, "\n");
+    $("deepText").textContent = text;
+    const mb = $("deepMarks"); mb.innerHTML = "";
+    applied.forEach(m => {
+      const d = document.createElement("div");
+      const w = document.createElement("small"); w.textContent = m.why || "수정";
+      const o = document.createElement("s"); o.textContent = m.line;
+      const n = document.createElement("div"); n.style.cssText = "border:0;padding:4px 0 0"; n.textContent = m.fix ? "→ " + m.fix : "→ (뺌)";
+      d.append(w, o, n); mb.appendChild(d);
+    });
+    $("deepMarksWrap").hidden = !applied.length;
+    deepResult = { title: sec.title, text, idx };
+    deepState(applied.length ? `완성. 독자가 멈칫한 ${applied.length}곳만 고쳤어요. 마음에 들면 '원고에 넣기'를 누르세요.` : "완성. 독자 채점에서 걸린 문장이 없었어요. 마음에 들면 '원고에 넣기'를 누르세요.", "ok");
+  }
+  $("deepWrite").addEventListener("click", () => deepStart(deepWriteRun));
+  $("deepRedo").addEventListener("click", () => deepStart(deepWriteRun));
+  $("deepCopy").addEventListener("click", () => copy($("deepText").textContent.trim(), $("deepState")));
+  $("deepPut").addEventListener("click", () => {
+    if (!deepResult) return;
+    const text = $("deepText").textContent.trim(), order = (t) => deepSecs.findIndex(x => x.title === t);
+    const next = draftParts.filter(p => p.title !== deepResult.title).concat({ title: deepResult.title, text });
+    next.sort((a, b) => (order(a.title) < 0 ? 999 : order(a.title)) - (order(b.title) < 0 ? 999 : order(b.title)));
+    draftParts = next;
+    $("draftOut").hidden = false; $("draftActions").hidden = false;
+    $("draftTitle").textContent = `원고 · ${draftParts.length}개 섹션`;
+    $("draftText").textContent = draftParts.map(p => `\n\n━━━━━━━━━━━━━━━━\n${p.title}\n━━━━━━━━━━━━━━━━\n\n${p.text}`).join("").trimStart();
+    setTimeout(() => window.__prewarmDraft?.(), 1500);
+    deepState(`'${deepResult.title}'를 원고에 넣었어요. 다음 챕터를 골라 '질문 받기'를 누르세요.`, "ok");
+    const sel = $("deepSec"); if (+sel.value < deepSecs.length - 1) sel.value = String(+sel.value + 1);
+    $("deepQStep").hidden = true; $("deepPlanStep").hidden = true;
+  });
+
+  // 목차 설계 결과 → 원고 집필로 넘기기
+  $("toDraft").addEventListener("click", () => {
+    drafts.chapter = $("tocText").textContent.trim();
+    manualMode = false;
+    selectTab(TABS.findIndex(x => x.key === "chapter"));
+    $("draftBox").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  // ---------- 다시 생성 · 파일로 저장 ----------
+  let regenArmed = false, regenTimer = null;
+  $("regenDraft").addEventListener("click", () => {
+    if (!regenArmed) {
+      regenArmed = true;
+      $("regenDraft").textContent = "한 번 더 누르면 새로 써요 (지금 원고는 사라져요)";
+      clearTimeout(regenTimer);
+      regenTimer = setTimeout(() => { regenArmed = false; $("regenDraft").textContent = "다시 생성"; }, 5000);
+      return;
+    }
+    regenArmed = false; clearTimeout(regenTimer); $("regenDraft").textContent = "다시 생성";
+    $("goDraft").click();
+  });
+  $("saveDraft").addEventListener("click", () => { $("saveRow").hidden = !$("saveRow").hidden; });
+
+  // ---------- 문체 자료 첨부 (DOCX·PDF·TXT·MD·.skill) ----------
+  const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+  const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const docxXmlText = (xml) => xml.split(/<\/w:p>/).map(p => (p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []).map(t => t.replace(/<[^>]+>/g, "")).join(""))
+    .map(t => t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&")).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  async function readVoiceFile(file) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".txt") || name.endsWith(".md")) {
+      const t = await file.text();
+      return { text: t, kind: /규칙|가이드|금지|문체|체크리스트|guide|style/i.test(file.name + t.slice(0, 400)) && name.endsWith(".md") ? "가이드" : "내 글" };
+    }
+    if (name.endsWith(".docx")) {
+      await loadScript(CDN.jszip);
+      const zip = await window.JSZip.loadAsync(file);
+      return { text: docxXmlText(await zip.file("word/document.xml").async("string")), kind: "내 글" };
+    }
+    if (name.endsWith(".skill") || name.endsWith(".zip")) {
+      await loadScript(CDN.jszip);
+      const zip = await window.JSZip.loadAsync(file);
+      const mds = Object.values(zip.files).filter(f => !f.dir && /\.md$/i.test(f.name))
+        .sort((a, b) => (/SKILL\.md$/i.test(b.name) ? 1 : 0) - (/SKILL\.md$/i.test(a.name) ? 1 : 0));
+      if (!mds.length) throw new Error("empty");
+      const parts = [];
+      for (const f of mds) parts.push((await f.async("string")).replace(/^---[\s\S]*?---\s*/, "").trim());
+      return { text: parts.join("\n\n"), kind: "가이드" };
+    }
+    if (name.endsWith(".pdf")) {
+      await loadScript(PDFJS);
+      const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      const pdf = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+      const pages = [];
+      for (let i = 1; i <= Math.min(pdf.numPages, 40); i++) {
+        const c = await (await pdf.getPage(i)).getTextContent();
+        pages.push(c.items.map(it => it.str + (it.hasEOL ? "\n" : "")).join(""));
+      }
+      return { text: pages.join("\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(), kind: "내 글" };
+    }
+    throw new Error("type");
+  }
+  function renderVoiceFiles() {
+    const box = $("voiceList"); box.innerHTML = "";
+    voiceFiles.forEach((f, i) => {
+      const row = mk0("div", "voice-file", "");
+      const kind = mk0("button", "kind", f.kind); kind.type = "button"; kind.title = "눌러서 가이드 / 내 글 / 내 원고 바꾸기"; kind.style.marginLeft = "0";
+      kind.addEventListener("click", () => { f.kind = f.kind === "가이드" ? "내 글" : f.kind === "내 글" ? "내 원고" : "가이드"; renderVoiceFiles(); });
+      const x = mk0("button", "", "빼기"); x.type = "button";
+      x.addEventListener("click", () => { voiceFiles.splice(i, 1); renderVoiceFiles(); });
+      row.append(kind, mk0("b", "", f.name), mk0("span", "", f.text.length.toLocaleString() + "자"), x);
+      box.appendChild(row);
+    });
+    box.hidden = !voiceFiles.length; $("voiceClear").hidden = !voiceFiles.length;
+    $("voiceNote").textContent = voiceFiles.length ? `${voiceFiles.length}개 첨부 · '가이드'는 규칙으로 지키고, '내 글'은 말투를 따라 쓰고, '내 원고'(이 책 초안)는 좋은 문장은 그대로 두고 어색한 곳만 고쳐요. 종류를 눌러 바꿀 수 있어요.` : "내가 쓴 이 책 원고·블로그 글이나 문체 가이드 · DOCX·PDF·TXT·MD·.skill";
+  }
+  $("voiceFiles").addEventListener("change", async (ev) => {
+    const files = [...(ev.target.files || [])]; ev.target.value = "";
+    const fails = [];
+    for (const f of files) {
+      $("voiceNote").textContent = `${f.name} 읽는 중…`;
+      try {
+        const r = await readVoiceFile(f);
+        if (!r.text.trim()) throw new Error("empty");
+        voiceFiles = voiceFiles.filter(x => x.name !== f.name).concat([{ name: f.name, text: r.text.trim(), kind: r.kind }]);
+      } catch (e) { fails.push(f.name + (e.message === "type" ? " (지원 안 하는 형식)" : e.message === "empty" ? " (글자가 없음)" : " (읽기 실패)")); }
+    }
+    renderVoiceFiles();
+    if (fails.length) $("voiceNote").textContent = "못 읽은 파일: " + fails.join(", ") + ". 한글(HWP)은 워드나 PDF로 저장해서 올려주세요.";
+  });
+  $("voiceClear").addEventListener("click", () => { voiceFiles = []; renderVoiceFiles(); });
+
+  // ---------- AI 말투 다듬기: 뽑은 원고를 섹션별로 한 번 더 사람 말투로 고쳐 쓴다 ----------
+  $("polishDraft").addEventListener("click", async () => {
+    if (!draftParts.length) { draftState("먼저 원고를 뽑아주세요.", "err"); return; }
+    const sample = await samplePromise;
+    if (!sample) { draftState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내를 봐주세요.", "err"); return; }
+    const btns = ["polishDraft", "regenDraft", "saveDraft", "goDraft"];
+    btns.forEach(id => $(id).disabled = true);
+    dctl = new AbortController(); $("stopDraft").hidden = false;
+    const src = draftParts.slice(), out = [], log = [];
+    let shown = "";
+    $("polishLogBox").hidden = true; $("polishLog").textContent = "";
+    try {
+      await ensureProfile(sample, dctl.signal, draftState);
+      for (let i = 0; i < src.length; i++) {
+        const part = src[i];
+        draftState(`AI 말투 다듬는 중 ${i + 1}/${src.length} · ${part.title}`);
+        const head = `\n\n━━━━━━━━━━━━━━━━\n${part.title}\n━━━━━━━━━━━━━━━━\n\n`;
+        const prompt = `너는 한국 전자책 교정 편집자다. 아래 [원고]에서 고칠 곳만 고친다. 통째로 다시 쓰지 않는다.
+- 잘 읽히고 독자의 감정·욕구·생각을 건드리는 문장은 그대로 둔다. 원고의 말투(존댓말·반말, 어휘, 유머)를 유지한다.
+- 고칠 곳: 맥락이 어긋나는 곳, 사실·숫자·앞뒤 설명이 서로 안 맞는 곳, 제목과 본문이 안 맞는 곳, 주제·타깃 독자에서 벗어난 예시, AI처럼 어색하거나 개념어로 된 문장, 앞뒤 섹션과 연결이 끊긴 곳, 근거 없는 수치(90%, 100% 등).
+- 내용·사실·순서는 그대로 둔다. 새 경험·사례·수치·연구를 지어내지 않는다.
+- 금지어(메커니즘, 효과적, 이러한, 구조, 뿌리, 다양한, 필수적, 중요합니다, 결론적으로, ~를 통해, 진정한, 여러분), 두 줄 넘는 긴 문장, 흐리는 말("~인 것 같다"), 문단 끝 교훈 정리, 감정을 설명만 하는 문장도 고칠 곳이다. 저자 원고가 존댓말이면 존댓말을 유지한다.
+- 형식은 그대로 유지한다: 소제목은 ■ 로 시작하는 한 줄, 단계는 "1. ", 체크리스트는 □, 대사는 곧은 따옴표, 핵심 한 문장은 둥근 따옴표 “…” 한 줄.
+- [저자 경험 넣기: …] 표시는 지우지 말고 그대로 둔다.
+- 분량은 원고와 비슷하게. 줄이거나 요약하지 않는다.
+
+${$("reader").value.trim() ? "[타깃 독자 · 필수 조건] " + $("reader").value.trim() + "\n- 인물·예시·장면·말투를 이 독자 기준으로 맞춘다.\n" : ""}${STYLE_RULES}
+${PAIRS}
+${voiceBlock()}
+[작업 순서 · 이 순서대로 한다]
+1. 찾기: 원고를 읽으며 로봇 같은 문장, 금지어, 긴 문장, 흐리는 말, 감정 설명, 교훈 정리, 맥락이 안 맞는 곳을 찾는다.
+2. 계획: 각각을 어떻게 바꿀지 정한다. 위 [AI 문장 → 사람 문장] 예시처럼 바꾼다. 잘 읽히는 문장은 건드리지 않는다.
+3. 고치기: 찾은 곳만 고친다.
+4. 점검: 고친 본문에 금지어가 남았는지 마지막으로 한 번 더 확인하고 남았으면 고친다.
+
+[출력 형식 · 반드시 이 두 부분으로]
+[고친 곳]
+- "원래 문장 앞부분…" → "고친 문장 앞부분…" (이유: 금지어/긴 문장/흐리는 말/감정 설명/교훈 정리/맥락/AI티 중 하나)
+(고친 곳마다 한 줄, 최대 12줄. 고칠 곳이 없으면 "- 없음")
+[본문]
+고친 본문 전체. 제목·설명·인사 금지. 마크다운 기호(#, **) 금지.
+
+${i > 0 ? "[바로 앞 섹션 끝부분 · 흐름 참고용, 고치지 않는다]\n" + (out[i - 1] || src[i - 1]).text.slice(-1200) + "\n\n" : ""}${src[i + 1] ? "[바로 다음 섹션 제목 · 이 내용은 미리 쓰지 않는다]\n" + src[i + 1].title + "\n\n" : ""}[원고 · ${part.title}]
+${part.text}`;
+        const before = shown + head;
+        const { text } = await sample(prompt, {
+          signal: dctl.signal, modelTier: "default", cache: false,
+          onText: ({ text }) => { const k = text.indexOf("[본문]"); if (k < 0) return; $("draftText").textContent = before + text.slice(k + 4).replace(/^\s+/, "") + src.slice(i + 1).map(p => `\n\n━━━━━━━━━━━━━━━━\n${p.title}\n━━━━━━━━━━━━━━━━\n\n${p.text}`).join(""); },
+        });
+        const raw = text || "", k = raw.indexOf("[본문]");
+        const t = (k >= 0 ? raw.slice(k + 4) : raw.replace(/^\[고친 곳\][\s\S]*?\n(?=\S)/, "")).trim() || part.text;
+        const changes = k >= 0 ? raw.slice(0, k).replace("[고친 곳]", "").trim() : "";
+        const left = (t.match(BANNED) || []);
+        log.push(`■ ${part.title}\n${changes || "- (기록 없음)"}${left.length ? `\n  ※ 남은 금지어: ${[...new Set(left)].join(", ")}` : ""}`);
+        $("polishLog").textContent = log.join("\n\n"); $("polishLogBox").hidden = false;
+        out.push({ title: part.title, text: t });
+        shown = before + t;
+      }
+      draftParts = out;
+      $("draftText").textContent = shown.trim() ? shown : $("draftText").textContent;
+      draftState("AI 말투 다듬기 완료. 아래 '다듬기 기록'에서 어디를 왜 고쳤는지 볼 수 있어요. 표지·본문 디자인과 파일 저장에 다듬은 원고가 쓰여요.", "ok");
+      setTimeout(() => window.__prewarmDraft?.(), 1500);
+    } catch (e) {
+      // 중간에 멈추면 다듬은 섹션까지만 반영하고 나머지는 원래 원고로 둔다
+      if (out.length) { draftParts = out.concat(src.slice(out.length)); }
+      $("draftText").textContent = draftParts.map(p => `\n\n━━━━━━━━━━━━━━━━\n${p.title}\n━━━━━━━━━━━━━━━━\n\n${p.text}`).join("").trimStart();
+      draftState(e?.code === "cancelled" ? `멈췄어요. ${out.length}개 섹션까지 다듬은 원고가 반영됐어요.` : (ERR[e?.code] || "다듬기가 중간에 멈췄어요.") + ` ${out.length}개 섹션까지 반영됐어요.`, e?.code === "cancelled" ? "" : "err");
+    } finally {
+      btns.forEach(id => $(id).disabled = false); $("stopDraft").hidden = true;
+    }
+  });
+
+  function saveState(msg, kind) {
+    const el = $("saveState");
+    el.hidden = !msg; el.textContent = msg || "";
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+  const scriptCache = {};
+  function loadScript(src) {
+    if (!scriptCache[src]) scriptCache[src] = new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = src; s.onload = res; s.onerror = () => { delete scriptCache[src]; rej(new Error("load")); };
+      document.head.appendChild(s);
+    });
+    return scriptCache[src];
+  }
+  const CDN = {
+    jszip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+    jspdf: "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+    h2c: "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+  };
+  function bookInfo() {
+    const outline = $("src").value;
+    const t = (outline.match(/책 제목\s*[:：]\s*(.+)/) || outline.match(/\[확정 주제·제목\]\s*\n(.+)/) || [])[1];
+    const sub = (outline.match(/부제\s*[:：]\s*(.+)/) || [])[1];
+    return { title: (t || "전자책 원고").trim(), subtitle: (sub || "").trim() };
+  }
+  const safeName = (x) => x.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 60) || "전자책 원고";
+  // 원고 한 섹션을 블록으로: 소제목(■) / 문단
+  function blocks(text) {
+    return text.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l =>
+      l.startsWith("■") ? { type: "h", text: l.replace(/^■\s*/, "") } : { type: "p", text: l });
+  }
+
+  async function offerFile(filename, data) {
+    const dl = window.claude?.use ? await window.claude.use("downloads") : null;
+    if (!dl) { saveState("이 화면에서는 파일 저장을 할 수 없어요. '전체 복사'로 가져가세요.", "err"); return; }
+    try {
+      await dl.save({ filename, data });
+      saveState(`${filename} 저장 창을 열었어요.`, "ok");
+    } catch (e) {
+      if (e?.code === "declined") saveState("저장을 취소했어요.");
+      else if (e?.code === "rate_limited") saveState("저장 창이 이미 열려 있어요. 잠시 뒤 다시 눌러주세요.", "err");
+      else saveState("파일 저장이 안 돼요. '전체 복사'로 가져가세요.", "err");
+    }
+  }
+
+  // DOCX: 워드 문서를 직접 조립한다 (A5 판형, 맑은 고딕)
+  const xmlEsc = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  function wPara(text, { size = 22, bold = false, color = "1A1A1A", align = "", before = 0, after = 160, pageBreak = false } = {}) {
+    return `<w:p><w:pPr>${pageBreak ? "<w:pageBreakBefore/>" : ""}<w:spacing w:before="${before}" w:after="${after}" w:line="${size >= 30 ? 400 : 380}" w:lineRule="auto"/>${align ? `<w:jc w:val="${align}"/>` : ""}</w:pPr>` +
+      `<w:r><w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="맑은 고딕"/>${bold ? "<w:b/>" : ""}<w:color w:val="${color}"/><w:sz w:val="${size}"/><w:szCs w:val="${size}"/></w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r></w:p>`;
+  }
+  async function makeDocx() {
+    await loadScript(CDN.jszip);
+    const { title, subtitle } = bookInfo();
+    let body = wPara(title, { size: 44, bold: true, align: "center", before: 3000, after: 300 });
+    if (subtitle) body += wPara(subtitle, { size: 24, color: "6B5B00", align: "center" });
+    draftParts.forEach(part => {
+      body += wPara(part.title, { size: 32, bold: true, color: "6B5B00", pageBreak: true, after: 400 });
+      blocks(part.text).forEach(b => {
+        body += b.type === "h" ? wPara(b.text, { size: 26, bold: true, before: 240, after: 120 }) : wPara(b.text);
+      });
+    });
+    const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="8391" w:h="11906"/><w:pgMar w:top="1134" w:right="1021" w:bottom="1134" w:left="1021" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+    const zip = new window.JSZip();
+    zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+    zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+    zip.file("word/document.xml", doc);
+    return zip.generateAsync({ type: "blob" });
+  }
+
+  // ---------- 페이지 나누기 (혼자 남는 줄 방지) ----------
+  // 규칙: 1) 소제목·장 제목은 다음 블록과 붙여 넘긴다
+  //       2) 체크리스트·번호 목록은 5개 이하면 통째로, 더 길면 양쪽에 최소 2개씩 남게 나눈다
+  //       3) 장의 마지막 페이지가 너무 비면(4분의 1 미만) 앞 페이지에서 블록을 가져와 균형을 맞춘다
+  function measureBlocks(box, els) {
+    return els.map(el => {
+      box.appendChild(el);
+      const cs = getComputedStyle(el);
+      const h = el.getBoundingClientRect().height + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0);
+      box.removeChild(el);
+      return h;
+    });
+  }
+  function paginate(items, cap) {
+    const isHead = (k) => items[k].kind === "title" || items[k].kind === "h";
+    const H = (idx) => idx.reduce((a, k) => a + items[k].h, 0);
+    // 1) 묶음 만들기: 목록은 한 묶음, 제목은 뒤 묶음에 붙인다
+    let units = [];
+    for (let i = 0; i < items.length;) {
+      if (items[i].kind === "li") { let j = i; while (j < items.length && items[j].kind === "li") j++; units.push({ idx: Array.from({ length: j - i }, (_, n) => i + n) }); i = j; }
+      else { units.push({ idx: [i] }); i++; }
+    }
+    for (let u = units.length - 2; u >= 0; u--) {
+      if (units[u].idx.every(isHead)) { units[u + 1] = { idx: units[u].idx.concat(units[u + 1].idx) }; units.splice(u, 1); }
+    }
+    // 2) 채우기
+    const pages = [[]]; let used = 0;
+    const put = (idx) => { pages[pages.length - 1].push(...idx); used += H(idx); };
+    const newPg = () => { if (pages[pages.length - 1].length) { pages.push([]); used = 0; } };
+    for (const u of units) {
+      let rest = u.idx.slice();
+      while (rest.length) {
+        if (used + H(rest) <= cap) { put(rest); rest = []; break; }
+        const heads = rest.findIndex(k => !isHead(k)); const lis = rest.filter(k => items[k].kind === "li").length;
+        // 들어가는 개수
+        let n = 0, acc = 0; for (const k of rest) { if (used + acc + items[k].h > cap) break; acc += items[k].h; n++; }
+        const empty = !pages[pages.length - 1].length;
+        if (lis > 5 && heads >= 0) {
+          // 긴 목록: 이 페이지 목록 2개 이상, 다음 페이지 2개 이상 남을 때만 나눈다
+          let m = n; while (m > heads && (rest.length - m) < 2) m--;
+          if (m - heads >= 2 && rest.length - m >= 2) { put(rest.slice(0, m)); rest = rest.slice(m); newPg(); continue; }
+        }
+        if (empty) { // 빈 페이지에도 안 들어가는 긴 묶음은 들어가는 만큼
+          const m = Math.max(1, n - ((rest.length - n) === 1 ? 1 : 0));
+          put(rest.slice(0, m)); rest = rest.slice(m); if (rest.length) newPg(); continue;
+        }
+        newPg();
+      }
+    }
+    // 3) 마지막 페이지 균형 맞추기
+    for (let g = 0; g < 8 && pages.length > 1; g++) {
+      const last = pages[pages.length - 1], prev = pages[pages.length - 2];
+      if (H(last) >= cap * 0.25 || prev.length < 2) break;
+      // prev 끝에서 옮길 덩어리: 끝 블록 하나(목록이면 그 목록 전체), 그 앞 제목까지
+      let a = prev.length - 1;
+      if (items[prev[a]].kind === "li") { while (a > 0 && items[prev[a - 1]].kind === "li") a--; }
+      while (a > 0 && isHead(prev[a - 1])) a--;
+      if (a === 0) a = prev.length; // 통째로는 못 옮김
+      let chunk = prev.slice(a);
+      if (a === prev.length || H(last) + H(chunk) > cap || H(prev) - H(chunk) < cap * 0.35) {
+        // 긴 목록 꼬리 옮기기: 뒤에서 2개 이상, 앞에도 2개 이상 남게
+        const e = prev.length; let s0 = e; while (s0 > 0 && items[prev[s0 - 1]].kind === "li") s0--;
+        let done = false;
+        for (let t = 2; e - s0 - t >= 2; t++) {
+          const c = prev.slice(e - t);
+          if (H(last) + H(c) > cap) break;
+          if (H(last) + H(c) >= cap * 0.25) { chunk = c; a = e - t; done = true; break; }
+        }
+        if (!done) break;
+      }
+      pages[pages.length - 2] = prev.slice(0, a);
+      pages[pages.length - 1] = chunk.concat(last);
+    }
+    return pages.filter(pg => pg.length);
+  }
+
+  // PDF: A5 페이지로 나눠 그린 뒤 이미지로 담는다 (한글 글꼴이 깨지지 않게)
+  async function makePdf(onProgress) {
+    await Promise.all([loadScript(CDN.jspdf), loadScript(CDN.h2c)]);
+    const { title, subtitle } = bookInfo();
+    const W = 560, H = 794, PAD = 56;
+    const host = document.createElement("div");
+    host.className = "pdf-host";
+    document.body.appendChild(host);
+    const pages = [];
+    let page, inner;
+    const newPage = () => {
+      page = document.createElement("div"); page.className = "pdf-page";
+      page.style.width = W + "px"; page.style.height = H + "px"; page.style.padding = PAD + "px";
+      inner = document.createElement("div"); inner.className = "pdf-inner";
+      page.appendChild(inner); host.appendChild(page); pages.push(page);
+    };
+    const el = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
+    try {
+      newPage();
+      inner.classList.add("pdf-cover");
+      inner.append(el("div", "pdf-cover-title", title));
+      if (subtitle) inner.append(el("div", "pdf-cover-sub", subtitle));
+      await (document.fonts?.ready || Promise.resolve());
+      newPage(); const probe = inner; const probePage = pages.pop();
+      draftParts.forEach(part => {
+        const els = [el("h2", "pdf-h1", part.title)], kinds = ["title"];
+        blocks(part.text).forEach(b => { els.push(el(b.type === "h" ? "h3" : "p", b.type === "h" ? "pdf-h2" : "pdf-p", b.text)); kinds.push(b.type === "h" ? "h" : "p"); });
+        const hs = measureBlocks(probe, els);
+        paginate(hs.map((h, i) => ({ h, kind: kinds[i] })), H - PAD * 2).forEach(pg => { newPage(); pg.forEach(k => inner.appendChild(els[k])); });
+      });
+      probePage.remove();
+      await (document.fonts?.ready || Promise.resolve());
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: "mm", format: "a5" });
+      for (let i = 0; i < pages.length; i++) {
+        onProgress?.(i + 1, pages.length);
+        const canvas = await window.html2canvas(pages[i], { scale: 2, backgroundColor: "#ffffff", logging: false });
+        if (i) pdf.addPage();
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.88), "JPEG", 0, 0, 148, 210);
+      }
+      return pdf.output("blob");
+    } finally {
+      host.remove();
+    }
+  }
+
+  let saving = false;
+  async function doSave(kind) {
+    if (saving) return;
+    if (!draftParts.length) { saveState("저장할 원고가 없어요. 먼저 원고를 뽑아주세요.", "err"); return; }
+    saving = true; $("savePdf").disabled = $("saveDocx").disabled = true;
+    const name = safeName(bookInfo().title);
+    try {
+      if (kind === "docx") {
+        saveState("워드 파일 만드는 중…");
+        await offerFile(name + ".docx", await makeDocx());
+      } else {
+        saveState("PDF 만드는 중…");
+        const blob = await makePdf((i, n) => saveState(`PDF 만드는 중… ${i}/${n}쪽`));
+        await offerFile(name + ".pdf", blob);
+      }
+    } catch (e) {
+      saveState("파일을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err");
+    } finally {
+      saving = false; $("savePdf").disabled = $("saveDocx").disabled = false;
+    }
+  }
+  $("savePdf").addEventListener("click", () => doSave("pdf"));
+  $("saveDocx").addEventListener("click", () => doSave("docx"));
+
+  // ================= 표지 디자인 · 본문 디자인 =================
+  // AI는 그림을 직접 그리지 못해서, 디자인 설계(색·글꼴·배치·장식)를 JSON으로 받고 페이지가 그걸 그린다.
+  const FONTS = {
+    "블랙한산스": '"Black Han Sans"', "도현": '"Do Hyeon"', "주아": '"Jua"', "노토산스": '"Noto Sans KR"',
+    "노토세리프": '"Noto Serif KR"', "고운바탕": '"Gowun Batang"', "나눔명조": '"Nanum Myeongjo"', "송명": '"Song Myung"', "IBM플렉스": '"IBM Plex Sans KR"',
+  };
+  const FONT_KEYS = Object.keys(FONTS).join(", ");
+  const fam = (k, fb) => (FONTS[k] || FONTS[fb] || FONTS["노토산스"]) + ', "Noto Sans KR", sans-serif';
+  const hex = (x, fb) => /^#[0-9a-f]{6}$/i.test(String(x || "").trim()) ? String(x).trim() : fb;
+  function lum(h) {
+    const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  // 테이스트 규칙: 순수 검정·흰색 대신 톤 있는 검정·흰색, 강조색 채도는 80% 이하, 줄표 금지
+  const soften = (h) => /^#f{6}$/i.test(h) ? "#fbfaf7" : /^#0{6}$/.test(h) ? "#0c0c0b" : h;
+  function desat(h, max = 0.8) {
+    let [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    if (!d) return h;
+    const sat = d / (1 - Math.abs(2 * l - 1));
+    if (sat <= max) return h;
+    const k = max / sat; [r, g, b] = [r, g, b].map(v => l + (v - l) * k);
+    return "#" + [r, g, b].map(v => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, "0")).join("");
+  }
+  const noDash = (x) => String(x || "").replace(/\s*[—–]\s*/g, " · ");
+  let grainUrl = "";
+  function grain() {
+    if (grainUrl) return grainUrl;
+    const c = document.createElement("canvas"); c.width = c.height = 140;
+    const g = c.getContext("2d"), im = g.createImageData(140, 140);
+    for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+    g.putImageData(im, 0, 0); grainUrl = c.toDataURL("image/png"); return grainUrl;
+  }
+  const grainLayer = (op) => mk("div", `position:absolute;inset:0;background-image:url(${grain()});background-size:140px 140px;opacity:${op};pointer-events:none;`);
+  const readable = (ink, bg) => contrast(ink, bg) >= 4.5 ? ink : (lum(bg) > 0.4 ? "#111111" : "#ffffff");
+  const mk = (tag, style, text) => { const e = document.createElement(tag); if (style) e.style.cssText = style; if (text != null) e.textContent = text; return e; };
+
+  // ---- 원고 첨부 ----
+  const bookState = { text: "" };
+  async function readManuscriptFile(file) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".docx")) {
+      await loadScript(CDN.jszip);
+      const zip = await window.JSZip.loadAsync(file);
+      const xml = await zip.file("word/document.xml").async("string");
+      return xml.split(/<\/w:p>/).map(p => (p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []).map(t => t.replace(/<[^>]+>/g, "")).join(""))
+        .map(t => t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&")).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    }
+    throw new Error("type");
+  }
+  function setBook(text, note) {
+    bookState.text = text;
+    $("bookText").value = text;
+    $("bookNote").textContent = note;
+    updateBodyBookNote();
+  }
+  $("bookFile").addEventListener("change", async (ev) => {
+    const f = ev.target.files?.[0]; if (!f) return;
+    $("bookNote").textContent = "읽는 중…";
+    try {
+      const t = await readManuscriptFile(f);
+      if (!t.trim()) throw new Error("empty");
+      setBook(t, `${f.name} · ${t.length.toLocaleString()}자`);
+    } catch (e) {
+      $("bookNote").textContent = e.message === "type" ? "워드(DOCX) 파일만 첨부할 수 있어요. 한글(HWP)·PDF는 워드로 저장해서 올리거나 원고를 붙여넣어주세요." : e.message === "empty" ? "파일에 글자가 없어요. 원고를 붙여넣어주세요." : "파일을 읽지 못했어요. 원고를 직접 붙여넣어주세요.";
+    }
+    ev.target.value = "";
+  });
+  $("bookFromDraft").addEventListener("click", () => {
+    const t = $("draftText").textContent.trim();
+    if (!t) { $("bookNote").textContent = "원고 집필에서 뽑은 원고가 아직 없어요."; return; }
+    setBook(t, `원고 집필에서 가져옴 · ${t.length.toLocaleString()}자`);
+  });
+  $("bookText").addEventListener("input", () => { bookState.text = $("bookText").value; updateBodyBookNote(); });
+  function currentBookText() {
+    return (bookState.text || $("bookText").value || $("draftText").textContent || "").trim();
+  }
+  function updateBodyBookNote() {
+    const t = currentBookText();
+    $("bodyBookNote").textContent = t ? `연결된 원고: ${t.length.toLocaleString()}자 (표지 디자인 탭의 원고 · 없으면 원고 집필 결과)` : "연결된 원고가 없어요. 표지 디자인 탭에서 원고를 첨부하면 책 전체 디자인까지 할 수 있어요.";
+  }
+  function guessTitle() {
+    const pool = [drafts.chapter, drafts.toc, currentBookText(), $("r_topic").value].filter(Boolean).join("\n");
+    const t = (pool.match(/책 제목\s*[:：]\s*(.+)/) || pool.match(/\[확정 주제·제목\]\s*\n(.+)/) || [])[1];
+    const s = (pool.match(/부제\s*[:：]\s*(.+)/) || [])[1];
+    return { title: (t || "").trim(), subtitle: (s || "").trim() };
+  }
+
+  // ---- 표지 그리기 ----
+  // 전자책 디자인 템플릿 10선(ebook-design-templates 스킬)의 컬러·폰트·표지 비주얼·금지 요소
+  const TEMPLATES = [
+    ["01 아이보리 라인", "경제·재테크/미니멀", "F3EFE7", "FBF8F2", "2B2621", "B5493B", "노토세리프", "모래시계 하나, 중앙 하단, 여백 강조, 레드는 선·글자에만", "화려한 3D, 비주얼 과밀", "hourglass"],
+    ["02 미드나잇 골드", "자기계발/다크·골드", "12141C", "F7F5EE", "F3EDE0", "C9A227", "노토세리프", "금빛 태양·동심원·궤도선·점형 별빛, 다크+웅장+절제", "SF 포스터 같은 과장, 복잡한 우주 그래픽", "orbit"],
+    ["03 차콜 모노", "마인드·철학/흑백 미니멀", "FFFFFF", "FFFFFF", "161616", "6B6B68", "노토산스", "검은 돌 3~4개, 극도로 단순한 정적 오브젝트, 넓은 여백", "알록달록한 포인트, 감성 과잉", "stones"],
+    ["04 테라코타 웜", "라이프스타일·에세이/따뜻함", "F7EFE3", "FBF5EA", "3A2A20", "C1512F", "고운바탕", "아치형 창문, 화병과 가지, 따뜻한 햇살", "차가운 사진, 네온 컬러", "arch"],
+    ["05 세이지 그린", "건강·습관·힐링", "ECEFE4", "F8F9F2", "28331F", "4C6B44", "노토세리프", "창가, 작은 식물, 오전 햇살", "병원 브로셔 느낌, 형광 그린", "leaf"],
+    ["06 파우더 블루", "커리어·직장·비즈니스", "EAF1F6", "F8FAFC", "1B2A3A", "2C5C8A", "노토산스", "열린 길·보행로, 걸어가는 실루엣, 시야가 열리는 구조", "딱딱한 기업 브로셔, 사이버 네온", "path"],
+    ["07 블러시 소프트", "연애·관계·감정", "F8EEEC", "FDF7F6", "3E2A26", "B8695C", "고운바탕", "꽃 한두 송이 드로잉, 넓은 여백, 성숙한 감정선", "과하게 귀여운 장식, 십대 로맨틱", "flower"],
+    ["08 라인 화이트", "소통·관계·대화법", "FFFFFF", "FFFFFF", "1A1A1A", "E23E31", "노토산스", "빨간 선 하나가 흘러 하트나 연결을 만듦, 극미니멀", "많은 사진, 다색 구성", "redline"],
+    ["09 볼드 타입", "동기부여·도전·강한 메시지", "171717", "F6F3EC", "F5F1EA", "E4402F", "블랙한산스", "작은 인물 실루엣, 빨간 삼각 스포트라이트, 강한 대비", "톤다운 파스텔, 약한 인상", "spotlight"],
+    ["10 페이퍼 아카데믹", "공부·지식·교양", "F4EFE3", "FAF6EC", "2E2116", "8B5E34", "노토세리프", "아치형 서재, 높은 책장, 따뜻한 조명", "현대 광고 느낌, 네온·메탈릭", "arch"],
+  ];
+  const TEMPLATE_TEXT = TEMPLATES.map(t => `${t[0]} (${t[1]}) · 표지배경 #${t[2]} · 내지 #${t[3]} · 잉크 #${t[4]} · 액센트 #${t[5]} · 제목글꼴 ${t[6]} · 비주얼: ${t[7]} · 추천 motif: ${t[9]} · 금지: ${t[8]}`).join("\n");
+  const SPEC_RULES = `[디자인 명세서 공통 규칙 · A5 전자책]
+- 표지 구조: 상단 키커 → 얇은 액센트 라인 → 메인 제목 → 부제 → 핵심 비주얼 하나 → 하단 룰 → 저자명. 제목은 축소 썸네일에서도 읽혀야 한다.
+- 타이포 위계: 키커 9~11pt · 부제 11~14pt · 본문 10.8~11.2pt · 소제목 13~16pt · 챕터 번호 14~18pt · 챕터 제목 22~32pt · 표지 제목 28~46pt.
+- 본문 줄간격 165~175%, 문단 간격 6~10pt, 너무 촘촘한 편집 금지. 인용문은 본문보다 130~160% 크게. 체크리스트는 ✓ 또는 □.
+- 액센트 컬러는 선·번호·강조에만 절제해서 쓴다. 비주얼은 하나만.`;
+
+  function motifSvg(m, a, W, H, ink) {
+    const s = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="${W}" height="${H}" preserveAspectRatio="none" style="position:absolute;inset:0">${inner}</svg>`;
+    const k = ink || a;
+    switch (m) {
+      case "circle": return s(`<circle cx="470" cy="180" r="175" fill="${a}" opacity="0.9"/>`);
+      case "lines": return s(Array.from({ length: 14 }, (_, i) => `<line x1="0" y1="${60 + i * 22}" x2="600" y2="${60 + i * 22}" stroke="${a}" stroke-width="2" opacity="0.45"/>`).join(""));
+      case "grid": return s(Array.from({ length: 11 }, (_, i) => `<line x1="${i * 60}" y1="0" x2="${i * 60}" y2="800" stroke="${a}" stroke-width="1" opacity="0.22"/>`).join("") + Array.from({ length: 14 }, (_, i) => `<line x1="0" y1="${i * 60}" x2="600" y2="${i * 60}" stroke="${a}" stroke-width="1" opacity="0.22"/>`).join(""));
+      case "stripe": return s(`<polygon points="330,0 600,0 600,330" fill="${a}" opacity="0.95"/><polygon points="250,0 300,0 600,300 600,350" fill="${a}" opacity="0.5"/>`);
+      case "arch": return s(`<path d="M190 690 L190 500 A110 110 0 0 1 410 500 L410 690 Z" fill="${a}" opacity="0.16"/><path d="M190 690 L190 500 A110 110 0 0 1 410 500 L410 690" fill="none" stroke="${a}" stroke-width="3"/><line x1="300" y1="392" x2="300" y2="690" stroke="${a}" stroke-width="1.5" opacity="0.6"/><line x1="190" y1="560" x2="410" y2="560" stroke="${a}" stroke-width="1.5" opacity="0.6"/>`);
+      case "dots": return s(Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, c) => `<circle cx="${330 + c * 32}" cy="${60 + r * 32}" r="5" fill="${a}" opacity="0.6"/>`).join("")).join(""));
+      case "hourglass": return s(`<path d="M250 500 L350 500 L306 590 L350 680 L250 680 L294 590 Z" fill="none" stroke="${k}" stroke-width="2.5" opacity="0.85"/><path d="M272 660 L328 660 L340 680 L260 680 Z" fill="${a}"/><line x1="240" y1="500" x2="360" y2="500" stroke="${k}" stroke-width="4"/><line x1="240" y1="680" x2="360" y2="680" stroke="${k}" stroke-width="4"/>`);
+      case "orbit": return s(`<circle cx="300" cy="560" r="62" fill="${a}"/>` + [110, 160, 215].map((r, i) => `<circle cx="300" cy="560" r="${r}" fill="none" stroke="${a}" stroke-width="1.5" opacity="${0.7 - i * 0.18}"/>`).join("") + Array.from({ length: 22 }, (_, i) => `<circle cx="${(i * 97) % 580 + 10}" cy="${(i * 53) % 330 + 380}" r="${i % 3 ? 1.5 : 2.5}" fill="${a}" opacity="0.7"/>`).join(""));
+      case "stones": return s(`<ellipse cx="300" cy="668" rx="95" ry="30" fill="${k}"/><ellipse cx="300" cy="616" rx="70" ry="25" fill="${k}" opacity="0.92"/><ellipse cx="300" cy="573" rx="48" ry="20" fill="${k}" opacity="0.85"/><ellipse cx="300" cy="540" rx="28" ry="14" fill="${a}"/>`);
+      case "leaf": return s(`<path d="M300 690 C300 610 300 560 300 500" stroke="${a}" stroke-width="3" fill="none"/><path d="M300 590 C250 580 225 540 232 500 C272 508 298 540 300 590 Z" fill="${a}" opacity="0.85"/><path d="M300 555 C352 545 378 505 370 462 C330 472 302 505 300 555 Z" fill="${a}" opacity="0.6"/><path d="M262 690 L338 690 L330 730 L270 730 Z" fill="${k}" opacity="0.85"/>`);
+      case "path": return s(`<polygon points="120,800 480,800 318,470 282,470" fill="${a}" opacity="0.18"/><line x1="300" y1="800" x2="300" y2="470" stroke="${a}" stroke-width="3" stroke-dasharray="18 14"/><line x1="0" y1="470" x2="600" y2="470" stroke="${a}" stroke-width="1.5" opacity="0.5"/><circle cx="300" cy="600" r="9" fill="${k}"/><rect x="293" y="610" width="14" height="34" rx="6" fill="${k}"/>`);
+      case "flower": return s([0, 72, 144, 216, 288].map(r => `<ellipse cx="300" cy="530" rx="26" ry="52" transform="rotate(${r} 300 582)" fill="none" stroke="${a}" stroke-width="2.5"/>`).join("") + `<circle cx="300" cy="582" r="14" fill="${a}"/><path d="M300 596 C300 640 290 680 300 720" stroke="${a}" stroke-width="2.5" fill="none"/>`);
+      case "redline": return s(`<path d="M-10 640 C120 640 170 560 230 520 C280 486 330 520 300 570 C270 520 220 486 190 520 C150 565 240 620 300 660 C360 620 450 565 410 520 C380 486 330 520 300 570" fill="none" stroke="${a}" stroke-width="4" stroke-linecap="round"/><path d="M300 660 C380 700 470 690 610 700" fill="none" stroke="${a}" stroke-width="4" stroke-linecap="round"/>`);
+      case "spotlight": return s(`<polygon points="300,410 165,760 435,760" fill="${a}" opacity="0.9"/><circle cx="300" cy="640" r="11" fill="${readable("#111111", a)}"/><rect x="291" y="652" width="18" height="46" rx="8" fill="${readable("#111111", a)}"/>`);
+      default: return "";
+    }
+  }
+  function renderCover(sp, W = 600, H = 800) {
+    const k = W / 600;
+    const bg = soften(hex(sp.bg, "#111111")), bg2 = soften(hex(sp.bg2, bg)), accent = desat(hex(sp.accent, "#e8c547"));
+    let layout = sp.layout || "classic";
+    const photo = /^photo/.test(layout) && artUrl;
+    if (/^photo/.test(layout) && !artUrl) layout = "classic";
+    const scrim = hex(sp.scrim, "#0c0c0b");
+    const textBg = photo && layout === "photo-full" ? scrim : bg;
+    const ink = readable(soften(hex(sp.ink, "#fbfaf7")), textBg), sub = readable(soften(hex(sp.sub, ink)), textBg);
+    const root = mk("div", `position:relative;width:${W}px;height:${H}px;overflow:hidden;background:${bg === bg2 ? bg : `linear-gradient(170deg, ${bg}, ${bg2})`};font-family:${fam(sp.bodyFont)};`);
+    const img = (css) => { const i = mk("img", `position:absolute;object-fit:cover;display:block;${css}`); i.src = artUrl; root.appendChild(i); return i; };
+    if (photo) {
+      if (layout === "photo-full") {
+        img(`inset:0;width:100%;height:100%;`);
+        const top = sp.titlePos === "top";
+        root.appendChild(mk("div", `position:absolute;left:0;right:0;${top ? "top:0" : "bottom:0"};height:62%;background:linear-gradient(${top ? "180deg" : "0deg"}, ${scrim}f2 0%, ${scrim}c0 45%, ${scrim}00 100%);`));
+      } else if (layout === "photo-top") {
+        img(`left:0;top:0;width:100%;height:55%;`);
+      } else {
+        img(`left:${58 * k}px;right:${58 * k}px;top:${392 * k}px;width:${W - 116 * k}px;height:${300 * k}px;`);
+      }
+    }
+    if (layout === "split") root.appendChild(mk("div", `position:absolute;left:0;right:0;bottom:0;height:42%;background:${accent};`));
+    if (layout === "frame") root.appendChild(mk("div", `position:absolute;inset:${26 * k}px;border:${2 * k}px solid ${accent};`));
+    const m = photo ? "" : motifSvg(sp.motif, accent, W, H, ink);
+    if (m) {
+      root.insertAdjacentHTML("beforeend", m);
+      if (contrast(ink, accent) < 3 && /circle|stripe|dots|lines|grid/.test(sp.motif)) root.lastElementChild.style.opacity = "0.28";
+    }
+    const lines = (Array.isArray(sp.titleLines) && sp.titleLines.length ? sp.titleLines : [sp.title || "제목"]).slice(0, 4).map(noDash);
+    const longest = Math.max(...lines.map(l => l.length), 1);
+    // 명세서 표지 제목 28~46pt → 600px 폭 기준 약 42~70px (썸네일 가독성을 위해 위쪽 끝까지 허용)
+    const tsize = Math.max(38, Math.min(/photo-top|photo-window/.test(layout) ? 54 : 70, Math.round(440 / longest))) * k;
+    const centered = /center|frame/.test(layout);
+    const pos = {
+      "classic": `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`,
+      "center": `left:${56 * k}px;right:${56 * k}px;top:${120 * k}px;align-items:center;text-align:center;`,
+      "top-left": `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`,
+      "bottom-left": `left:${58 * k}px;right:${58 * k}px;bottom:${110 * k}px;`,
+      "split": `left:${50 * k}px;right:${50 * k}px;top:${110 * k}px;`,
+      "frame": `left:${70 * k}px;right:${70 * k}px;top:${120 * k}px;align-items:center;text-align:center;`,
+      "bignumber": `left:${58 * k}px;right:${58 * k}px;bottom:${110 * k}px;`,
+      "photo-full": sp.titlePos === "top" ? `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;` : `left:${58 * k}px;right:${58 * k}px;bottom:${110 * k}px;`,
+      "photo-top": `left:${58 * k}px;right:${58 * k}px;top:${480 * k}px;`,
+      "photo-window": `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`,
+    }[layout] || `left:${58 * k}px;right:${58 * k}px;top:${72 * k}px;`;
+    if (layout === "bignumber") {
+      const num = (String(sp.badge || "").match(/\d+/) || ["1"])[0];
+      root.appendChild(mk("div", `position:absolute;right:${-10 * k}px;top:${10 * k}px;font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${360 * k}px;line-height:1;color:${accent};opacity:0.9;`, num));
+    }
+    const box = mk("div", `position:absolute;display:flex;flex-direction:column;${pos}`);
+    // 1) 상단 키커 2) 얇은 액센트 라인
+    if (sp.kicker) box.appendChild(mk("div", `font-size:${14 * k}px;letter-spacing:0.16em;font-weight:700;color:${layout === "split" ? ink : readable(accent, bg) === accent ? accent : sub};margin-bottom:${12 * k}px;`, sp.kicker));
+    box.appendChild(mk("div", `width:${46 * k}px;height:${3 * k}px;background:${accent};margin-bottom:${20 * k}px;`));
+    // 3) 메인 제목
+    // 블랙한산스·도현·주아·송명은 한 굵기뿐인 제목용 글꼴, 나머지는 가장 굵게
+    const display = /블랙한산스|도현|주아|송명/.test(sp.titleFont || "블랙한산스");
+    const t = mk("div", `font-family:${fam(sp.titleFont, "블랙한산스")};font-size:${tsize}px;line-height:1.12;color:${ink};font-weight:${display ? 400 : 900};letter-spacing:-0.025em;`);
+    lines.forEach((l, i) => { if (i) t.appendChild(document.createElement("br")); t.appendChild(document.createTextNode(l)); });
+    box.appendChild(t);
+    // 4) 부제
+    if (sp.subtitle) box.appendChild(mk("div", `margin-top:${18 * k}px;font-size:${18 * k}px;line-height:1.55;color:${sub};max-width:${430 * k}px;`, noDash(sp.subtitle)));
+    if (sp.badge && !/bignumber|photo-top|photo-window/.test(layout)) box.appendChild(mk("div", `align-self:${centered ? "center" : "flex-start"};margin-top:${16 * k}px;padding:${5 * k}px ${13 * k}px;border:${1.5 * k}px solid ${accent};color:${readable(accent, bg)};font-weight:700;font-size:${14 * k}px;border-radius:999px;`, sp.badge));
+    root.appendChild(box);
+    // 6) 하단 룰 7) 저자명
+    const footOn = layout === "split" ? accent : (photo && layout === "photo-full" && sp.titlePos !== "top") ? scrim : bg2;
+    const footInk = readable(sub, footOn);
+    root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${70 * k}px;height:${1 * k}px;background:${footInk};opacity:0.5;`));
+    root.appendChild(mk("div", `position:absolute;left:${58 * k}px;right:${58 * k}px;bottom:${36 * k}px;font-size:${14 * k}px;letter-spacing:0.1em;color:${footInk};text-align:${centered ? "center" : "left"};`, sp.author || sp.kicker || ""));
+    root.appendChild(grainLayer(photo ? 0.04 : 0.06));
+    return root;
+  }
+
+  // ---- 본문 페이지 그리기 (A5 = 560 × 794) ----
+  const PW = 560, PH = 794;
+  function bodyTheme(sp) {
+    const paper = soften(hex(sp.paper, "#fbfaf7"));
+    return {
+      paper, ink: readable(soften(hex(sp.ink, "#1a1a1a")), paper), accent: desat(hex(sp.accent, "#e8c547")),
+      muted: readable(hex(sp.muted, "#666666"), paper), head: fam(sp.headFont, "노토산스"), body: fam(sp.bodyFont, "노토산스"),
+      // 블랙한산스 같은 제목 전용 글꼴은 큰 장 제목에만, 작은 소제목·인용은 본문 글꼴 굵게
+      sub: /블랙한산스|도현|주아|송명/.test(sp.headFont || "") ? fam(sp.bodyFont, "노토산스") : fam(sp.headFont, "노토산스"),
+      size: Math.max(14, Math.min(15.5, Number(sp.bodySize) || 14.7)),
+      chapter: sp.chapterStyle, h2: sp.h2Style, quote: sp.quoteStyle, sp,
+    };
+  }
+  function pageShell(th, n) {
+    const p = mk("div", `position:relative;width:${PW}px;height:${PH}px;background:${th.paper};color:${th.ink};font-family:${th.body};overflow:hidden;box-sizing:border-box;`);
+    if (n) p.appendChild(mk("div", `position:absolute;bottom:34px;left:0;right:0;text-align:center;font-size:11px;color:${th.muted};letter-spacing:0.1em;`, String(n)));
+    return p;
+  }
+  // "PART 1. 파트 제목 · 01 챕터 제목" → 파트 라벨과 챕터 제목으로 나눈다
+  function splitPart(title) {
+    const m = String(title).match(/^\s*(PART\s*\d+\.?[^·|/]*?)\s*[·|/]\s*(.+)$/i);
+    return m ? { part: m[1].trim(), title: m[2].trim() } : { part: "", title: String(title).trim() };
+  }
+  function chapterPage(th, title, idx, n) {
+    const p = pageShell(th, n);
+    const num = String(idx).padStart(2, "0");
+    const sp = splitPart(title);
+    const clean = noDash(sp.title.replace(/^\s*(\d{1,2}[\.\s]+)/, ""));
+    const onAccent = readable(th.ink, th.accent);
+    if (sp.part) p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:64px;font-family:${th.sub};font-size:12px;font-weight:700;letter-spacing:0.14em;color:${th.chapter === "fullbleed" || th.chapter === "band" ? onAccent : th.muted};`, noDash(sp.part)));
+    if (th.chapter === "badge") {
+      if (idx) { const b = mk("div", `position:absolute;left:64px;top:230px;width:60px;height:60px;border-radius:50%;border:2px solid ${th.accent};display:flex;align-items:center;justify-content:center;font-family:${th.head};font-size:19px;font-weight:700;color:${th.accent === th.paper ? th.ink : th.accent};`, num); p.appendChild(b); }
+      p.appendChild(mk("div", `position:absolute;left:64px;right:64px;top:${idx ? 316 : 260}px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;`, clean));
+      p.appendChild(mk("div", `position:absolute;left:64px;top:${idx ? 316 : 260}px;margin-top:-18px;width:40px;height:2px;background:${th.accent};`));
+    } else if (th.chapter === "fullbleed") {
+      p.style.background = th.accent;
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:230px;font-family:${th.head};font-size:15px;letter-spacing:0.25em;color:${onAccent};`, idx ? "CHAPTER " + num : ""));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:262px;font-family:${th.head};font-size:34px;line-height:1.35;font-weight:900;color:${onAccent};`, clean));
+    } else if (th.chapter === "band") {
+      p.appendChild(mk("div", `position:absolute;left:0;right:0;top:0;height:300px;background:${th.accent};`));
+      p.appendChild(mk("div", `position:absolute;left:52px;top:200px;font-family:${th.head};font-size:64px;line-height:1;color:${onAccent};`, idx ? num : ""));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:340px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;`, clean));
+    } else if (th.chapter === "bignumber") {
+      p.appendChild(mk("div", `position:absolute;right:30px;top:40px;font-family:${th.head};font-size:220px;line-height:1;color:${th.accent};opacity:0.9;`, idx ? num : "✦"));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;bottom:200px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;`, clean));
+    } else {
+      p.appendChild(mk("div", `position:absolute;left:52px;top:250px;font-size:13px;letter-spacing:0.25em;color:${th.muted};`, idx ? "CHAPTER " + num : ""));
+      p.appendChild(mk("div", `position:absolute;left:52px;right:52px;top:280px;font-family:${th.head};font-size:33px;line-height:1.35;font-weight:900;padding-bottom:18px;border-bottom:4px solid ${th.accent};`, clean));
+    }
+    return p;
+  }
+  function blockEl(th, b) {
+    const s = th.size;
+    if (b.type === "h") {
+      const base = `font-family:${th.sub};font-size:${Math.round(s * 1.3)}px;font-weight:700;line-height:1.45;margin:22px 0 10px;`;
+      if (th.h2 === "bar") return mk("div", base + `padding-left:12px;border-left:5px solid ${th.accent};`, b.text);
+      if (th.h2 === "underline") return mk("div", base + `padding-bottom:6px;border-bottom:2px solid ${th.accent};`, b.text);
+      if (th.h2 === "marker") { const d = mk("div", base); d.appendChild(mk("span", `background:linear-gradient(transparent 55%, ${th.accent}88 55%);`, b.text)); return d; }
+      return mk("div", base + `color:${th.accent === th.paper ? th.ink : th.ink};`, b.text);
+    }
+    if (b.type === "q") {
+      const base = `font-size:${Math.round(s * 1.3)}px;line-height:1.6;margin:16px 0;font-family:${th.sub};font-weight:600;`;
+      if (th.quote === "box") return mk("div", base + `background:${th.accent}22;border:1px solid ${th.accent};padding:12px 16px;`, b.text);
+      if (th.quote === "bigquote") { const d = mk("div", base + "position:relative;padding:8px 8px 8px 38px;"); d.appendChild(mk("span", `position:absolute;left:0;top:-10px;font-size:48px;line-height:1;color:${th.accent};font-family:Georgia,serif;`, "“")); d.appendChild(document.createTextNode(b.text)); return d; }
+      return mk("div", base + `padding:4px 0 4px 14px;border-left:3px solid ${th.accent};color:${th.ink};`, b.text);
+    }
+    if (b.type === "li") { const d = mk("div", `font-size:${s}px;line-height:1.7;margin:0 0 7px;padding-left:24px;position:relative;`); d.appendChild(mk("span", `position:absolute;left:0;top:0;color:${th.accent === th.paper ? th.ink : th.accent};font-weight:900;`, b.mark || "✓")); d.appendChild(document.createTextNode(b.text)); return d; }
+    return mk("p", `font-size:${s}px;line-height:1.7;margin:0 0 11px;word-break:keep-all;`, b.text);
+  }
+  function richBlocks(text) {
+    return text.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => {
+      if (l.startsWith("■")) return { type: "h", text: l.replace(/^■\s*/, "") };
+      // 둥근 따옴표로 감싼 한 줄만 강조 문장. 곧은 따옴표 "…"는 대사라서 본문으로 둔다
+      if (/^[“「『][^“”「」『』]+[”」』]$/.test(l)) return { type: "q", text: l.slice(1, -1) };
+      const li = l.match(/^([□☐✔✓☑·•\-]|\d{1,2}[.)])\s*/);
+      if (li && l.length < 120) return { type: "li", mark: /^\d/.test(li[1]) ? li[1].replace(")", ".") : "✓", text: l.slice(li[0].length) };
+      return { type: "p", text: l };
+    });
+  }
+  // 원고를 섹션으로 나눈다: 원고 집필 결과(━ 구분선) 또는 '프롤로그/01/PART' 같은 제목 줄
+  function bookParts() {
+    const t = currentBookText();
+    if (draftParts.length && (!t || t === $("draftText").textContent.trim())) return draftParts;
+    if (!t) return [];
+    if (/━{4,}/.test(t)) {
+      const bits = t.split(/\n*━{4,}\n(.+)\n━{4,}\n*/);
+      const parts = [];
+      for (let i = 1; i < bits.length; i += 2) parts.push({ title: bits[i].trim(), text: (bits[i + 1] || "").trim() });
+      if (parts.length) return parts;
+    }
+    // "01 제목"처럼 두 자리 번호만 장 제목으로 본다 ("1. 할 일" 같은 번호 목록은 본문)
+    const H = /^(프롤로그|에필로그|들어가며|나가며|PART\s*\d+|CHAPTER\s*\d+|제\s*\d+\s*장|\d{2}(\s+|\.\s*)\S)/i;
+    const parts = []; let cur = null;
+    t.split("\n").forEach(line => {
+      const l = line.trim();
+      if (l && l.length < 60 && H.test(l)) { cur = { title: l, text: "" }; parts.push(cur); }
+      else if (cur) cur.text += line + "\n";
+      else { cur = { title: "시작하며", text: line + "\n" }; parts.push(cur); }
+    });
+    // 첫 제목 앞의 짧은 머리말(책 제목·부제·분량 같은 정보)은 섹션으로 만들지 않는다
+    if (parts[0]?.title === "시작하며" && parts.length > 1 && parts[0].text.replace(/^\s*(책 제목|부제|원씽|분량|뼈대)\s*[:：].*$/gm, "").trim().length < 300) parts.shift();
+    return parts.filter(p => p.text.trim() || p.title);
+  }
+
+  // ---- 공통: 화면 밖에서 그려서 이미지로 ----
+  async function fontsReady(root) {
+    const fams = new Set(); root.querySelectorAll("*").forEach(e => { const f = e.style.fontFamily; if (f) fams.add(f.split(",")[0].trim()); });
+    const txt = root.textContent.slice(0, 400);
+    await Promise.all([...fams].map(f => document.fonts?.load(`20px ${f}`, txt).catch(() => {}) || 0));
+    await (document.fonts?.ready || Promise.resolve());
+  }
+  async function snap(el, scale = 2) {
+    await loadScript(CDN.h2c);
+    const host = mk("div", "position:fixed;left:-20000px;top:0;");
+    host.appendChild(el); document.body.appendChild(host);
+    try { await fontsReady(el); return await window.html2canvas(el, { scale, backgroundColor: null, logging: false }); }
+    finally { host.remove(); }
+  }
+  const canvasBlob = (c, type = "image/png", q) => new Promise(r => c.toBlob(r, type, q));
+  function scaled(el, w, h, k) {
+    const wrap = mk("div", `width:${w * k}px;height:${h * k}px;overflow:hidden;position:relative;`);
+    el.style.transform = `scale(${k})`; el.style.transformOrigin = "0 0"; el.style.position = "absolute"; el.style.left = "0"; el.style.top = "0";
+    wrap.appendChild(el); return wrap;
+  }
+  async function saveTo(filename, data, stateFn) {
+    const dl = window.claude?.use ? await window.claude.use("downloads") : null;
+    if (!dl) { stateFn("이 화면에서는 파일 저장을 할 수 없어요.", "err"); return; }
+    try { await dl.save({ filename, data }); stateFn(`${filename} 저장 창을 열었어요.`, "ok"); return true; }
+    catch (e) { stateFn(e?.code === "declined" ? "저장을 취소했어요." : e?.code === "rate_limited" ? "저장 창이 이미 열려 있어요. 잠시 뒤 다시 눌러주세요." : "파일 저장이 안 돼요.", e?.code === "declined" ? "" : "err"); }
+  }
+  const noteFn = (id) => (msg, kind) => { const el = $(id); el.hidden = !msg; el.textContent = msg || ""; el.className = "note" + (kind ? " " + kind : ""); };
+  const coverState = noteFn("coverState"), bodyState = noteFn("bodyState"), bookMsg = noteFn("bookState");
+
+  // ---- 표지 그림 (선택) ----
+  let artBlob = null, artUrl = "";
+  $("artFile").addEventListener("change", (ev) => {
+    const f = ev.target.files?.[0]; if (!f) return;
+    if (artUrl) URL.revokeObjectURL(artUrl);
+    artBlob = f; artUrl = URL.createObjectURL(f);
+    $("artThumb").src = artUrl; $("artThumb").hidden = false; $("artClear").hidden = false;
+    $("artNote").textContent = `${f.name} · 이 그림으로 표지 3안을 만들어요.`;
+    ev.target.value = "";
+  });
+  $("artClear").addEventListener("click", () => {
+    if (artUrl) URL.revokeObjectURL(artUrl);
+    artBlob = null; artUrl = ""; $("artThumb").hidden = true; $("artClear").hidden = true;
+    $("artNote").textContent = "그림을 뺐어요. 이제 도형으로 표지를 그려요.";
+  });
+
+  // ---- 3D 책 목업 (디자인 명세서 0-8: 하드커버·3/4 시점·연한 배경·바닥 그림자·과한 광택 금지·매트·중간 두께) ----
+  function avgColor(src, x0, w) {
+    const c = document.createElement("canvas"); c.width = 8; c.height = 32;
+    const g = c.getContext("2d"); g.drawImage(src, x0, 0, w, src.height, 0, 0, 8, 32);
+    const d = g.getImageData(0, 0, 8, 32).data; let r = 0, gg = 0, b = 0;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; }
+    const n = d.length / 4; return [r / n, gg / n, b / n].map(Math.round);
+  }
+  const rgb = (a, k = 1) => `rgb(${a.map(v => Math.max(0, Math.min(255, Math.round(v * k)))).join(",")})`;
+  function makeMockup(src, opt = {}) {
+    const W = 1600, H = 1600, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const g = cv.getContext("2d");
+    // 배경: 아주 연한 웜 그레이
+    const bg = g.createRadialGradient(W * 0.45, H * 0.38, 80, W * 0.5, H * 0.5, W * 0.8);
+    bg.addColorStop(0, "#f7f5f1"); bg.addColorStop(1, "#e4e0d9"); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    const H1 = 1080, H2 = Math.round(H1 * 0.935), HS = Math.round(H1 * 0.965);   // 가까운 모서리 / 먼 모서리 / 책등 바깥
+    const fw = Math.round(H1 * 0.75 * 0.9), sw = 74, cy = 770, hx = 520;         // 앞면 폭(원근 축소) · 책등 두께 · 중심 · 접지선
+    const top = (h) => cy - h / 2;
+    // 바닥 그림자 (넓고 부드럽게 + 접지 그림자)
+    g.save(); g.filter = "blur(34px)"; g.fillStyle = "rgba(40,32,24,0.30)";
+    g.beginPath(); g.ellipse(hx + fw * 0.48, cy + H1 / 2 + 18, fw * 0.62, 34, 0, 0, Math.PI * 2); g.fill();
+    g.filter = "blur(10px)"; g.fillStyle = "rgba(20,16,12,0.45)";
+    g.beginPath(); g.moveTo(hx - sw, cy + HS / 2); g.lineTo(hx, cy + H1 / 2); g.lineTo(hx + fw, cy + H2 / 2); g.lineTo(hx + fw + 30, cy + H2 / 2 + 10); g.lineTo(hx - sw - 10, cy + HS / 2 + 12); g.closePath(); g.fill();
+    g.restore();
+    // 책등: 표지 왼쪽 색을 뽑아 조금 어둡게
+    const sc = opt.spine || avgColor(src, 0, Math.max(4, Math.round(src.width * 0.05)));
+    for (let i = 0; i < sw; i++) {
+      const t = i / sw, h = HS + (H1 - HS) * t;
+      g.fillStyle = rgb(sc, 0.62 + 0.28 * t); g.fillRect(hx - sw + i, top(h), 1.6, h);
+    }
+    if (opt.title) {  // 책등 세로 제목
+      g.save(); g.translate(hx - sw / 2, cy); g.rotate(Math.PI / 2);
+      const lum = (sc[0] * 0.299 + sc[1] * 0.587 + sc[2] * 0.114);
+      g.fillStyle = lum > 140 ? "rgba(20,18,16,0.85)" : "rgba(250,247,240,0.9)";
+      g.font = `700 26px ${opt.font || '"Noto Sans KR", sans-serif'}`; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(opt.title.length > 26 ? opt.title.slice(0, 25) + "…" : opt.title, -30, 0);
+      if (opt.author) { g.font = `500 17px "Noto Sans KR", sans-serif`; g.globalAlpha = 0.75; g.fillText(opt.author, H1 * 0.36, 0); }
+      g.restore();
+    }
+    // 앞면: 세로 띠로 잘라 원근을 준다 (가까운 쪽이 크고 먼 쪽이 작게)
+    for (let i = 0; i < fw; i++) {
+      const t = i / fw, h = H1 + (H2 - H1) * t;
+      const sx = src.width * (t * 0.92 + t * t * 0.08);   // 먼 쪽이 살짝 압축
+      g.drawImage(src, sx, 0, Math.max(1, src.width / fw), src.height, hx + i, top(h), 1.8, h);
+    }
+    // 매트 조명: 왼쪽 위 빛, 오른쪽으로 갈수록 살짝 어둡게 (광택 없음)
+    g.save(); g.beginPath(); g.moveTo(hx, top(H1)); g.lineTo(hx + fw, top(H2)); g.lineTo(hx + fw, top(H2) + H2); g.lineTo(hx, top(H1) + H1); g.closePath(); g.clip();
+    const lg = g.createLinearGradient(hx, 0, hx + fw, 0);
+    lg.addColorStop(0, "rgba(255,255,255,0.07)"); lg.addColorStop(0.5, "rgba(255,255,255,0)"); lg.addColorStop(1, "rgba(0,0,0,0.10)");
+    g.fillStyle = lg; g.fillRect(hx, 0, fw, H);
+    // 하드커버 접지선(힌지)
+    const hg = g.createLinearGradient(hx, 0, hx + 34, 0);
+    hg.addColorStop(0, "rgba(0,0,0,0.30)"); hg.addColorStop(0.45, "rgba(0,0,0,0.06)"); hg.addColorStop(0.55, "rgba(255,255,255,0.10)"); hg.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = hg; g.fillRect(hx, 0, 34, H);
+    g.restore();
+    // 모서리 선
+    g.strokeStyle = "rgba(0,0,0,0.18)"; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(hx + fw, top(H2)); g.lineTo(hx + fw, top(H2) + H2); g.stroke();
+    return cv;
+  }
+  // ---- 진짜 3D 목업 (three.js · WebGL): 하드커버 보드·둥근 책등·종이 옆면·매트 재질·부드러운 그림자 ----
+  const THREE_URL = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+  function spineCanvas(opt, sc) {
+    const c = document.createElement("canvas"); c.width = 256; c.height = 2048;
+    const g = c.getContext("2d");
+    const grd = g.createLinearGradient(0, 0, 256, 0);
+    grd.addColorStop(0, rgb(sc, 0.78)); grd.addColorStop(0.5, rgb(sc, 1)); grd.addColorStop(1, rgb(sc, 0.86));
+    g.fillStyle = grd; g.fillRect(0, 0, 256, 2048);
+    const lum = sc[0] * 0.299 + sc[1] * 0.587 + sc[2] * 0.114;
+    const ink = lum > 140 ? "rgba(28,24,20,0.9)" : "rgba(250,247,240,0.92)";
+    // 원통을 비스듬히 보면 앞표지 쪽 70% 지점이 가장 잘 보여서 글자를 그쪽에 둔다 (텍스처는 좌우 반전되어 붙음)
+    g.save(); g.translate(256 * 0.28, 1024); g.rotate(Math.PI / 2); g.fillStyle = ink; g.textAlign = "center"; g.textBaseline = "middle";
+    if (opt.title) { g.font = `700 58px ${opt.font || '"Noto Sans KR", sans-serif'}`; const t = opt.title.length > 24 ? opt.title.slice(0, 23) + "…" : opt.title; g.fillText(t, -170, 0); }
+    if (opt.author) { g.font = `500 36px "Noto Sans KR", sans-serif`; g.globalAlpha = 0.8; g.fillText(opt.author, 780, 0); }
+    g.restore();
+    return c;
+  }
+  function edgeCanvas() {
+    const c = document.createElement("canvas"); c.width = 64; c.height = 512;
+    const g = c.getContext("2d"); g.fillStyle = "#f3eee4"; g.fillRect(0, 0, 64, 512);
+    for (let x = 0; x < 64; x += 2) { g.fillStyle = `rgba(120,105,85,${0.05 + Math.random() * 0.08})`; g.fillRect(x, 0, 1, 512); }
+    return c;
+  }
+  async function makeMockup3D(src, opt = {}) {
+    await loadScript(THREE_URL);
+    const T = window.THREE; if (!T) throw new Error("three");
+    const S = 1600;
+    const renderer = new T.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    if (!renderer.getContext()) throw new Error("webgl");
+    renderer.setPixelRatio(1); renderer.setSize(S, S, false);
+    renderer.outputEncoding = T.sRGBEncoding; renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.VSMShadowMap;
+    renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+    const scene = new T.Scene();
+    const cam = new T.PerspectiveCamera(26, 1, 0.1, 100); cam.position.set(0.25, 1.35, 6.9); cam.lookAt(0.05, -0.12, 0);
+    // 조명: 왼쪽 위 부드러운 키라이트 + 은은한 하늘빛 (광택 없는 매트)
+    scene.add(new T.HemisphereLight(0xffffff, 0xd8d0c4, 0.62));
+    const key = new T.DirectionalLight(0xfff4e6, 0.95); key.position.set(-2.6, 6.5, 3.4); key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 14; key.shadow.blurSamples = 24; key.shadow.bias = -0.0006;
+    Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 20 }); scene.add(key);
+    const fill = new T.DirectionalLight(0xe8eefc, 0.25); fill.position.set(4, 1.5, 3); scene.add(fill);
+    // 책 치수: A5 비율, 중간 두께
+    const w = 1.5, h = w * 1.414, d = 0.3, t = 0.035, over = 0.03;
+    const tex = (cv) => { const x = new T.CanvasTexture(cv); x.encoding = T.sRGBEncoding; x.anisotropy = 8; return x; };
+    const sc = opt.spine || avgColor(src, 0, Math.max(4, Math.round(src.width * 0.05)));
+    const coverCol = new T.Color(`rgb(${sc.join(",")})`).convertSRGBToLinear();
+    const matte = (o) => new T.MeshStandardMaterial(Object.assign({ roughness: 0.82, metalness: 0 }, o));
+    const board = matte({ color: coverCol });
+    const front = matte({ map: tex(src) });
+    const edgeTex = tex(edgeCanvas()); edgeTex.wrapS = edgeTex.wrapT = T.RepeatWrapping;
+    const pageMat = matte({ map: edgeTex, color: 0xffffff, roughness: 0.95 });
+    const book = new T.Group();
+    // 앞·뒤 보드 (앞면에만 표지 그림)
+    const fb = new T.Mesh(new T.BoxGeometry(w, h, t), [board, board, board, board, front, board]);
+    fb.position.set(over / 2, 0, d / 2 - t / 2); book.add(fb);
+    const bb = new T.Mesh(new T.BoxGeometry(w, h, t), board); bb.position.set(over / 2, 0, -d / 2 + t / 2); book.add(bb);
+    // 종이 블록 (보드보다 살짝 안쪽)
+    const pb = new T.Mesh(new T.BoxGeometry(w - over * 1.2, h - over * 2, d - t * 2), [pageMat, board, pageMat, pageMat, pageMat, pageMat]);
+    pb.position.set(0, 0, 0); book.add(pb);
+    // 둥근 책등
+    const spTex = tex(spineCanvas(opt, sc)); spTex.wrapS = T.RepeatWrapping; spTex.repeat.x = -1; spTex.offset.x = 1;  // 원통 UV가 좌우 반대라 뒤집는다
+    const sp = new T.Mesh(new T.CylinderGeometry(d / 2, d / 2, h, 48, 1, true, Math.PI, Math.PI), matte({ map: spTex, side: T.DoubleSide }));
+    sp.position.set(-w / 2 + over / 2, 0, 0); book.add(sp);
+    book.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    book.rotation.y = 0.5; book.position.set(0.18, 0.05, 0);
+    scene.add(book);
+    // 바닥: 그림자만 받는 투명 바닥 + 접지 부분 진한 그림자
+    const floor = new T.Mesh(new T.PlaneGeometry(20, 20), new T.ShadowMaterial({ opacity: 0.22 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = -h / 2 + 0.05; floor.receiveShadow = true; scene.add(floor);
+    const ao = document.createElement("canvas"); ao.width = ao.height = 256;
+    const ag = ao.getContext("2d"); const rg = ag.createRadialGradient(128, 128, 10, 128, 128, 128);
+    rg.addColorStop(0, "rgba(30,22,14,0.55)"); rg.addColorStop(1, "rgba(30,22,14,0)"); ag.fillStyle = rg; ag.fillRect(0, 0, 256, 256);
+    const aoMesh = new T.Mesh(new T.PlaneGeometry(w * 1.5, d * 2.6), new T.MeshBasicMaterial({ map: new T.CanvasTexture(ao), transparent: true, depthWrite: false }));
+    aoMesh.rotation.x = -Math.PI / 2; aoMesh.rotation.z = 0.5; aoMesh.position.set(0, floor.position.y + 0.002, 0); scene.add(aoMesh);
+    renderer.render(scene, cam);
+    // 배경 합성: 아주 연한 웜 그레이
+    const out = document.createElement("canvas"); out.width = out.height = S;
+    const g = out.getContext("2d");
+    const bg = g.createRadialGradient(S * 0.46, S * 0.36, 60, S * 0.5, S * 0.5, S * 0.82);
+    bg.addColorStop(0, "#f8f6f2"); bg.addColorStop(1, "#e3dfd8"); g.fillStyle = bg; g.fillRect(0, 0, S, S);
+    g.drawImage(renderer.domElement, 0, 0);
+    renderer.dispose(); renderer.forceContextLoss?.();
+    return out;
+  }
+  // 한 번 그린 표지·목업·원고 파일은 기억해 두고 다시 쓴다 (최종 결과물 ZIP이 빨라진다)
+  const madeCache = new WeakMap();
+  function cached(obj, key, fn) {
+    let m = madeCache.get(obj); if (!m) { m = {}; madeCache.set(obj, m); }
+    if (!m[key]) m[key] = fn().catch(e => { delete m[key]; throw e; });
+    return m[key];
+  }
+  const coverCanvas = (sp) => cached(sp, "canvas", () => snap(renderCover(sp), 2));
+  const coverPng = (sp) => cached(sp, "png", async () => canvasBlob(await coverCanvas(sp)));
+  const mockCanvas = (sp) => cached(sp, "mock", () => coverMockup(sp));
+  const mockPng = (sp) => cached(sp, "mockPng", async () => canvasBlob(await mockCanvas(sp)));
+  async function coverMockup(sp) {
+    const c = await coverCanvas(sp);
+    const opt = { title: noDash(sp.title || ""), author: sp.author || "", font: fam(sp.titleFont, "노토산스"), spine: null };
+    // WebGL이 안 되는 기기에서는 간이 목업으로 대신한다
+    try { return await makeMockup3D(c, opt); } catch (e) { return makeMockup(c, opt); }
+  }
+
+  // ---- 표지 디자인 3개 ----
+  let coverSpecs = [], chosenCover = null, coverBlob = null, cvCtl = null;
+  async function runCover() {
+    const text = currentBookText();
+    if (!text) { coverState("원고를 첨부하거나 붙여넣어주세요. 제목·목차만 있어도 돼요.", "err"); return; }
+    const sample = await samplePromise;
+    if (!sample) { coverState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
+    const g = guessTitle();
+    let images;
+    if (artBlob) { try { const lim = await sample.limits?.(); if (lim?.images) images = [await shrink(artBlob)]; } catch (e) { images = undefined; } }
+    const artRule = artBlob ? `\n[표지 그림이 있다]\n${images ? "첨부한 이미지가 표지에 쓸 그림이다. 그림의 색·밝기·빈 공간(제목을 얹을 자리)을 먼저 분석한다." : "표지에 쓸 그림이 있지만 이번엔 볼 수 없다. 어떤 그림이든 읽히도록 안전하게 설계한다."}\n- 이번 3안의 layout은 반드시 photo-full(그림을 꽉 채우고 위나 아래에 제목), photo-top(위 55%는 그림, 아래는 색 블록에 제목), photo-window(색 배경 위에 그림 창을 두고 위에 제목) 중에서 서로 다르게 고른다. motif는 none.\n- photo-full에는 titlePos(top 또는 bottom: 그림에서 비어 있거나 어두운 쪽)와 scrim(제목 뒤에 깔 반투명 색, 그림의 어두운 색에서 뽑은 #hex)을 넣는다.\n- 색(bg·accent·ink)은 그림에서 뽑는다.\n` : "";
+    const avoid = coverSpecs.length ? `\n[지난번 3안 · 이번엔 겹치지 않게 완전히 다른 방향으로]\n${coverSpecs.map(s => `${s.name}: ${s.layout}/${s.motif}/${s.bg}/${s.titleFont}`).join("\n")}\n` : "";
+    const prompt = `너는 한국 전자책 표지 아트디렉터다. 아래 [원고]를 분석해서 전자책 표지 디자인 3안을 설계한다.
+${g.title ? `책 제목은 "${g.title}"${g.subtitle ? `, 부제는 "${g.subtitle}"` : ""}. 제목·부제 글자는 바꾸지 않는다(줄바꿈만 정한다).\n` : "원고에서 책 제목과 부제를 찾고, 없으면 원고 내용으로 짓는다.\n"}
+[원칙]
+- 먼저 원고의 독자·정서·약속을 읽고, 아래 [디자인 템플릿 10선]에서 이 책에 맞는 템플릿 3개를 서로 다르게 고른다. 3안은 각각 그 템플릿의 컬러·제목글꼴·비주얼 방향을 따르되, 이 책의 주제에 맞게 조금 다듬어도 된다. 템플릿의 금지 요소는 지킨다.
+- 표지는 판매 썸네일로 작게 봐도 제목이 읽혀야 한다. 제목 줄은 한 줄에 8자 안팎으로 끊는다. 글자색(ink)과 배경(bg)은 대비가 커야 한다.
+- 글꼴은 이 목록에서만: ${FONT_KEYS} (명세서의 Pretendard는 노토산스로 대신한다)
+- layout은 classic(명세서 기본 구조, 가장 우선), center, top-left, bottom-left, split, frame, bignumber 중 하나. bignumber는 badge에 숫자가 있을 때만.
+- motif는 템플릿의 추천 motif를 우선: hourglass, orbit, stones, arch, leaf, path, flower, redline, spotlight, circle, lines, grid, stripe, dots, none.
+
+${SPEC_RULES}
+
+[디자인 템플릿 10선]
+${TEMPLATE_TEXT}
+${artRule}${avoid}
+- 줄표(긴 대시 기호)는 어디에도 쓰지 않는다.
+[출력] JSON 배열 3개만:
+[{"template":"고른 템플릿 번호와 이름","name":"안 이름(짧게)","concept":"이 표지가 독자에게 주는 느낌 한 줄","title":"책 제목","titleLines":["제목 1행","제목 2행"],"subtitle":"부제","kicker":"제목 위 작은 라벨(없으면 빈 문자열)","badge":"숫자가 들어간 짧은 약속(예: 2주 완성, 없으면 빈 문자열)","author":"저자명(원고에 없으면 빈 문자열)","bg":"#hex","bg2":"#hex","ink":"#hex","sub":"#hex","accent":"#hex","titleFont":"목록 중 하나","bodyFont":"목록 중 하나","layout":"…","motif":"…","titlePos":"top 또는 bottom(photo-full일 때)","scrim":"#hex(photo-full일 때)"}]
+
+[원고]
+${text.slice(0, 14000)}`;
+    cvCtl = new AbortController();
+    $("goCover").disabled = $("regenCover").disabled = true;
+    coverState(artBlob ? "그림과 원고를 읽고 표지 3개를 설계하는 중… (20초~1분)" : "원고를 읽고 표지 3개를 설계하는 중… (20초~1분)");
+    try {
+      const arr = await sample.json(prompt, { signal: cvCtl.signal, modelTier: "default", cache: false, images });
+      const specs = (Array.isArray(arr) ? arr : arr?.covers || []).slice(0, 3);
+      if (!specs.length) throw { code: "empty_completion" };
+      coverSpecs = specs;
+      renderCoverRefs();
+      coverState("표지 3개가 나왔어요. 마음에 드는 걸 PNG로 저장하거나 '이 표지로 확정'을 누르세요.", "ok");
+    } catch (e) {
+      coverState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "설계 결과가 깨졌어요. 한 번만 다시 눌러주세요." : (ERR[e?.code] || "표지 설계에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
+    } finally {
+      $("goCover").disabled = $("regenCover").disabled = false;
+    }
+  }
+  function renderCoverRefs() {
+    const box = $("coverRefs"); box.innerHTML = "";
+    coverSpecs.forEach((sp, i) => {
+      const card = mk("article", ""); card.className = "ref";
+      // 카드 미리보기: 처음엔 평면, 목업이 그려지면 목업으로 (누르면 평면·목업 전환)
+      const view = mk("div", "position:relative;cursor:pointer;"); view.title = "눌러서 평면/목업 전환";
+      const flat = scaled(renderCover(sp), 600, 800, 0.3);
+      const mockImg = mk("img", "display:block;width:180px;height:240px;object-fit:cover;border-radius:4px;"); mockImg.alt = `${i + 1}안 목업`; mockImg.hidden = true;
+      view.append(flat, mockImg);
+      view.addEventListener("click", () => { if (!mockImg.src) return; const m = mockImg.hidden; mockImg.hidden = !m; flat.hidden = m; });
+      card.appendChild(view);
+      card.appendChild(mk("div", "", `${i + 1}안 · ${sp.name || ""}`)).className = "ref-name";
+      card.appendChild(mk("div", "", [sp.template && "템플릿 " + sp.template, sp.concept].filter(Boolean).join(" · "))).className = "ref-concept";
+      const acts = mk("div", ""); acts.className = "ref-actions";
+      const png = mk("button", "", "표지 PNG"); png.className = "btn ghost"; png.type = "button";
+      const mock = mk("button", "", "목업 PNG"); mock.className = "btn ghost"; mock.type = "button";
+      const pick = mk("button", "", chosenCover === sp ? "확정됨 ✓" : "이 표지로 확정"); pick.className = "btn ghost wide"; pick.type = "button";
+      png.addEventListener("click", async () => {
+        png.disabled = true; coverState("PNG 만드는 중…");
+        try { await saveTo(`${safeName(sp.title || "표지")}_표지${i + 1}.png`, await coverPng(sp), coverState); }
+        catch (e) { coverState("PNG를 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err"); }
+        finally { png.disabled = false; }
+      });
+      mock.addEventListener("click", async () => {
+        mock.disabled = true; coverState("목업 만드는 중…");
+        try { await saveTo(`${safeName(sp.title || "표지")}_목업${i + 1}.png`, await mockPng(sp), coverState); }
+        catch (e) { coverState("목업을 만들지 못했어요. 다시 눌러주세요.", "err"); }
+        finally { mock.disabled = false; }
+      });
+      pick.addEventListener("click", async () => {
+        pick.disabled = true;
+        try {
+          chosenCover = sp; coverBlob = await coverPng(sp);
+          setCoverThumb(coverBlob, `표지 디자인에서 확정한 ${i + 1}안을 가져왔어요.`);
+          renderCoverRefs();
+          coverState(`${i + 1}안으로 확정했어요. '본문 디자인 하기' 탭으로 넘어가면 이 표지로 본문을 디자인해요.`, "ok");
+        } catch (e) { coverState("표지를 확정하지 못했어요. 다시 눌러주세요.", "err"); pick.disabled = false; }
+      });
+      acts.append(png, mock, pick); card.appendChild(acts); box.appendChild(card);
+      // 목업 미리보기는 순서대로 그린다
+      mockQueue = mockQueue.then(async () => {
+        try { const c = await mockCanvas(sp); mockImg.src = c.toDataURL("image/jpeg", 0.85); mockImg.hidden = false; flat.hidden = true; } catch (e) {}
+      });
+    });
+    box.hidden = false; $("coverActions").hidden = false;
+  }
+  let mockQueue = Promise.resolve();
+  $("goCover").addEventListener("click", runCover);
+  $("regenCover").addEventListener("click", runCover);
+
+  // ---- 본문 디자인: 표지 이미지 넣기 ----
+  let coverThumbUrl = "";
+  function setCoverThumb(blob, note) {
+    if (coverThumbUrl) URL.revokeObjectURL(coverThumbUrl);
+    coverThumbUrl = URL.createObjectURL(blob);
+    $("coverThumb").src = coverThumbUrl; $("coverThumb").hidden = false;
+    $("coverNote").textContent = note;
+  }
+  $("coverFile").addEventListener("change", (ev) => {
+    const f = ev.target.files?.[0]; if (!f) return;
+    coverBlob = f; chosenCover = null;
+    setCoverThumb(f, `${f.name} 을(를) 넣었어요.`);
+    ev.target.value = "";
+  });
+  async function shrink(blob, max = 1200) {
+    const img = await createImageBitmap(blob);
+    const k = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return canvasBlob(c, "image/jpeg", 0.9);
+  }
+
+  // ---- 본문 디자인 3개 ----
+  let bodySpecs = [], bdCtl = null;
+  function sampleBlocks() {
+    const parts = bookParts();
+    const p = parts.find(x => x.text && x.text.length > 200) || parts[0];
+    const bl = p ? richBlocks(p.text) : [];
+    const pick = (t) => bl.find(b => b.type === t);
+    const paras = bl.filter(b => b.type === "p").slice(0, 3);
+    return {
+      chapter: p?.title || "01 첫 번째 장",
+      blocks: [pick("h") || { type: "h", text: "소제목이 이렇게 들어가요" }, ...(paras.length ? paras.slice(0, 2) : [{ type: "p", text: "본문 문단이 이런 글꼴과 줄 간격으로 들어가요. 읽기 편한 길이와 여백을 확인하세요." }]),
+        pick("q") || { type: "q", text: "인용과 강조 문장은 이렇게 보여요." }, ...(bl.filter(b => b.type === "li").slice(0, 3).length ? bl.filter(b => b.type === "li").slice(0, 3) : [{ type: "li", text: "체크리스트 항목 하나" }, { type: "li", text: "체크리스트 항목 둘" }]), paras[2] || paras[0] || { type: "p", text: "" }].filter(b => b.text),
+    };
+  }
+  function renderBodyPreview(sp) {
+    const th = bodyTheme(sp), s = sampleBlocks();
+    const row = mk("div", "display:flex;gap:10px;");
+    row.appendChild(scaled(chapterPage(th, s.chapter, /프롤로그|에필로그|들어가며|나가며|시작하며/.test(s.chapter) ? 0 : 1, 0), PW, PH, 0.42));
+    const pg = pageShell(th, 12); const inner = mk("div", "position:absolute;left:64px;right:64px;top:68px;bottom:80px;overflow:hidden;");
+    s.blocks.forEach(b => inner.appendChild(blockEl(th, b))); pg.appendChild(inner);
+    row.appendChild(scaled(pg, PW, PH, 0.42));
+    return row;
+  }
+  async function runBody() {
+    const sample = await samplePromise;
+    if (!sample) { bodyState("이 화면에서는 AI 생성을 쓸 수 없어요. 맨 위 안내대로 다른 브라우저에서 열어주세요.", "err"); return; }
+    if (!coverBlob && !chosenCover) { bodyState("표지 이미지를 먼저 넣어주세요. 표지 디자인 탭에서 '이 표지로 확정'을 눌러도 돼요.", "err"); return; }
+    let images;
+    try {
+      const lim = await sample.limits?.();
+      if (lim?.images && coverBlob) images = [await shrink(coverBlob)];
+    } catch (e) { images = undefined; }
+    if (!images && !chosenCover) { bodyState("이 화면에서는 이미지를 AI에게 보낼 수 없어요. 표지 디자인 탭에서 표지를 만들어 '이 표지로 확정'을 누르면 설계값으로 분석해요.", "err"); return; }
+    const avoid = bodySpecs.length ? `\n[지난번 3안 · 이번엔 다르게]\n${bodySpecs.map(s => `${s.name}: ${s.chapterStyle}/${s.h2Style}/${s.quoteStyle}/${s.paper}`).join("\n")}\n` : "";
+    const excerpt = currentBookText().slice(0, 4000);
+    const prompt = `너는 한국 전자책 본문(내지) 디자이너다. ${images ? "첨부한 이미지는 이 책의 확정된 표지다. 표지의 디자인·컬러·톤·폰트 느낌·정보 위계(제목/부제/라벨의 크기 차이)를 먼저 분석하고," : "아래 [확정 표지 설계값]이 이 책의 확정된 표지다. 표지의 컬러·톤·폰트·위계를 먼저 분석하고,"} 그 표지와 한 권으로 이어지는 A5 본문 디자인 3안을 설계한다.
+${chosenCover ? `\n[확정 표지 설계값]\n${JSON.stringify(chosenCover)}\n` : ""}
+[원칙]
+- 본문은 오래 읽는 면이다. 종이색(paper)과 글자색(ink)은 대비가 크게, 강조색(accent)은 표지에서 가져온다. 어두운 표지라도 본문 종이는 밝게 간다(템플릿의 내지색 참고).
+- 표지가 [디자인 템플릿 10선] 중 어느 것과 가까운지 먼저 판단하고, 그 템플릿의 내지 명세(내지색·잉크·액센트·제목글꼴)를 기준으로 3안을 만든다: 표지를 가장 충실히 이은 안 / 더 차분한 안 / 더 과감한 안.
+- 글꼴은 이 목록에서만: ${FONT_KEYS}. 제목용(headFont)은 표지 제목 느낌과 맞추고, 본문용(bodyFont)은 읽기 쉬운 노토산스·IBM플렉스·고운바탕 중에서.
+- chapterStyle: badge(원형 번호 배지), band, bignumber, rule, fullbleed 중 하나. h2Style: bar, underline, marker, plain 중 하나. quoteStyle: sidebar, box, bigquote 중 하나. bodySize: 14~15.5 (A5 기준 본문 10.8~11.2pt).
+
+${SPEC_RULES}
+
+[디자인 템플릿 10선]
+${TEMPLATE_TEXT}
+${avoid}
+- 줄표(긴 대시 기호)는 쓰지 않는다.
+[출력] JSON 배열 3개만:
+[{"template":"기준으로 삼은 템플릿","name":"안 이름","concept":"한 줄 설명","analysis":"표지에서 읽은 것 한 줄(색·톤·폰트·위계)","paper":"#hex","ink":"#hex","accent":"#hex","muted":"#hex","headFont":"…","bodyFont":"…","bodySize":14.7,"chapterStyle":"…","h2Style":"…","quoteStyle":"…"}]
+
+[원고 일부]
+${excerpt || "(원고 없음)"}`;
+    bdCtl = new AbortController();
+    $("goBody").disabled = $("regenBody").disabled = true;
+    bodyState("표지를 분석하고 본문 디자인 3개를 설계하는 중… (20초~1분)");
+    try {
+      const arr = await sample.json(prompt, { signal: bdCtl.signal, modelTier: "default", cache: false, images });
+      const specs = (Array.isArray(arr) ? arr : arr?.designs || []).slice(0, 3);
+      if (!specs.length) throw { code: "empty_completion" };
+      bodySpecs = specs; renderBodyRefs();
+      bodyState(currentBookText() ? "본문 디자인 3개가 나왔어요. 마음에 드는 안에서 '이대로 책 전체 디자인 하기'를 누르세요." : "본문 디자인 3개가 나왔어요. 책 전체 디자인을 하려면 표지 디자인 탭에서 원고를 먼저 연결해주세요.", "ok");
+    } catch (e) {
+      bodyState(e?.code === "invalid_json" || e?.code === "empty_completion" ? "설계 결과가 깨졌어요. 한 번만 다시 눌러주세요." : e?.code === "image_rejected" ? "표지 이미지를 읽지 못했어요. PNG나 JPG로 다시 넣어주세요." : (ERR[e?.code] || "본문 설계에 실패했어요. 잠시 뒤 다시 눌러주세요."), "err");
+    } finally { $("goBody").disabled = $("regenBody").disabled = false; }
+  }
+  function renderBodyRefs() {
+    const box = $("bodyRefs"); box.innerHTML = "";
+    bodySpecs.forEach((sp, i) => {
+      const card = mk("article", ""); card.className = "ref";
+      card.appendChild(renderBodyPreview(sp));
+      card.appendChild(mk("div", "", `${i + 1}안 · ${sp.name || ""}`)).className = "ref-name";
+      card.appendChild(mk("div", "", [sp.concept, sp.analysis && "표지 분석: " + sp.analysis].filter(Boolean).join(" · "))).className = "ref-concept";
+      const b = mk("button", "", "이대로 책 전체 디자인 하기"); b.className = "btn"; b.type = "button";
+      b.addEventListener("click", () => designWholeBook(sp, b));
+      const acts = mk("div", ""); acts.className = "ref-actions one"; acts.appendChild(b); card.appendChild(acts);
+      box.appendChild(card);
+    });
+    box.hidden = false; $("bodyActions").hidden = false;
+  }
+  $("goBody").addEventListener("click", runBody);
+  $("regenBody").addEventListener("click", runBody);
+
+  // ---- 이대로 책 전체 디자인 하기 → PDF ----
+  let building = false, finalBook = null;
+  async function designWholeBook(sp, btn) {
+    if (building) return;
+    const parts = bookParts();
+    if (!parts.length) { bookMsg("연결된 원고가 없어요. 표지 디자인 탭에서 원고를 첨부하거나 원고 집필에서 가져와주세요.", "err"); return; }
+    building = true; btn.disabled = true;
+    const th = bodyTheme(sp);
+    const g = guessTitle(); const title = chosenCover?.title || g.title || "전자책";
+    try {
+      await Promise.all([loadScript(CDN.jspdf), loadScript(CDN.h2c)]);
+      bookMsg("페이지를 나누는 중…");
+      // 1) 페이지 만들기
+      const pages = [];
+      if (coverBlob) {
+        const url = URL.createObjectURL(coverBlob);
+        const cp = mk("div", `width:${PW}px;height:${PH}px;background:#000;`);
+        const im = mk("img", `width:100%;height:100%;object-fit:cover;display:block;`); im.src = url;
+        await new Promise(r => { im.onload = r; im.onerror = r; }); cp.appendChild(im); pages.push(cp);
+      } else if (chosenCover) pages.push(renderCover(chosenCover, PW, PH));
+      const toc = pageShell(th, 0);
+      toc.appendChild(mk("div", `position:absolute;left:52px;top:70px;font-family:${th.head};font-size:24px;font-weight:900;padding-bottom:10px;border-bottom:3px solid ${th.accent};`, "차례"));
+      const list = mk("div", `position:absolute;left:52px;right:52px;top:140px;display:flex;flex-direction:column;gap:10px;font-size:${th.size}px;line-height:1.5;`);
+      parts.slice(0, 22).forEach(pt => {
+        const sp = splitPart(pt.title);
+        if (sp.part) list.appendChild(mk("div", `margin-top:8px;font-size:${th.size - 3}px;font-weight:700;letter-spacing:0.1em;color:${th.accent};`, noDash(sp.part)));
+        list.appendChild(mk("div", "", noDash(sp.title)));
+      });
+      toc.appendChild(list); pages.push(toc);
+      const host = mk("div", "position:fixed;left:-20000px;top:0;"); document.body.appendChild(host);
+      const probePage = pageShell(th, 0);
+      const probe = mk("div", `position:absolute;left:64px;right:64px;top:68px;height:${PH - 68 - 80}px;overflow:hidden;display:flex;flex-direction:column;`);
+      probePage.appendChild(probe); host.appendChild(probePage);
+      probe.appendChild(mk("div", `font-family:${th.head};`, "가나다")); probe.appendChild(mk("div", `font-family:${th.sub};font-weight:700;`, "가나다")); probe.appendChild(mk("div", `font-family:${th.body};`, "가나다"));
+      await fontsReady(probePage); probe.innerHTML = "";
+      let pageNo = 1;
+      try {
+        parts.forEach((pt, idx) => {
+          const isNum = !/프롤로그|에필로그|들어가며|나가며|시작하며/.test(pt.title);
+          pages.push(chapterPage(th, pt.title, isNum ? idx : 0, 0));
+          const els = [], kinds = [];
+          richBlocks(pt.text).forEach(b => { els.push(blockEl(th, b)); kinds.push(b.type); });
+          const hs = measureBlocks(probe, els);
+          paginate(hs.map((h, i) => ({ h, kind: kinds[i] })), probe.clientHeight).forEach(pgIdx => {
+            const pg = pageShell(th, ++pageNo);
+            const inner = mk("div", `position:absolute;left:64px;right:64px;top:68px;height:${PH - 68 - 80}px;overflow:hidden;display:flex;flex-direction:column;`);
+            pgIdx.forEach(k => { els[k].style.flex = "none"; inner.appendChild(els[k]); });
+            pg.appendChild(inner); pages.push(pg);
+          });
+        });
+      } finally { host.remove(); }
+      // 2) PDF로 담기
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: "mm", format: "a5" });
+      for (let i = 0; i < pages.length; i++) {
+        bookMsg(`책 전체 디자인 중… ${i + 1}/${pages.length}쪽`);
+        const c = await snap(pages[i], 2);
+        if (i) pdf.addPage();
+        pdf.addImage(c.toDataURL("image/jpeg", 0.88), "JPEG", 0, 0, 148, 210);
+      }
+      const blob = pdf.output("blob");
+      finalBook = { blob, name: `${safeName(title)}_디자인.pdf`, pages: pages.length, spec: sp };
+      if (await saveTo(finalBook.name, blob, bookMsg)) bookMsg(`${finalBook.name} 저장 창을 열었어요. '07 최종 결과물' 탭에서 원고·표지·목업까지 한 번에 받을 수 있어요.`, "ok");
+    } catch (e) {
+      bookMsg("책 디자인을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err");
+    } finally { building = false; btn.disabled = false; }
+  }
+
+  // ---- 최종 결과물: 지금까지 만든 파일을 한 화면에서, ZIP 하나로 ----
+  const finalState = noteFn("finalState");
+  function finalItems() {
+    const title = chosenCover?.title || guessTitle().title || bookInfo().title || "전자책";
+    const base = safeName(title);
+    const items = [];
+    items.push({ group: "완성본", folder: "1_완성본", label: finalBook ? `완성본 PDF · ${finalBook.spec?.name || "본문 디자인"}` : "완성본 PDF",
+      meta: finalBook ? `${finalBook.pages}쪽 · 표지·차례·본문이 모두 들어간 판매용 파일` : "본문 디자인 하기에서 '이대로 책 전체 디자인 하기'를 누르면 생겨요",
+      filename: finalBook?.name || `${base}_디자인.pdf`, ready: !!finalBook, make: async () => finalBook.blob });
+    items.push({ group: "원고", folder: "2_원고", label: "원고 DOCX (워드)", meta: draftParts.length ? "고쳐 쓸 때 쓰는 파일" : "원고 집필에서 '전체 원고'를 뽑으면 생겨요",
+      filename: `${base}_원고.docx`, ready: draftParts.length > 0, make: () => cached(draftParts, "docx" + draftParts.length, () => makeDocx()) });
+    items.push({ group: "원고", folder: "2_원고", label: "원고 PDF", meta: draftParts.length ? "디자인 없이 글만 담은 PDF" : "원고 집필에서 '전체 원고'를 뽑으면 생겨요",
+      filename: `${base}_원고.pdf`, ready: draftParts.length > 0, make: (p) => cached(draftParts, "pdf" + draftParts.length, () => makePdf(p)) });
+    if (coverSpecs.length) coverSpecs.forEach((sp, i) => {
+      const tag = chosenCover === sp ? " (확정)" : "";
+      items.push({ group: "표지와 3D 목업", folder: "3_표지와 목업", label: `표지 ${i + 1}안 PNG${tag}`, meta: sp.name || "", filename: `${base}_표지${i + 1}.png`, ready: true,
+        make: () => coverPng(sp) });
+      items.push({ group: "표지와 3D 목업", folder: "3_표지와 목업", label: `3D 목업 ${i + 1}안 PNG${tag}`, meta: "판매 페이지·홍보용", filename: `${base}_목업${i + 1}.png`, ready: true,
+        make: () => mockPng(sp) });
+    });
+    else items.push({ group: "표지와 3D 목업", folder: "3_표지와 목업", label: "표지·3D 목업 PNG", meta: "표지 디자인에서 3안을 뽑으면 생겨요", filename: "", ready: false });
+    return { title, base, items };
+  }
+  let finalBusy = false;
+  function renderFinal() {
+    const { title, items } = finalItems();
+    const any = items.some(x => x.ready);
+    $("finalTitle").textContent = any ? title : "아직 만든 책이 없어요";
+    const sub = chosenCover?.subtitle || guessTitle().subtitle || bookInfo().subtitle || "";
+    $("finalSub").textContent = any ? (sub || "지금까지 만든 파일이에요.") : "앞 단계에서 원고·표지·본문 디자인을 만들면 여기에 모여요.";
+    const cv = $("finalCovers"); cv.innerHTML = "";
+    coverSpecs.forEach((sp, i) => {
+      const f = mk("figure", ""); if (chosenCover === sp) f.className = "picked";
+      const w = mk("div", "width:100%;aspect-ratio:3/4;position:relative;");
+      const k = 0.3; const el = scaled(renderCover(sp), 600, 800, k);
+      w.appendChild(el); f.appendChild(w);
+      f.appendChild(mk("figcaption", "", `표지 ${i + 1}안 · ${sp.name || ""}${chosenCover === sp ? " (확정)" : ""}`));
+      cv.appendChild(f);
+      // 칸 너비에 맞춰 축소 비율을 다시 잡는다
+      requestAnimationFrame(() => { const kk = w.clientWidth / 600; if (kk > 0) { el.style.width = w.clientWidth + "px"; el.style.height = w.clientWidth * 4 / 3 + "px"; el.firstChild.style.transform = `scale(${kk})`; } });
+    });
+    cv.hidden = !coverSpecs.length;
+    const ready = items.filter(x => x.ready);
+    $("finalCount").textContent = ready.length ? `파일 ${ready.length}개를 '${safeName(title)}' 폴더째 ZIP 하나로 받아요` : "아직 받을 파일이 없어요";
+    $("finalZip").disabled = !ready.length || finalBusy;
+    const list = $("finalList"); list.innerHTML = "";
+    const groups = [...new Set(items.map(x => x.group))];
+    groups.forEach(g => {
+      const sec = mk("section", ""); sec.className = "final-group";
+      sec.appendChild(mk("h3", "", g));
+      items.filter(x => x.group === g).forEach(it => {
+        const row = mk("div", ""); row.className = "final-row" + (it.ready ? "" : " missing");
+        const info = mk("div", ""); info.append(mk("b", "", it.label), mk("small", "", it.ready ? `${it.filename} · ${it.meta}` : it.meta));
+        row.appendChild(info);
+        if (it.ready) {
+          const b = mk("button", "", "저장"); b.className = "btn ghost"; b.type = "button"; b.disabled = finalBusy;
+          b.addEventListener("click", async () => {
+            if (finalBusy) return; finalBusy = true; b.disabled = true; b.textContent = "만드는 중…";
+            try { await saveTo(it.filename, await it.make((i, n) => finalState(`PDF 만드는 중… ${i}/${n}쪽`)), finalState); }
+            catch (e) { finalState("파일을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err"); }
+            finally { finalBusy = false; b.disabled = false; b.textContent = "저장"; }
+          });
+          row.appendChild(b);
+        }
+        sec.appendChild(row);
+      });
+      list.appendChild(sec);
+    });
+  }
+  // 탭을 열면 받을 파일을 뒤에서 미리 만들어 둔다. 버튼을 누를 땐 대부분 이미 준비돼 있다
+  let warmChain = Promise.resolve();
+  function prewarmFinal() {
+    finalItems().items.filter(x => x.ready).forEach(it => {
+      warmChain = warmChain.then(() => new Promise(r => setTimeout(r, 30))).then(() => it.make()).catch(() => {});
+    });
+  }
+  window.__renderFinal = () => { renderFinal(); prewarmFinal(); };
+  // 전체 원고가 나오면 원고 PDF·DOCX를 뒤에서 미리 만들어 둔다 (표지·본문 디자인하는 동안)
+  window.__prewarmDraft = () => {
+    const parts = draftParts;
+    warmChain = warmChain.then(() => cached(parts, "docx" + parts.length, () => makeDocx()))
+      .then(() => cached(parts, "pdf" + parts.length, () => makePdf())).catch(() => {});
+  };
+  $("finalZip").addEventListener("click", async () => {
+    if (finalBusy) return;
+    const { base, items } = finalItems();
+    const ready = items.filter(x => x.ready);
+    if (!ready.length) return;
+    finalBusy = true; const btn = $("finalZip"); btn.disabled = true;
+    try {
+      await loadScript(CDN.jszip);
+      const zip = new window.JSZip(); const root = zip.folder(base);
+      for (let i = 0; i < ready.length; i++) {
+        const it = ready[i];
+        btn.textContent = `모으는 중… ${i + 1}/${ready.length}`;
+        finalState(`${it.label} 만드는 중… (${i + 1}/${ready.length})`);
+        root.folder(it.folder).file(it.filename, await it.make((p, n) => finalState(`${it.label} 만드는 중… ${p}/${n}쪽`)));
+      }
+      btn.textContent = "ZIP 만드는 중…";
+      const data = await zip.generateAsync({ type: "blob", compression: "STORE" });
+      if (await saveTo(`${base}.zip`, data, finalState)) finalState(`${base}.zip 저장 창을 열었어요. 압축을 풀면 폴더가 그대로 나와요.`, "ok");
+    } catch (e) {
+      finalState("ZIP을 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.", "err");
+    } finally { finalBusy = false; btn.disabled = false; btn.textContent = "전체 받기 (ZIP)"; }
+  });
+
+  // ---- 이미지 AI용 프롬프트만 받기 ----
+  async function promptOnly(key, getText, outId, btnId) {
+    const text = getText();
+    const out = $(outId);
+    if (!text) { out.hidden = false; out.textContent = "원고를 먼저 연결해주세요."; return; }
+    const sample = await samplePromise;
+    if (!sample) { out.hidden = false; out.textContent = "이 화면에서는 AI 생성을 쓸 수 없어요."; return; }
+    const t = TABS.find(x => x.key === key);
+    $(btnId).disabled = true; out.hidden = false; out.textContent = "만드는 중…";
+    try {
+      await sample(`너는 한국 PDF 전자책 기획·편집 전문가다. 아래 [원고]를 읽고 작업을 수행한다. 원고에 없는 사실은 지어내지 않는다.\n\n[작업]\n${t.task}\n\n[출력 형식]\n마크다운 기호 없이 일반 텍스트. 섹션은 【 】 제목과 빈 줄로 구분.\n\n[원고]\n${text.slice(0, 30000)}`,
+        { modelTier: "default", onText: ({ text }) => { out.textContent = text; } });
+    } catch (e) { out.textContent = e?.text || (ERR[e?.code] || "생성에 실패했어요. 잠시 뒤 다시 눌러주세요."); }
+    finally { $(btnId).disabled = false; }
+  }
+  // ---- 목업 프롬프트: AI는 그림 콘셉트·색만 정하고, 프롬프트 뼈대와 한글 글자는 페이지가 정확히 채운다 ----
+  const mpState = noteFn("mockPromptState");
+  let mpLangKo = true, mpLast = null;
+  const setMpLang = (ko) => { mpLangKo = ko; $("mpKo").setAttribute("aria-pressed", String(ko)); $("mpEn").setAttribute("aria-pressed", String(!ko)); if (mpLast) renderMp(mpLast); };
+  $("mpKo").addEventListener("click", () => setMpLang(true));
+  $("mpEn").addEventListener("click", () => setMpLang(false));
+  function buildMockPromptsKo(c) {
+    const q = (x) => `"${String(x || "").replace(/"/g, "'")}"`;
+    const full = `하드커버 책 한 권의 제품 사진 목업을 만들어 주세요. 책은 똑바로 서 있고, 앞표지와 왼쪽 책등이 함께 보이는 3/4 각도입니다. 정사각형(1:1) 화면 가운데에 두고 양옆 여백을 넉넉히 주세요. 왼쪽 위에서 오는 부드럽고 따뜻한 스튜디오 조명, ${c.backgroundKo || "아주 연한 웜 베이지 단색 배경"}, 바닥에 자연스러운 부드러운 그림자, 은은한 질감의 무광 표지 종이, 광택 없음.
+
+앞표지 디자인 (${c.coverBaseKo || "아이보리 종이"}, 여백이 넉넉한 깔끔한 한국 출판 편집 디자인):
+- 맨 위 가까이에 ${c.accentKo || "차분한 벽돌색"} 짧고 가는 선 하나.
+- 제목은 굵은 현대적 한글 고딕체, 가운데 정렬.${c.titleLines.length > 1 ? `
+  첫째 줄은 ${c.titleColorKo || "진한 차콜색"}, 정확한 글자: ${q(c.titleLines[0])}
+  둘째 줄은 조금 더 크게 ${c.accentKo || "차분한 벽돌색"}, 정확한 글자: ${q(c.titleLines.slice(1).join(" "))}` : ` ${c.titleColorKo || "진한 차콜색"}, 정확한 글자: ${q(c.titleLines[0])}`}
+${c.subtitle ? `- 그 아래 가는 명조체로 작은 한 줄, 정확한 글자: ${q(c.subtitle)}
+` : ""}- 아래쪽 절반: ${c.illustrationKo}. ${c.styleKo}. 그림은 표지 종이 쪽으로 부드럽게 스며들듯 이어집니다.
+${c.author ? `- 맨 아래 작은 글자, 정확한 글자: ${q(c.author)}
+` : ""}책등: 표지와 같은 색, 위에서 아래로 세로쓰기, 정확한 글자: ${q(c.spine)}.
+모든 한글은 위에 적은 그대로, 글자를 더하거나 바꾸지 말고, 영어 글자는 어디에도 넣지 마세요.`;
+    const art = `세로 3:4 비율의 책 표지 일러스트를 그려 주세요. 글자·로고·워터마크는 넣지 마세요.
+${c.illustrationKo}. ${c.styleKo}.
+색감: ${c.paletteKo}.
+위쪽 40%는 제목을 넣을 자리라서 조용하고 거의 비워 두세요 (${c.emptyAreaKo || "부드러운 단색 배경"}). 주인공은 아래쪽 60%의 가운데에 두세요.`;
+    return { full, art };
+  }
+  function renderMp(c) {
+    const p = mpLangKo ? buildMockPromptsKo(c) : buildMockPrompts(c);
+    $("mpFull").textContent = p.full; $("mpArt").textContent = p.art; $("mockPromptOut").hidden = false;
+  }
+  function buildMockPrompts(c) {
+    const q = (x) => `"${String(x || "").replace(/"/g, "'")}"`;
+    const full = `Product photo of a single hardcover book mockup, standing upright at a three-quarter angle so the front cover and the left spine are both visible, centered in a square 1:1 frame with generous empty margins. Soft warm studio light from the upper left, ${c.background || "very light warm beige seamless background"}, soft natural contact shadow on the floor, matte cover paper with subtle texture, no gloss.
+
+Front cover design (${c.coverBase || "ivory paper"}, clean Korean editorial layout, lots of white space):
+- Near the top, a thin short line in ${c.accent || "muted brick red"}.
+- Main title, bold modern Korean sans-serif, centered.${c.titleLines.length > 1 ? `\n  Line 1 in ${c.titleColor || "dark charcoal"}, EXACT TEXT: ${q(c.titleLines[0])}\n  Line 2 larger in ${c.accent || "muted brick red"}, EXACT TEXT: ${q(c.titleLines.slice(1).join(" "))}` : ` In ${c.titleColor || "dark charcoal"}, EXACT TEXT: ${q(c.titleLines[0])}`}
+${c.subtitle ? `- Below it, one smaller line in thin serif, EXACT TEXT: ${q(c.subtitle)}\n` : ""}- Lower half: ${c.illustration}. ${c.style}. The illustration fades softly into the cover paper.
+${c.author ? `- Bottom small text, EXACT TEXT: ${q(c.author)}\n` : ""}Spine: same color as the cover, vertical Korean text top to bottom, EXACT TEXT: ${q(c.spine)}.
+All Korean text verbatim, no extra characters, no substitutions, no English text anywhere.`;
+    const art = `Vertical 3:4 book cover illustration, no text, no letters, no logo, no watermark.
+${c.illustration}. ${c.style}.
+Color palette: ${c.palette}.
+Keep the top 40% of the image calm and nearly empty (${c.emptyArea || "soft plain background"}) so a title can be placed there. Main subject in the lower 60%, centered.`;
+    return { full, art };
+  }
+  $("mockPromptBtn").addEventListener("click", async () => {
+    const text = currentBookText();
+    const g = guessTitle();
+    const base = chosenCover || coverSpecs[0] || null;
+    const title = (base?.title || g.title || "").trim();
+    if (!text && !title) { mpState("원고를 먼저 연결하거나 표지를 뽑아주세요.", "err"); return; }
+    const sample = await samplePromise;
+    const lines = (base?.titleLines?.length ? base.titleLines : (title ? [title] : [])).map(noDash);
+    const fill = (c) => {
+      mpLast = Object.assign({
+        titleLines: lines.length ? lines : [c.title || "제목"],
+        subtitle: noDash(base?.subtitle || g.subtitle || c.subtitle || ""),
+        author: base?.author || c.author || "",
+        spine: noDash((base?.title || g.title || c.title || lines.join(" ")).replace(/,\s*$/, "")),
+      }, c);
+      renderMp(mpLast);
+    };
+    const fallback = { illustration: "a warm, gentle hand-drawn scene that shows the reader of this book in the moment the book is about, soft expression, simple background", style: "soft pastel editorial illustration, delicate lines, warm light", palette: "warm ivory, soft beige, one muted accent color", accent: "muted brick red", titleColor: "dark charcoal",
+      illustrationKo: "이 책의 독자가 책이 다루는 바로 그 순간에 있는 모습을 담은 따뜻하고 부드러운 손그림 장면, 편안한 표정, 단순한 배경", styleKo: "부드러운 파스텔 톤의 출판 일러스트, 섬세한 선, 따뜻한 빛", paletteKo: "따뜻한 아이보리, 부드러운 베이지, 차분한 포인트 색 하나", accentKo: "차분한 벽돌색", titleColorKo: "진한 차콜색" };
+    if (!sample) { fill(fallback); mpState("AI 없이 기본 그림 설명으로 만들었어요. 그림 설명 부분은 직접 고쳐 쓰셔도 돼요.", "ok"); return; }
+    $("mockPromptBtn").disabled = true; mpState("원고를 읽고 표지 그림 콘셉트를 정하는 중… (10~30초)");
+    try {
+      const c = await sample.json(`너는 한국 전자책 표지 아트디렉터다. 아래 [원고]와 [표지 정보]를 보고, 이미지 AI에게 줄 표지 일러스트 설명을 정한다 (영어와 한국어 둘 다).
+- illustration: 이 책 독자가 공감할 한 장면. 인물이 있으면 나이대·옷·표정·동작을 구체적으로, 배경은 단순하게. 1~2문장 영어.
+- style: 그림체 (예: soft pastel hand-drawn illustration, warm watercolor, minimal flat editorial illustration 등) 영어 한 구절. 주제의 정서에 맞게.
+- palette: 색 3~4개를 영어 단어로 (예: warm ivory, dusty rose, soft beige, charcoal).
+- coverBase: 표지 바탕 (예: ivory paper, deep navy paper) 영어.
+- background: 목업 배경 (예: very light warm beige seamless background) 영어.
+- accent: 제목 두 번째 줄과 선에 쓸 강조색 영어 (예: muted brick red).
+- titleColor: 제목 첫 줄 색 영어 (예: dark charcoal).
+- emptyArea: 제목 자리가 될 윗부분 묘사 영어 (예: soft cream sky).
+${base ? `[표지 정보] 확정 표지 색: 배경 ${base.bg}, 강조 ${base.accent}, 템플릿 ${base.template || ""}. 이 색감과 어울리게.` : ""}
+글자·로고·영문 문구는 그림에 넣지 않는다. 실존 인물·캐릭터·브랜드는 쓰지 않는다.
+같은 내용을 한국어로도 쓴다: illustrationKo, styleKo, paletteKo, coverBaseKo, backgroundKo, accentKo, titleColorKo, emptyAreaKo (자연스러운 한국어, 이미지 AI가 알아듣기 쉽게 구체적으로).
+JSON 객체 하나만: {"illustration":"…","style":"…","palette":"…","coverBase":"…","background":"…","accent":"…","titleColor":"…","emptyArea":"…","illustrationKo":"…","styleKo":"…","paletteKo":"…","coverBaseKo":"…","backgroundKo":"…","accentKo":"…","titleColorKo":"…","emptyAreaKo":"…"}
+
+[원고]
+${(text || title).slice(0, 8000)}`, { modelTier: "default" });
+      fill(Object.assign({}, fallback, c || {}));
+      mpState("완성됐어요. ①은 ChatGPT·제미나이에, ②는 아무 이미지 AI에 붙여넣으세요. 위 버튼으로 한국어·영어를 바꿀 수 있어요.", "ok");
+    } catch (e) {
+      fill(fallback);
+      mpState("AI가 콘셉트를 못 정해서 기본 그림 설명으로 만들었어요. 그림 설명 부분은 직접 고쳐 쓰셔도 돼요.", "err");
+    } finally { $("mockPromptBtn").disabled = false; }
+  });
+  document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => copy($(b.dataset.copy).textContent, $("mockPromptState"))));
+  $("bodyPromptBtn").addEventListener("click", () => promptOnly("body", currentBookText, "bodyPromptOut", "bodyPromptBtn"));
+  updateBodyBookNote();
+
+  // ---------- 복사 ----------
+  async function copy(text, noteEl) {
+    try { await navigator.clipboard.writeText(text); flash(noteEl, "복사됐어요.", "ok"); }
+    catch (e) { flash(noteEl, "복사가 막혔어요. 결과 칸을 길게 눌러 직접 복사해주세요.", "err"); }
+  }
+  function flash(el, msg, kind) {
+    el.hidden = false; el.textContent = msg; el.className = "note " + kind;
+    clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, 2600);
+  }
+  $("copyAi").addEventListener("click", () => copy($("aiText").textContent, $("aiState")));
+  $("copyManual").addEventListener("click", () => copy($("manualText").textContent, $("manualNote")));
+
+  // ---------- 직접 입력 ----------
+  const PRESETS = {
+    "자기계발 · 마인드": {
+      m_topic: "남 눈치 보느라 하고 싶은 말을 삼키는 사람이, 거절 한 문장 연습으로 관계를 지키며 할 말 하는 법",
+      m_reader: "착하다는 말을 자주 듣는 20~30대 직장인",
+      m_pain: "거절을 못 해서 일과 부탁이 몰리고 혼자 지친다",
+      m_result: "미움받지 않으면서 선을 긋는 말버릇",
+      m_method: "상황별 거절 문장 템플릿 + 3일 연습 루틴",
+      m_tone: "반말·직설, 코치가 옆에서 말해주는 느낌",
+      m_story: "나도 회사에서 부탁 다 들어주다 번아웃 온 적 있음. 처음 거절했던 날의 떨림."
+    },
+    "실용 · 노하우": {
+      m_topic: "블로그 처음 하는 사람이, 글 10개로 네이버 상위노출 첫 경험을 만드는 키워드 설계법",
+      m_reader: "블로그를 시작했지만 방문자가 하루 10명도 안 되는 초보",
+      m_pain: "열심히 써도 검색에 안 걸린다",
+      m_result: "한 달 안에 상위노출 글 1개",
+      m_method: "황금 키워드 찾는 3단계 + 제목 공식 5개",
+      m_tone: "존댓말, 단계별로 따라 하기 쉬운 매뉴얼",
+      m_story: "0명이던 블로그를 3개월 만에 일 방문 1,000명으로 만든 과정"
+    },
+    "에세이 · 경험담": {
+      m_topic: "퇴사 후 1년, 아무것도 아니던 내가 나를 다시 믿게 된 기록",
+      m_reader: "지금의 삶이 맞는지 흔들리는 30대",
+      m_pain: "남들보다 뒤처진 것 같아 불안하다",
+      m_result: "비교를 멈추고 내 속도를 받아들이는 마음",
+      m_method: "장면 중심의 고백과 작은 깨달음",
+      m_tone: "존댓말, 담담하고 다정한 에세이",
+      m_story: "퇴사 날 엘리베이터 안에서 울었던 기억, 첫 수입 3만 원"
+    }
+  };
+  const FIELDS = ["m_topic", "m_reader", "m_pain", "m_result", "m_method", "m_tone", "m_story"];
+  const presetsEl = $("presets");
+  [...Object.keys(PRESETS), "비우기"].forEach(name => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = name;
+    b.addEventListener("click", () => {
+      FIELDS.forEach(f => { $(f).value = name === "비우기" ? "" : (PRESETS[name][f] || ""); });
+      buildManual();
+    });
+    presetsEl.appendChild(b);
+  });
+
+  const v = (id, fb) => $(id).value.trim() || fb;
+  function buildManual() {
+    const story = $("m_story").value.trim();
+    $("manualText").textContent =
+`너는 한국 PDF 전자책 전문 기획자이자 대필 작가다.
+아래 조건으로 판매용 전자책을 함께 만든다. 한 번에 다 쓰지 말고, 단계마다 내 확인을 받고 넘어가라.
+
+【책의 원씽】
+${v("m_topic", "(주제 한 문장)")}
+
+【독자】
+- 누가: ${v("m_reader", "(타깃 독자)")}
+- 결핍: ${v("m_pain", "(뭐가 안 되는지)")}
+- 얻는 결과: ${v("m_result", "(읽고 나서 얻는 것)")}
+- 방법(저자의 무기): ${v("m_method", "(나만의 방법)")}
+
+【문체】
+${v("m_tone", "(원하는 말투)")}
+- 한 문장은 짧게, 한 문단은 3줄 이내.
+- "~할 수 있습니다", "중요합니다" 같은 뻔한 마무리 금지.
+- 저자 경험은 아래 제공한 것만 쓰고 지어내지 말 것.
+
+【분량】
+${$("m_size").value}
+
+【저자 경험·사례】
+${story || "(없음 · 경험이 필요한 자리는 [저자 경험 넣기]로 비워둘 것)"}
+
+【진행 순서】
+1단계. 제목 후보 5개 + 부제 → 내가 고르면 다음 단계
+2단계. PART·챕터 목차 (문제 인식 → 원인 → 해결 방법 → 실전 적용 흐름)
+3단계. 프롤로그
+4단계. 챕터를 하나씩 집필 (도입 장면 → 통념 → 뒤집기 → 방법 → 오늘 할 실천 1개)
+5단계. 에필로그 + 표지 이미지 프롬프트(영어, 3:4, no text)
+
+지금은 1단계만 해줘.`;
+  }
+  FIELDS.concat("m_size").forEach(f => $(f).addEventListener("input", buildManual));
+  FIELDS.forEach(f => { $(f).value = PRESETS["자기계발 · 마인드"][f] || ""; });
+  buildManual();
+})();
+</script>
