@@ -1,0 +1,25 @@
+{
+  "_note": "09_ads.json 형식. 경로는 이 파일 위치 기준. headline 은 줄 배열(3줄 이내), accent 는 강조할 문자열(headline 안에 그대로 있어야 함).",
+  "global": {
+    "palette": "black-red | midnight-gold ... (ebook-salespage/references/palettes.json id)",
+    "accentOverride": "#ffcf5a (선택: 팔레트 accent 대신 쓸 색)",
+    "book": "05_cover_mockup.png (투명 배경 표지 목업)",
+    "kicker": "포스터 맨 위 작은 줄. 예: 7년 전의 저도 그랬습니다",
+    "cta": "포스터 하단 버튼. 예: 리치코드 확인하기 ›",
+    "ctaShort": "띠형(film/doc) 버튼. 예: 확인하기 ›",
+    "footTitle": "띠형 하단 굵은 줄. 예: 노력이 아니라 무의식이 문제였습니다",
+    "footSub": "띠형 하단 작은 줄. 예: 리치코드 | 88페이지 PDF",
+    "link": "상세페이지 URL (업로드 계획용)"
+  },
+  "creatives": [
+    {"id": "01", "type": "poster", "image": "ads/people/p01.png", "headline": ["30대인데", "모아둔 돈 0원,", "남 얘기가 아니라면"], "accent": "모아둔 돈 0원,", "brightness": 1.12, "bgPos": "center 30%/cover",
+     "body": "광고 본문 2~3줄", "title": "헤드라인 20자"},
+    {"id": "02", "type": "film", "image": "ads/film/f01.png", "headline": ["다들 잘 사는데", "나만 왜"], "accent": "나만 왜", "subtitle": "\"나는 언제쯤 저렇게 살아보지.\""},
+    {"id": "03", "type": "doc", "image": "ads/doc/i01.png", "who": "32세 · 직장인", "subtitle": ["월급날이 제일 무서워요.", "들어오자마자 나가니까."], "label": "돈 때문에 잠 못 드는 사람들", "title": "누구에게도 못 했던 속마음"},
+    {"id": "04", "type": "kakao", "chatName": "소개팅 그분", "messages": [{"day": "10월 3일 토요일"}, {"me": true, "time": "23:12", "text": "오늘 진짜 즐거웠어요 ㅎㅎ"}, {"me": true, "time": "23:12", "text": "다음 주에 밥 한번 더 어때요?"}, {"day": "10월 6일 화요일"}, {"me": true, "time": "21:40", "text": "바쁘신가 봐요 ㅎㅎ"}], "headline": ["읽씹도", "대답입니다ㅋㅋ"], "accent": "대답입니다ㅋㅋ", "sub": "남자로 탈락이라는 대답.", "blockTop": 850},
+    {"id": "05", "type": "lock", "date": "10월 11일 토요일", "clock": "23:42", "notifications": [{"app": "카카오톡", "title": "소개팅 그분", "text": "오늘 감사했어요! 좋은 인연 만나실 거예요 :)"}], "headline": ["또 이 톡", "받으셨어요?ㅋㅋ"], "accent": "받으셨어요?ㅋㅋ", "textTop": 800},
+    {"id": "06", "type": "search", "query": "끌어당김 법칙", "suggestions": ["안 될 때", "효과 없음", "확언 안 됨", "진짜 있나요"], "headline": ["이걸 검색해봤다면,", "노력 문제가 아닙니다"], "accent": "노력 문제가 아닙니다"},
+    {"id": "07", "type": "quiz", "question": ["아무리 노력해도", "돈이 안 모이는 이유는?"], "options": ["① 수입이 적어서", "② 소비 습관", "③ 노력 부족", "④ 무의식"], "answer": 3, "headline": ["90%가 '부족함'에", "맞춰져 있으면", "제자리입니다"], "accent": "제자리입니다"},
+    {"id": "08", "type": "review", "quote": ["확언을 3년 동안 했는데", "왜 안 됐는지", "이 책 한 권으로", "이해했습니다."], "accent": "이 책 한 권으로", "who": "30대 직장인, 서울"}
+  ]
+}
