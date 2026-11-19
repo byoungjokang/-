@@ -1,0 +1,66 @@
+{
+  "_설명": "03_outline.json — ebook-outline 추천안을 기계가 읽는 형태로 저장한 것. 04 집필은 이 파일만 보고 쓴다. '_' 키는 주석.",
+
+  "onething": "(누가)(어떤 상황에서)(뭐가 안 돼서)(어떤 결과)(무슨 방법) 한 문장",
+  "mode": "framework",
+  "_mode": "framework | essay",
+  "archetype": "고백형",
+  "_archetype": "structure-archetypes.md 의 아키타입 이름",
+  "titleCandidates": ["책 제목 후보 1", "책 제목 후보 2", "책 제목 후보 3"],
+  "title": "확정 제목\n둘째 줄",
+  "subtitle": "부제",
+  "templateSuggested": "07",
+  "targetPages": 50,
+  "sensitiveTopic": false,
+  "provocationAllowed": true,
+  "_provocationAllowed": "민감 주제면 false — 도발 자극 제외",
+
+  "chapters": [
+    {
+      "no": "프롤로그",
+      "title": "제목",
+      "part": null,
+      "track": "서사",
+      "stimulus": "공감",
+      "pattern": "상황형",
+      "problem": "이 장이 다루는 독자의 문제(증상) 한 줄",
+      "commonAnswer": "세상이 주는 뻔한 답",
+      "claim": "주장 — 뒤집은 해결책 (원인 재진단)",
+      "conclusion": "결론 — 다 읽고 독자가 가져갈 한 문장",
+      "materials": ["C1 밑바닥 장면", "C2 틀린 믿음"],
+      "_materials": "00_intake.md C 항목 번호 + 02_research.md 의 인용 번호. 비어 있으면 [원료 필요]",
+      "research": ["R-03", "R-11"],
+      "hookTo": "다음 장을 여는 질문 방향",
+      "targetBlocks": 12
+    },
+    {
+      "no": "01",
+      "title": "제목",
+      "part": { "no": "1", "title": "PART 제목", "intro": "한 줄" },
+      "track": "서사",
+      "stimulus": "폭로",
+      "pattern": "통념부정형",
+      "problem": "", "commonAnswer": "", "claim": "", "conclusion": "",
+      "materials": [], "research": [], "hookTo": "", "targetBlocks": 12
+    },
+    {
+      "no": "05",
+      "title": "이름 붙은 기법 제목",
+      "part": { "no": "2", "title": "실전" },
+      "track": "방법",
+      "technique": "기법 이름 (네이밍)",
+      "stimulus": "비밀",
+      "pattern": "노하우형",
+      "problem": "", "commonAnswer": "", "claim": "", "conclusion": "",
+      "materials": ["C6 기법", "C4 수치"], "research": [], "hookTo": "", "targetBlocks": 14
+    }
+  ],
+
+  "salesTest": {
+    "내얘긴데": ["프롤로그", "01"],
+    "궁금하다": ["03", "05"],
+    "안사고는못배기겠다": ["07"]
+  },
+  "patternStats": { "patternsUsed": 8, "namingCount": 3, "stimulusSequence": ["공감", "폭로", "호기심"] },
+  "bumpDealCandidates": ["이 책 다음에 생기는 질문 1", "질문 2"]
+}
